@@ -3,6 +3,8 @@ import { parsePgn, PgnParseError, type ParsedGame } from '../lib/pgn';
 
 export interface UseGameReturn {
   game: ParsedGame | null;
+  /** Raw PGN text the game was loaded from, exactly as the user pasted/uploaded. */
+  rawPgn: string | null;
   /** 0 = starting position; game.moves.length = after final move */
   ply: number;
   setPly: (n: number) => void;
@@ -25,6 +27,7 @@ const STORAGE_KEY = 'ks-last-pgn';
 
 export function useGame(): UseGameReturn {
   const [game, setGame] = useState<ParsedGame | null>(null);
+  const [rawPgn, setRawPgn] = useState<string | null>(null);
   const [ply, setPlyState] = useState(0);
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +39,7 @@ export function useGame(): UseGameReturn {
       if (!cached) return;
       const parsed = parsePgn(cached);
       setGame(parsed);
+      setRawPgn(cached);
     } catch {
       // Stale or invalid — clear it so we don't keep failing.
       try {
@@ -71,6 +75,7 @@ export function useGame(): UseGameReturn {
     try {
       const parsed = parsePgn(pgn);
       setGame(parsed);
+      setRawPgn(pgn);
       setPlyState(0);
       setError(null);
       try {
@@ -84,6 +89,7 @@ export function useGame(): UseGameReturn {
 
   const clear = useCallback(() => {
     setGame(null);
+    setRawPgn(null);
     setPlyState(0);
     setError(null);
     try {
@@ -104,6 +110,7 @@ export function useGame(): UseGameReturn {
 
   return {
     game,
+    rawPgn,
     ply,
     setPly,
     goToStart,

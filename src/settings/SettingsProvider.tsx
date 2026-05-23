@@ -42,6 +42,8 @@ export interface AppSettings {
   engineVariant: EngineVariant;
   analysisDepth: number;
   engineEnabled: boolean;
+  // Sounds
+  soundsEnabled: boolean;
 }
 
 export const ANALYSIS_DEPTH_MIN = 10;
@@ -56,6 +58,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   engineVariant: 'lite',
   analysisDepth: ANALYSIS_DEPTH_DEFAULT,
   engineEnabled: true,
+  // Spec: sounds are OFF by default.
+  soundsEnabled: false,
 };
 
 const STORAGE_KEY = 'ks-settings-v1';

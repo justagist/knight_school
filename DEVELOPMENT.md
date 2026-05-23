@@ -12,6 +12,57 @@ KnightSchool is a fully client-side React + TypeScript PWA. There is no backend.
 - **LLM** — Thin `LLMProvider` interface. Anthropic + OpenAI implementations. Direct browser → provider calls.
 - **PWA** — `vite-plugin-pwa` with `registerType: 'prompt'`. Service worker precaches app shell + WASM + sounds + ECO data.
 
+## Move classification logic
+
+KnightSchool classifies each played move as one of:
+`opening · book · best · good · inaccuracy · mistake · blunder`.
+
+Logic lives in `src/analysis/classify.ts`. The summary:
+
+### Win-probability conversion (Lichess formula)
+
+Raw centipawn-loss thresholds are unusable in the opening — a 50 cp shift in a balanced position barely changes real outcomes, but a CP-loss classifier would still flag it as an "inaccuracy." We use Lichess's win-probability conversion instead, which is roughly linear in expected game outcome:
+
+```ts
+winChance = 50 + 50 * (2 / (1 + Math.exp(-0.00368 * cp)) - 1)
+```
+
+`cp` is in centipawns from the moving side's perspective. The output is a percentage in `[0, 100]`. Calibration: ~+100 cp ≈ 59% win chance, ~+300 cp ≈ 76%, matching empirical game outcomes from the Lichess database.
+
+For mate scores we substitute ±10000 cp before the sigmoid (effectively saturating it).
+
+### Thresholds (on drop in mover's win-probability, before → after)
+
+| Drop                            | Class        | Glyph    |
+|---------------------------------|--------------|----------|
+| ≥ 20%                           | `blunder`    | `??`     |
+| ≥ 10%                           | `mistake`    | `?`      |
+| ≥ 5%                            | `inaccuracy` | `?!`     |
+| < 5%, mover played engine's #1  | `best`       | `!`      |
+| < 5%, otherwise                 | `good`       | (silent) |
+
+`good` deliberately has no glyph — Lichess UX keeps the move list visually quiet on routine moves. The classification still exists for downstream stats.
+
+### Guards (the "don't classify" cases)
+
+1. **Depth guard.** If either cached eval row is shallower than `MIN_CLASSIFY_DEPTH` (16), return `null`. Eval below depth 16 isn't reliable enough to call a move a mistake. The UI surfaces a "depth too low for classification" note when the user's analysis depth setting is below this threshold.
+
+2. **Opening fallback (`'opening'`).** For the first `OPENING_PLY_THRESHOLD` plies (currently 12 — moves 1–6 of every game), return `'opening'` regardless of engine eval. This is a deliberate placeholder until Step 7 ships Lichess Opening Explorer integration. Engine eval in mainline opening play tells you nothing about whether a move was actually a mistake — opening theory exists precisely because shallow eval is misleading there.
+
+3. **Book classification (`'book'`) — reserved for Step 7.** Will fire when a position appears in the Lichess masters database with at least 1000 master games. Until Step 7 lands the Explorer client, the `'book'` classification type is defined but never emitted by `classifyFromCachedRows`. The UI styling is in place so the Step 7 PR is purely backend.
+
+4. **Terminal positions (checkmate / stalemate / draw)** carry `depth: 0` synthetic rows. The depth guard explicitly allows these through — their evaluation is definitive, not shallow.
+
+### Why not just count cp loss?
+
+We tried it. The first version of the classifier used CP-loss thresholds (≥300 → blunder, ≥100 → mistake, ≥50 → inaccuracy) and labeled basically every move in the opening — including `1.e4 e5 2.Nf3` book moves — as `inaccuracy` or `good`. Win probability is non-linear in cp at the extremes, which is exactly the regime where small CP swings don't matter to the outcome.
+
+### Future work
+
+- **Step 7** will replace the moves-1-to-6 fallback with real "is this position in the Lichess masters DB?" lookup via the Opening Explorer API. The `'book'` classification slot is already defined and styled.
+- Brilliant moves (`!!`) and Great moves are out of scope for MVP.
+- Engine-eval-based "Great" detection (move improves position against multiple alternatives) — possible future addition.
+
 ## Tech stack rationale
 
 - **Vite** over Webpack — faster HMR, simpler config, first-class TS.

@@ -155,7 +155,28 @@ export function SettingsPage() {
               <span>higher = stronger but slower</span>
               <span>{ANALYSIS_DEPTH_MAX}</span>
             </div>
+            <p className="mt-2 text-[11px] text-ink-500 dark:text-ink-400">
+              Move classification (inaccuracy / mistake / blunder) requires depth ≥ 16. Below that,
+              evaluations are still shown but moves stay unclassified.
+            </p>
           </div>
+        </div>
+      </section>
+
+      <section className="card p-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+          Sounds
+        </h2>
+        <div className="space-y-2">
+          <Toggle
+            label="Enable move sounds"
+            checked={settings.soundsEnabled}
+            onChange={(v) => update('soundsEnabled', v)}
+          />
+          <p className="text-xs text-ink-500 dark:text-ink-400">
+            Off by default. Plays a short tone when you step forward through a move (mute, capture,
+            check, and game-end variants).
+          </p>
         </div>
       </section>
 

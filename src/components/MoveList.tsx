@@ -1,18 +1,37 @@
 import { useEffect, useRef } from 'react';
 import type { ParsedMove } from '../lib/pgn';
+import { MOVE_CLASS_STYLES, type MoveClass } from '../analysis/classify';
 
 interface MoveListProps {
   moves: ParsedMove[];
   /** Current ply (0 = before move 1; moves.length = after final move) */
   ply: number;
   onSelectPly: (ply: number) => void;
+  /** Per-move classification, parallel to `moves`. null entries render no glyph. */
+  classifications?: (MoveClass | null)[];
 }
 
-export function MoveList({ moves, ply, onSelectPly }: MoveListProps) {
+export function MoveList({ moves, ply, onSelectPly, classifications }: MoveListProps) {
+  const olRef = useRef<HTMLOListElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // Scroll the move list internally only — never let scrollIntoView bubble
+    // up to the window (which on mobile would yank the screen away from the
+    // board the user is actually looking at).
+    const el = activeRef.current;
+    const ol = olRef.current;
+    if (!el || !ol) return;
+    if (ol.scrollHeight <= ol.clientHeight) return; // no internal scrollbar; nothing to do
+    const elTop = el.offsetTop - ol.offsetTop;
+    const elBottom = elTop + el.offsetHeight;
+    const visibleTop = ol.scrollTop;
+    const visibleBottom = visibleTop + ol.clientHeight;
+    if (elTop < visibleTop) {
+      ol.scrollTo({ top: Math.max(0, elTop - 8), behavior: 'smooth' });
+    } else if (elBottom > visibleBottom) {
+      ol.scrollTo({ top: elBottom - ol.clientHeight + 8, behavior: 'smooth' });
+    }
   }, [ply]);
 
   if (moves.length === 0) {
@@ -23,8 +42,13 @@ export function MoveList({ moves, ply, onSelectPly }: MoveListProps) {
     );
   }
 
-  // Group into pairs: { number, white, black? }
-  const pairs: { num: number; white?: ParsedMove; whiteIdx?: number; black?: ParsedMove; blackIdx?: number }[] = [];
+  const pairs: {
+    num: number;
+    white?: ParsedMove;
+    whiteIdx?: number;
+    black?: ParsedMove;
+    blackIdx?: number;
+  }[] = [];
   for (let i = 0; i < moves.length; i++) {
     const m = moves[i];
     if (m.color === 'w') {
@@ -42,7 +66,8 @@ export function MoveList({ moves, ply, onSelectPly }: MoveListProps) {
 
   return (
     <ol
-      className="flex max-h-[60vh] flex-col overflow-y-auto text-sm lg:max-h-none"
+      ref={olRef}
+      className="flex max-h-[60vh] flex-col overflow-y-auto text-sm lg:max-h-[70vh]"
       aria-label="Move list"
     >
       {pairs.map((p) => (
@@ -56,6 +81,7 @@ export function MoveList({ moves, ply, onSelectPly }: MoveListProps) {
             isActive={p.whiteIdx !== undefined && p.whiteIdx + 1 === ply}
             onClick={() => p.whiteIdx !== undefined && onSelectPly(p.whiteIdx + 1)}
             activeRef={activeRef}
+            klass={p.whiteIdx !== undefined ? classifications?.[p.whiteIdx] ?? null : null}
           />
           <MoveCell
             move={p.black}
@@ -63,6 +89,7 @@ export function MoveList({ moves, ply, onSelectPly }: MoveListProps) {
             onClick={() => p.blackIdx !== undefined && onSelectPly(p.blackIdx + 1)}
             activeRef={activeRef}
             placeholder={p.white !== undefined && p.black === undefined}
+            klass={p.blackIdx !== undefined ? classifications?.[p.blackIdx] ?? null : null}
           />
         </li>
       ))}
@@ -76,9 +103,10 @@ interface MoveCellProps {
   onClick: () => void;
   activeRef: React.MutableRefObject<HTMLButtonElement | null>;
   placeholder?: boolean;
+  klass: MoveClass | null;
 }
 
-function MoveCell({ move, isActive, onClick, activeRef, placeholder }: MoveCellProps) {
+function MoveCell({ move, isActive, onClick, activeRef, placeholder, klass }: MoveCellProps) {
   if (!move) {
     return (
       <span className="px-2 py-0.5 text-ink-400 dark:text-ink-600">
@@ -86,19 +114,28 @@ function MoveCell({ move, isActive, onClick, activeRef, placeholder }: MoveCellP
       </span>
     );
   }
+  const style = klass ? MOVE_CLASS_STYLES[klass] : null;
+  const showGlyph = !!style && style.glyph.length > 0;
   return (
     <button
       ref={isActive ? activeRef : null}
       type="button"
       onClick={onClick}
-      className={`rounded px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
-        isActive
-          ? 'bg-accent text-white'
-          : 'hover:bg-ink-200 dark:hover:bg-ink-700'
+      className={`flex items-center gap-1 rounded px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
+        isActive ? 'bg-accent text-white' : 'hover:bg-ink-200 dark:hover:bg-ink-700'
       }`}
       aria-current={isActive ? 'true' : undefined}
+      title={style ? style.label : undefined}
     >
-      {move.san}
+      <span>{move.san}</span>
+      {showGlyph && (
+        <span
+          className={`text-[11px] font-bold ${isActive ? 'text-white' : style.colorClass}`}
+          aria-label={style.ariaLabel}
+        >
+          {style.glyph}
+        </span>
+      )}
     </button>
   );
 }

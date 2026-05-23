@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeProvider';
 
 const NAV = [
@@ -42,13 +42,18 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-ink-200 bg-ink-50/80 backdrop-blur dark:border-ink-800 dark:bg-ink-950/80">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-        <div className="flex items-center gap-2">
+        <Link
+          to="/"
+          className="-m-1 flex items-center gap-2 rounded p-1 transition-colors hover:bg-ink-200/60 dark:hover:bg-ink-800/60"
+          aria-label="KnightSchool — home"
+          title="Back to Analyze"
+        >
           <KnightMark />
           <div className="leading-tight">
             <div className="text-base font-semibold tracking-tight">KnightSchool</div>
             <div className="text-[11px] text-ink-500 dark:text-ink-400">Chess made easy.</div>
           </div>
-        </div>
+        </Link>
 
         <nav className="ml-2 flex-1 overflow-x-auto">
           <ul className="flex items-center gap-1">

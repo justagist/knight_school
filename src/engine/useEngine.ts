@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Chess } from 'chess.js';
 import { createEngine, type EngineHandle } from './engine';
 import type { EvalSnapshot } from './types';
+import { terminalSnapshot } from '../analysis/terminal';
 
 interface UseEngineArgs {
   /** FEN to analyze; pass null to leave the engine idle. */
@@ -79,19 +79,10 @@ export function useEngine({ fen, depth, enabled = true, multiPv = 3 }: UseEngine
     setAnalyzing(true);
     setError(null);
 
-    // Terminal positions (checkmate / stalemate) have no legal moves and
-    // would cause the engine to either emit `bestmove (none)` or — with
-    // some Stockfish.wasm builds — hang. Short-circuit instead.
-    const terminal = describeTerminalPosition(fen);
+    // Terminal positions (checkmate / stalemate) — see analysis/terminal.ts.
+    const terminal = terminalSnapshot(fen);
     if (terminal) {
-      setSnapshot({
-        fen,
-        turn,
-        perspective: turn,
-        lines: terminal.lines,
-        depth: 0,
-        finished: true,
-      });
+      setSnapshot(terminal);
       setAnalyzing(false);
       return;
     }
@@ -134,43 +125,4 @@ export function useEngine({ fen, depth, enabled = true, multiPv = 3 }: UseEngine
 function extractTurn(fen: string): 'w' | 'b' {
   const t = fen.split(' ')[1];
   return t === 'b' ? 'b' : 'w';
-}
-
-/**
- * If `fen` is a terminal position (checkmate or stalemate), return a synthetic
- * eval that the UI can render without bothering the engine. Otherwise null.
- */
-function describeTerminalPosition(fen: string): { lines: EvalSnapshot['lines'] } | null {
-  let game: Chess;
-  try {
-    game = new Chess(fen);
-  } catch {
-    return null;
-  }
-  // chess.js >=1.0: isCheckmate / isStalemate / isInsufficientMaterial / isDraw
-  if (game.isCheckmate()) {
-    return {
-      lines: [
-        {
-          pvIndex: 1,
-          depth: 0,
-          mate: 0,
-          uciMoves: [],
-        },
-      ],
-    };
-  }
-  if (game.isStalemate() || game.isInsufficientMaterial() || game.isDraw()) {
-    return {
-      lines: [
-        {
-          pvIndex: 1,
-          depth: 0,
-          scoreCp: 0,
-          uciMoves: [],
-        },
-      ],
-    };
-  }
-  return null;
 }

@@ -3,6 +3,7 @@ import { Chessground } from '@lichess-org/chessground';
 import type { Api as ChessgroundApi } from '@lichess-org/chessground/api';
 import type { Config } from '@lichess-org/chessground/config';
 import type { Key } from '@lichess-org/chessground/types';
+import type { DrawShape } from '@lichess-org/chessground/draw';
 import { useSettings } from '../settings/SettingsProvider';
 
 export interface BoardProps {
@@ -13,9 +14,11 @@ export interface BoardProps {
   lastMove?: [string, string];
   /** Disable interactive moves — replay mode */
   viewOnly?: boolean;
+  /** Decorative shapes overlaid on the board (e.g. move classification badges). */
+  shapes?: DrawShape[];
 }
 
-export function Board({ fen, orientation = 'white', lastMove, viewOnly = true }: BoardProps) {
+export function Board({ fen, orientation = 'white', lastMove, viewOnly = true, shapes }: BoardProps) {
   const { settings } = useSettings();
   const wrapRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<ChessgroundApi | null>(null);
@@ -59,6 +62,12 @@ export function Board({ fen, orientation = 'white', lastMove, viewOnly = true }:
       lastMove: lastMoveFrom && lastMoveTo ? toKeyPair([lastMoveFrom, lastMoveTo]) : undefined,
     });
   }, [fen, orientation, lastMoveFrom, lastMoveTo]);
+
+  // Push decorative shapes (e.g. classification badges) when they change.
+  // setShapes() replaces the auto-shapes overlay without affecting user draws.
+  useEffect(() => {
+    apiRef.current?.setAutoShapes(shapes ?? []);
+  }, [shapes]);
 
   // Update settings-driven config without remounting
   useEffect(() => {
