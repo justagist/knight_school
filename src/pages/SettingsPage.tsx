@@ -6,6 +6,8 @@ import {
   ANALYSIS_DEPTH_MIN,
   ANALYSIS_DEPTH_MAX,
 } from '../settings/SettingsProvider';
+import { LlmSection } from './settings/LlmSection';
+import { StorageSection } from './settings/StorageSection';
 
 const MODES: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -179,6 +181,10 @@ export function SettingsPage() {
           </p>
         </div>
       </section>
+
+      <LlmSection />
+
+      <StorageSection />
 
       <section className="card p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">

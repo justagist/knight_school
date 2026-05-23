@@ -35,15 +35,80 @@ export interface PositionEvalRow {
   engine: 'lite' | 'full';
 }
 
+export type LlmProviderId = 'anthropic' | 'openai' | 'gemini';
+
+/**
+ * A stored LLM API key. Multiple keys per provider are supported
+ * (work / personal / different orgs); one is marked "active" per provider
+ * via {@link ProviderConfigRow}.activeKeyId.
+ *
+ * Keys are stored in Dexie so they survive in the export/import backup —
+ * the export flow has an "Include API keys" toggle (default OFF) so casual
+ * backup-sharing doesn't leak credentials.
+ */
+export interface ApiKeyRow {
+  /** UUID-ish stable id. Primary key. */
+  id: string;
+  provider: LlmProviderId;
+  /** Free-text label the user picks ("Personal", "Work", "Free-tier"). */
+  label: string;
+  /** Raw API key string. */
+  apiKey: string;
+  /** Model id selected for this key (provider-specific). */
+  model: string;
+  /** ms epoch. */
+  createdAt: number;
+  /** ms epoch of most recent successful or failed Test Connection. */
+  lastTestedAt?: number;
+  /** Outcome of last test. */
+  lastTestStatus?: 'ok' | 'error';
+  /** Human-readable error message if last test failed. */
+  lastTestMessage?: string;
+}
+
+/**
+ * Per-provider configuration: which saved key is the "active" one for that
+ * provider, and provider-level toggles. One row per provider id.
+ */
+export interface ProviderConfigRow {
+  provider: LlmProviderId;
+  /** ApiKeyRow.id, or null when no key is configured for this provider. */
+  activeKeyId: string | null;
+  /**
+   * When the active key hits a rate-limit / quota error, the chat layer
+   * (Step 6) falls through to the next saved key in round-robin order.
+   * User can disable this for strict explicit-control mode.
+   */
+  fallbackEnabled: boolean;
+}
+
+/**
+ * Global setting: which provider Elle is currently using. One singleton row
+ * keyed by the literal string 'singleton'.
+ */
+export interface LlmGlobalRow {
+  id: 'singleton';
+  /** Active provider for Elle. null until the user has picked one. */
+  activeProvider: LlmProviderId | null;
+}
+
 export class KsDatabase extends Dexie {
   positionEvals!: EntityTable<PositionEvalRow, 'fen'>;
+  apiKeys!: EntityTable<ApiKeyRow, 'id'>;
+  providerConfig!: EntityTable<ProviderConfigRow, 'provider'>;
+  llmGlobal!: EntityTable<LlmGlobalRow, 'id'>;
 
   constructor() {
     super('knightschool');
     this.version(1).stores({
-      // primary key is fen; we also index `completedAt` so the future
-      // storage-management UI can show recency or trim old entries.
       positionEvals: '&fen, completedAt, engine',
+    });
+    // v2: LLM key storage (multi-key per provider + active-key tracking).
+    this.version(2).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
     });
   }
 }
