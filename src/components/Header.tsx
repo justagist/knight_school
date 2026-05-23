@@ -8,20 +8,46 @@ const NAV = [
   { to: '/settings', label: 'Settings' },
 ];
 
+/**
+ * Three-way segmented control for theme selection. Consistent appearance in
+ * both light and dark modes (the old cycle button had a button frame in
+ * light + no frame in dark — jarring).
+ */
 function ThemeToggle() {
   const { mode, setMode } = useTheme();
-  const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
-  const label = mode === 'light' ? 'Light' : mode === 'dark' ? 'Dark' : 'System';
+  const opts: { value: 'light' | 'dark' | 'system'; label: string; glyph: string }[] = [
+    { value: 'light', label: 'Light', glyph: '☀' },
+    { value: 'dark', label: 'Dark', glyph: '☾' },
+    { value: 'system', label: 'System', glyph: '⌬' },
+  ];
   return (
-    <button
-      type="button"
-      className="btn-ghost text-xs"
-      onClick={() => setMode(next)}
-      title={`Theme: ${label} (click to cycle)`}
-      aria-label={`Theme: ${label}, click to cycle`}
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="inline-flex rounded-md border border-border bg-surface-2 p-0.5 text-xs"
     >
-      {mode === 'light' ? '☀' : mode === 'dark' ? '☾' : '⌘'} {label}
-    </button>
+      {opts.map((o) => {
+        const active = mode === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => setMode(o.value)}
+            title={o.label}
+            className={`inline-flex items-center gap-1 rounded px-2 py-1 transition-colors ${
+              active
+                ? 'bg-accent text-white'
+                : 'text-muted hover:text-primary'
+            }`}
+          >
+            <span aria-hidden="true">{o.glyph}</span>
+            <span className="hidden sm:inline">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -40,22 +66,27 @@ function KnightMark() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-30 border-b border-ink-200 bg-ink-50/80 backdrop-blur dark:border-ink-800 dark:bg-ink-950/80">
+    <header
+      className="sticky top-0 z-30 border-b border-border backdrop-blur"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--bg-surface-1) 80%, transparent)' }}
+    >
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
         <Link
           to="/"
-          className="-m-1 flex items-center gap-2 rounded p-1 transition-colors hover:bg-ink-200/60 dark:hover:bg-ink-800/60"
+          className="-m-1 flex items-center gap-2 rounded p-1 text-primary transition-colors hover:bg-surface-2"
           aria-label="KnightSchool — home"
           title="Back to Analyze"
         >
           <KnightMark />
           <div className="leading-tight">
-            <div className="text-base font-semibold tracking-tight">KnightSchool</div>
-            <div className="text-[11px] text-ink-500 dark:text-ink-400">Chess made easy.</div>
+            <div className="text-base font-semibold tracking-tight text-primary">KnightSchool</div>
+            <div className="text-[11px] text-muted">Chess made easy.</div>
           </div>
         </Link>
 
-        <nav className="ml-2 flex-1 overflow-x-auto">
+        {/* Top tabs — desktop only. On mobile a BottomTabBar replaces this
+            so primary nav is always visible without horizontal scrolling. */}
+        <nav className="ml-2 hidden flex-1 overflow-x-auto md:block" aria-label="Primary (desktop)">
           <ul className="flex items-center gap-1">
             {NAV.map((item) => (
               <li key={item.to}>
@@ -65,8 +96,8 @@ export function Header() {
                   className={({ isActive }) =>
                     `inline-flex rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-ink-200 text-ink-900 dark:bg-ink-800 dark:text-ink-100'
-                        : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100'
+                        ? 'bg-surface-2 text-primary'
+                        : 'text-muted hover:bg-surface-2 hover:text-primary'
                     }`
                   }
                 >
@@ -77,6 +108,9 @@ export function Header() {
           </ul>
         </nav>
 
+        {/* Spacer pushes the theme toggle to the right edge when the desktop
+            nav is hidden (mobile). On desktop the nav already does this. */}
+        <div className="ml-auto md:hidden" />
         <ThemeToggle />
       </div>
     </header>

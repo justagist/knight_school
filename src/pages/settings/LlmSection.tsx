@@ -11,11 +11,7 @@ export function LlmSection() {
   );
 
   if (keys.loading) {
-    return (
-      <section className="card p-4 text-sm text-ink-500 dark:text-ink-400">
-        Loading keys…
-      </section>
-    );
+    return <div className="text-sm text-muted">Loading keys…</div>;
   }
 
   const providerKeys = keys.keysFor(selectedProvider);
@@ -24,42 +20,64 @@ export function LlmSection() {
   const info = getProviderInfo(selectedProvider);
   const anythingSaved = keys.keys.length > 0;
 
+  const pickProvider = (p: LlmProviderId) => {
+    // Per spec: clicking a provider pill BOTH sets it active AND shows
+    // its keys below. Merging the two previously-duplicated rows. Setting
+    // active is only safe when the provider has at least one saved key —
+    // otherwise the app would be configured with an unusable provider.
+    setSelectedProvider(p);
+    const hasKey = keys.keys.some((k) => k.provider === p);
+    if (hasKey) {
+      void keys.setActiveProvider(p);
+    }
+  };
+
   return (
-    <section className="card p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-        Elle (LLM)
-      </h2>
+    <>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Provider
+        </span>
+        <span className="text-[11px] text-faint">
+          Tap to switch the active provider and manage its keys.
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {PROVIDERS.map((p) => {
+          const isSelected = selectedProvider === p.id;
+          const isActive = keys.activeProvider === p.id;
+          const hasKey = keys.keys.some((k) => k.provider === p.id);
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => pickProvider(p.id)}
+              className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                isSelected
+                  ? 'border-accent bg-accent-soft text-primary'
+                  : 'border-border text-muted hover:text-primary'
+              }`}
+              title={
+                isActive
+                  ? `${p.displayName} (active provider)`
+                  : hasKey
+                    ? `Set ${p.displayName} as the active provider and show its keys`
+                    : `Add a ${p.displayName} key below to enable`
+              }
+            >
+              {isActive && (
+                <span className="text-accent" aria-label="active">
+                  ✓
+                </span>
+              )}
+              {p.displayName}
+            </button>
+          );
+        })}
+      </div>
 
-      <ActiveProviderRow
-        activeProvider={keys.activeProvider}
-        providersWithKeys={new Set(keys.keys.map((k) => k.provider))}
-        onPick={(p) => keys.setActiveProvider(p)}
-      />
-
-      <div className="mt-4 border-t border-ink-200 pt-4 dark:border-ink-800">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-            Configure keys for
-          </span>
-          <div className="inline-flex rounded-md border border-ink-200 p-0.5 dark:border-ink-700">
-            {PROVIDERS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelectedProvider(p.id)}
-                className={`rounded px-3 py-1 text-xs transition-colors ${
-                  selectedProvider === p.id
-                    ? 'bg-accent text-white'
-                    : 'text-ink-700 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800'
-                }`}
-              >
-                {p.displayName}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <p className="mb-3 text-[11px] leading-relaxed text-ink-500 dark:text-ink-400">
+      <div className="mt-4 border-t border-border pt-4">
+        <p className="mb-3 text-[11px] leading-relaxed text-muted">
           {info.blurb}{' '}
           <a
             className="underline-offset-2 hover:underline"
@@ -122,54 +140,17 @@ export function LlmSection() {
       </div>
 
       {!anythingSaved && (
-        <p className="mt-4 border-t border-ink-200 pt-3 text-[11px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
+        <p className="mt-4 border-t border-border pt-3 text-[11px] text-muted">
           Tip: start with Groq for the most generous free tier (no credit card, ~1,000 requests/day on Llama 3.3 70B). Gemini is the easiest free path if you want web search. Add a paid Anthropic or OpenAI key for stronger reasoning — auto-fallback handles the switching between keys when one hits a limit.
         </p>
       )}
-    </section>
+    </>
   );
 }
 
-interface ActiveProviderRowProps {
-  activeProvider: LlmProviderId | null;
-  providersWithKeys: Set<LlmProviderId>;
-  onPick: (p: LlmProviderId) => void;
-}
-
-function ActiveProviderRow({ activeProvider, providersWithKeys, onPick }: ActiveProviderRowProps) {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="text-sm">Active provider</span>
-      <div className="inline-flex rounded-md border border-ink-200 p-0.5 dark:border-ink-700">
-        {PROVIDERS.map((p) => {
-          const enabled = providersWithKeys.has(p.id);
-          const active = activeProvider === p.id;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              disabled={!enabled}
-              onClick={() => onPick(p.id)}
-              className={`rounded px-3 py-1 text-xs transition-colors ${
-                active
-                  ? 'bg-accent text-white'
-                  : enabled
-                    ? 'text-ink-700 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800'
-                    : 'cursor-not-allowed text-ink-400 dark:text-ink-600'
-              }`}
-              title={enabled ? `Use ${p.displayName} for Elle` : `Add a ${p.displayName} key first`}
-            >
-              {p.displayName}
-            </button>
-          );
-        })}
-      </div>
-      {activeProvider === null && (
-        <span className="text-[11px] text-ink-500 dark:text-ink-400">— none picked yet</span>
-      )}
-    </div>
-  );
-}
+// ActiveProviderRow was merged into the inline provider pill row above —
+// clicking a pill now sets active AND shows that provider's keys, so a
+// separate "Active provider" selector is redundant.
 
 interface KeyRowProps {
   row: ApiKeyRow;

@@ -8,7 +8,20 @@ import {
   type ReactNode,
 } from 'react';
 
-export type BoardTheme = 'brown' | 'green';
+/**
+ * Board colour scheme.
+ *
+ * - `auto` (default) — pairs with the app theme. Brown in light mode,
+ *   slate in dark mode. Driven by the `--board-light` / `--board-dark`
+ *   tokens declared in src/styles/index.css.
+ * - `green` — fixed green palette, theme-agnostic.
+ *
+ * The legacy `brown` value is silently migrated to `auto` on load —
+ * `auto` already shows a brown board in light mode, which is what users
+ * who picked "brown" historically wanted, and they now also get a
+ * sensible slate board in dark mode for free.
+ */
+export type BoardTheme = 'auto' | 'green';
 
 /**
  * Engine variants:
@@ -58,7 +71,7 @@ export const ANALYSIS_DEPTH_MAX = 30;
 export const ANALYSIS_DEPTH_DEFAULT = 18;
 
 const DEFAULT_SETTINGS: AppSettings = {
-  boardTheme: 'brown',
+  boardTheme: 'auto',
   showCoordinates: true,
   coordinatesOnSquares: false,
   highlightLastMove: true,
@@ -84,8 +97,15 @@ function readStored(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & {
+      boardTheme?: string;
+    };
+    // Migrate legacy `boardTheme: 'brown'` → `'auto'`. The old "brown" value
+    // didn't survive the dark-mode reactivity refactor; auto preserves what
+    // the user actually saw (brown in light) without forcing brown into dark.
+    const migratedBoardTheme: BoardTheme =
+      parsed.boardTheme === 'green' ? 'green' : 'auto';
+    return { ...DEFAULT_SETTINGS, ...parsed, boardTheme: migratedBoardTheme };
   } catch {
     return DEFAULT_SETTINGS;
   }

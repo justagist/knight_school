@@ -4,9 +4,13 @@ interface FloatingChatButtonProps {
 }
 
 /**
- * The persistent "open chat" affordance. Bottom-right on desktop, bottom-
- * center floating action button on mobile. Hidden when the panel is open
- * so it doesn't overlap.
+ * The persistent "open chat" affordance. Right-side floating action button.
+ * Hidden when the panel is open so it doesn't overlap.
+ *
+ * On mobile the BottomTabBar (~64px tall + iOS safe-area inset) sits along
+ * the bottom edge, so the FAB anchors ABOVE that bar at `bottom: 80px +
+ * env(safe-area-inset-bottom)`. On desktop the bar is hidden and the FAB
+ * sits at its classic 24px-from-bottom-right position.
  */
 export function FloatingChatButton({ open, onClick }: FloatingChatButtonProps) {
   if (open) return null;
@@ -16,9 +20,12 @@ export function FloatingChatButton({ open, onClick }: FloatingChatButtonProps) {
       onClick={onClick}
       title="Chat with Elle"
       aria-label="Open chat with Elle"
-      className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full
+      // Tailwind arbitrary value carries the calc + env() inline. At md+ the
+      // bottom tab bar is hidden so we drop back to the classic 24px offset.
+      className="fixed right-4 z-30 inline-flex items-center gap-2 rounded-full
                  bg-accent px-4 py-3 text-sm font-semibold text-white shadow-lg
                  transition-transform hover:scale-105 hover:bg-accent-hover
+                 bottom-[calc(80px+env(safe-area-inset-bottom))]
                  md:bottom-6 md:right-6"
     >
       <ChatGlyph />

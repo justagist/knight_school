@@ -9,6 +9,7 @@ import {
 import { LlmSection } from './settings/LlmSection';
 import { LichessSection } from './settings/LichessSection';
 import { StorageSection } from './settings/StorageSection';
+import { SettingsAccordion } from './settings/SettingsAccordion';
 
 const MODES: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -17,7 +18,11 @@ const MODES: { value: ThemeMode; label: string }[] = [
 ];
 
 const BOARD_THEMES: { value: BoardTheme; label: string }[] = [
-  { value: 'brown', label: 'Brown' },
+  // `auto` pairs with the app theme — brown squares in light mode, slate
+  // in dark mode. Naming it after the BEHAVIOUR rather than a colour avoids
+  // the "but it's not brown in dark mode" confusion the old `brown` label
+  // created.
+  { value: 'auto', label: 'Theme-paired' },
   { value: 'green', label: 'Green' },
 ];
 
@@ -30,25 +35,26 @@ const ENGINE_VARIANTS: { value: EngineVariant; label: string; hint: string }[] =
   { value: 'full', label: 'Full', hint: '~40 MB · NNUE Stockfish · downloads on demand · coming soon' },
 ];
 
+/**
+ * Settings page — long, so every section is an accordion. Appearance opens
+ * by default (cheapest tweaks live there); everything else is collapsed.
+ * Chip nav at the top lets users jump straight to a section.
+ */
 export function SettingsPage() {
   const { mode, setMode } = useTheme();
   const { settings, update } = useSettings();
   const buildDate = __BUILD_DATE__ ? new Date(__BUILD_DATE__).toLocaleString() : 'dev';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
         <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-ink-500 dark:text-ink-400">
+        <p className="text-sm text-muted">
           Appearance, engine, sounds, LLM provider, and storage.
         </p>
       </div>
 
-      <section className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          Appearance
-        </h2>
-
+      <SettingsAccordion id="appearance" title="Appearance" defaultOpen>
         <div className="space-y-3">
           <SegmentedGroup
             label="Theme"
@@ -86,13 +92,9 @@ export function SettingsPage() {
             onChange={(v) => update('showLegalMoves', v)}
           />
         </div>
-      </section>
+      </SettingsAccordion>
 
-      <section className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          Engine
-        </h2>
-
+      <SettingsAccordion id="engine" title="Engine">
         <div className="space-y-4">
           <Toggle
             label="Enable engine analysis"
@@ -103,9 +105,7 @@ export function SettingsPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm">Engine variant</span>
-              <span className="text-[11px] text-ink-500 dark:text-ink-400">
-                Multi-PV is fixed at 3 lines.
-              </span>
+              <span className="text-[11px] text-muted">Multi-PV is fixed at 3 lines.</span>
             </div>
             <div className="space-y-2">
               {ENGINE_VARIANTS.map((v) => {
@@ -124,19 +124,19 @@ export function SettingsPage() {
                     }
                     className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
                       active
-                        ? 'border-accent bg-accent/10'
-                        : 'border-ink-200 hover:border-ink-300 dark:border-ink-700 dark:hover:border-ink-600'
-                    } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-border hover:border-accent/60'
+                    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                   >
                     <div className="flex items-center justify-between text-sm font-medium">
                       <span>{v.label}</span>
                       {disabled && (
-                        <span className="rounded bg-ink-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                           coming soon
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{v.hint}</div>
+                    <div className="mt-0.5 text-xs text-muted">{v.hint}</div>
                   </button>
                 );
               })}
@@ -146,7 +146,7 @@ export function SettingsPage() {
           <div>
             <div className="flex items-center justify-between text-sm">
               <span>Analysis depth</span>
-              <span className="font-mono text-xs tabular-nums text-ink-700 dark:text-ink-300">
+              <span className="font-mono text-xs tabular-nums text-primary">
                 {settings.analysisDepth}
               </span>
             </div>
@@ -160,77 +160,74 @@ export function SettingsPage() {
               className="mt-1 w-full accent-accent"
               aria-label="Analysis depth"
             />
-            <div className="mt-1 flex justify-between text-[10px] text-ink-500 dark:text-ink-400">
+            <div className="mt-1 flex justify-between text-[10px] text-muted">
               <span>{ANALYSIS_DEPTH_MIN}</span>
               <span>higher = stronger but slower</span>
               <span>{ANALYSIS_DEPTH_MAX}</span>
             </div>
-            <p className="mt-2 text-[11px] text-ink-500 dark:text-ink-400">
+            <p className="mt-2 text-[11px] text-muted">
               Move classification (inaccuracy / mistake / blunder) requires depth ≥ 16. Below that,
               evaluations are still shown but moves stay unclassified.
             </p>
           </div>
         </div>
-      </section>
+      </SettingsAccordion>
 
-      <section className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          Sounds
-        </h2>
+      <SettingsAccordion id="sounds" title="Sounds">
         <div className="space-y-2">
           <Toggle
             label="Enable move sounds"
             checked={settings.soundsEnabled}
             onChange={(v) => update('soundsEnabled', v)}
           />
-          <p className="text-xs text-ink-500 dark:text-ink-400">
+          <p className="text-xs text-muted">
             Off by default. Plays a short tone when you step forward through a move (mute, capture,
             check, and game-end variants).
           </p>
         </div>
-      </section>
+      </SettingsAccordion>
 
-      <LlmSection />
+      <SettingsAccordion id="elle" title="Elle (LLM)">
+        <LlmSection />
+      </SettingsAccordion>
 
-      <LichessSection />
+      <SettingsAccordion id="lichess" title="Lichess account">
+        <LichessSection />
+      </SettingsAccordion>
 
-      <StorageSection />
+      <SettingsAccordion id="storage" title="Storage">
+        <StorageSection />
+      </SettingsAccordion>
 
-      <section className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          Keyboard shortcuts
-        </h2>
+      <SettingsAccordion id="shortcuts" title="Keyboard shortcuts">
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="font-mono text-xs text-ink-500 dark:text-ink-400">←</dt>
+          <dt className="font-mono text-xs text-muted">←</dt>
           <dd>Previous move</dd>
-          <dt className="font-mono text-xs text-ink-500 dark:text-ink-400">→</dt>
+          <dt className="font-mono text-xs text-muted">→</dt>
           <dd>Next move</dd>
-          <dt className="font-mono text-xs text-ink-500 dark:text-ink-400">Home</dt>
+          <dt className="font-mono text-xs text-muted">Home</dt>
           <dd>Jump to start</dd>
-          <dt className="font-mono text-xs text-ink-500 dark:text-ink-400">End</dt>
+          <dt className="font-mono text-xs text-muted">End</dt>
           <dd>Jump to final move</dd>
-          <dt className="font-mono text-xs text-ink-500 dark:text-ink-400">f</dt>
+          <dt className="font-mono text-xs text-muted">f</dt>
           <dd>Flip board</dd>
         </dl>
-      </section>
+      </SettingsAccordion>
 
-      <section className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          About
-        </h2>
+      <SettingsAccordion id="about" title="About">
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="text-ink-500 dark:text-ink-400">Version</dt>
+          <dt className="text-muted">Version</dt>
           <dd>{__APP_VERSION__}</dd>
-          <dt className="text-ink-500 dark:text-ink-400">Build</dt>
+          <dt className="text-muted">Build</dt>
           <dd>{buildDate}</dd>
-          <dt className="text-ink-500 dark:text-ink-400">License</dt>
+          <dt className="text-muted">License</dt>
           <dd>MIT</dd>
         </dl>
-        <p className="mt-3 text-xs text-ink-500 dark:text-ink-400">
+        <p className="mt-3 text-xs text-muted">
           Elle is an AI. Outputs may be wrong — verify important claims with the engine or other
           sources.
         </p>
-      </section>
+      </SettingsAccordion>
     </div>
   );
 }
@@ -246,7 +243,7 @@ function SegmentedGroup<T extends string>({ label, options, value, onChange }: S
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="min-w-[7rem] text-sm">{label}</span>
-      <div className="inline-flex rounded-md border border-ink-200 p-0.5 dark:border-ink-700">
+      <div className="inline-flex rounded-md border border-border bg-surface-2 p-0.5">
         {options.map((opt) => (
           <button
             key={opt.value}
@@ -255,7 +252,7 @@ function SegmentedGroup<T extends string>({ label, options, value, onChange }: S
             className={`rounded px-3 py-1 text-xs transition-colors ${
               value === opt.value
                 ? 'bg-accent text-white'
-                : 'text-ink-700 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800'
+                : 'text-muted hover:text-primary'
             }`}
           >
             {opt.label}
@@ -273,21 +270,23 @@ interface ToggleProps {
 }
 
 function Toggle({ label, checked, onChange }: ToggleProps) {
+  // Container is 44px tall so the whole row meets the iOS/Android tap-target
+  // guideline; the visible pill stays compact inside it.
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3">
+    <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 py-1">
       <span className="text-sm">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-          checked ? 'bg-accent' : 'bg-ink-300 dark:bg-ink-700'
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          checked ? 'bg-accent' : 'bg-surface-2 border border-border'
         }`}
       >
         <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0.5'
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-0.5'
           }`}
         />
       </button>

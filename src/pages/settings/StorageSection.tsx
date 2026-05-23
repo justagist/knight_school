@@ -91,29 +91,22 @@ export function StorageSection() {
   };
 
   return (
-    <section className="card p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-        Storage
-      </h2>
-
+    <>
       <div className="text-sm">
         {unsupported ? (
-          <span className="text-ink-500 dark:text-ink-400">
-            Browser doesn’t expose a storage estimate.
-          </span>
+          <span className="text-muted">Browser doesn't expose a storage estimate.</span>
         ) : usage == null ? (
-          <span className="text-ink-500 dark:text-ink-400">Measuring…</span>
+          <span className="text-muted">Measuring…</span>
         ) : (
           <>
             <span className="font-mono tabular-nums">{formatBytes(usage)}</span>
             {quota != null && quota > 0 && (
-              <span className="text-ink-500 dark:text-ink-400">
-                {' '}/ {formatBytes(quota)} available
-              </span>
+              <span className="text-muted"> / {formatBytes(quota)} available</span>
             )}
           </>
         )}
       </div>
+      <StorageBreakdown />
 
       <div className="mt-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -179,14 +172,53 @@ export function StorageSection() {
           <div
             className={`rounded-md px-3 py-2 text-xs ${
               status.kind === 'ok'
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                ? 'bg-best/10 text-best'
+                : 'bg-blunder/10 text-blunder'
             }`}
           >
             {status.text}
           </div>
         )}
       </div>
-    </section>
+    </>
+  );
+}
+
+/**
+ * One-line breakdown of what's currently stored. Per spec: tells the user
+ * what they'd lose if they tap "Clear all data" without per-category clears.
+ */
+function StorageBreakdown() {
+  const [counts, setCounts] = useState<{
+    games: number;
+    studies: number;
+    threads: number;
+    evals: number;
+  } | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const { db } = await import('../../db/db');
+      const [studies, threads, evals] = await Promise.all([
+        db().studies.count(),
+        db().chatThreads.count(),
+        db().positionEvals.count(),
+      ]);
+      // No "games" table — analyses are derived from positionEvals + the
+      // user's pasted PGNs (held in memory only). Report 0 / "current" for
+      // games. Honest rather than synthetic.
+      setCounts({ games: 0, studies, threads, evals });
+    })();
+  }, []);
+
+  if (!counts) return null;
+
+  const parts = [
+    `${counts.studies} imported ${counts.studies === 1 ? 'study' : 'studies'}`,
+    `${counts.threads} chat ${counts.threads === 1 ? 'thread' : 'threads'}`,
+    `${counts.evals.toLocaleString()} cached engine ${counts.evals === 1 ? 'evaluation' : 'evaluations'}`,
+  ];
+  return (
+    <p className="mt-1 text-[11px] text-muted">Includes {parts.join(' · ')}.</p>
   );
 }

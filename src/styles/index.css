@@ -2,6 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * KnightSchool color tokens — Slate & Amber.
+ *
+ * All component styles read these via CSS variables (exposed to Tailwind in
+ * tailwind.config.js as `bg-base`, `text-muted`, `text-best`, etc.). Never
+ * use raw hex in components.
+ *
+ * Why CSS variables and not Tailwind palette extension only? Themes need
+ * to swap atomically when the user toggles light/dark — a single variable
+ * flip at the root is the cheapest, leakage-free way.
+ */
+:root {
+  --bg-base: #F7F5F1;
+  --bg-surface-1: #FFFFFF;
+  --bg-surface-2: #EFEBE2;
+  --border: #E4DFD3;
+
+  --text-primary: #1A1F26;
+  --text-muted: #5C6470;
+  --text-faint: #8A94A3;
+
+  --accent: #C77D3D;
+  --accent-hover: #A86528;
+  --accent-soft: #F0DCC2;
+
+  --secondary: #3D5A6C;
+  --secondary-hover: #2F4655;
+  --secondary-soft: #DCE5EC;
+
+  --class-best: #5A8540;
+  --class-good: #7A9C5B;
+  --class-inaccuracy: #D4A434;
+  --class-mistake: #C97435;
+  --class-blunder: #A8392B;
+  --class-book: #3D5A6C;
+
+  --board-light: #F0D9B5;
+  --board-dark: #B58863;
+  --board-coord: #5C6470;
+}
+
+.dark {
+  --bg-base: #0F1419;
+  --bg-surface-1: #1A2028;
+  --bg-surface-2: #252D38;
+  --border: #2A3340;
+
+  --text-primary: #E8E5DE;
+  --text-muted: #A0A8B5;
+  --text-faint: #6B7280;
+
+  --accent: #C77D3D;
+  --accent-hover: #D89554;
+  --accent-soft: #3A2A18;
+
+  --secondary: #5A7A8E;
+  --secondary-hover: #6F8FA3;
+  --secondary-soft: #1F2A33;
+
+  --class-best: #7AA858;
+  --class-good: #92B873;
+  --class-inaccuracy: #DEB242;
+  --class-mistake: #D88846;
+  --class-blunder: #C24B3A;
+  --class-book: #5A7A8E;
+
+  --board-light: #5A6470;
+  --board-dark: #363D46;
+  --board-coord: #A0A8B5;
+}
+
 @layer base {
   html,
   body,
@@ -11,10 +82,12 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
   }
   /* Subtle focus ring */
   :focus-visible {
-    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -23,26 +96,52 @@
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium
-           transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+           transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-hover;
+    background-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+  .btn-primary {
+    @apply btn;
   }
   .btn-secondary {
-    @apply btn bg-ink-200 text-ink-900 hover:bg-ink-300
-           dark:bg-ink-800 dark:text-ink-100 dark:hover:bg-ink-700;
+    @apply btn;
+    background-color: var(--bg-surface-2);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--secondary-soft);
   }
   .btn-ghost {
-    @apply btn hover:bg-ink-200 dark:hover:bg-ink-800;
+    @apply btn;
+    color: var(--text-primary);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--bg-surface-2);
   }
   .card {
-    @apply rounded-lg border border-ink-200 bg-white shadow-sm
-           dark:border-ink-800 dark:bg-ink-900;
+    @apply rounded-lg shadow-sm;
+    background-color: var(--bg-surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
   }
   .input {
-    @apply w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm
-           placeholder:text-ink-400
-           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
-           dark:border-ink-700 dark:bg-ink-900 dark:placeholder:text-ink-500;
+    @apply w-full rounded-md px-3 py-2 text-sm;
+    background-color: var(--bg-surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+  }
+  .input::placeholder {
+    color: var(--text-faint);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
   }
 }

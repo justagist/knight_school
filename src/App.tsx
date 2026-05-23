@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
+import { BottomTabBar } from './components/BottomTabBar';
 import { Footer } from './components/Footer';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -19,7 +20,10 @@ export default function App() {
       <SettingsProvider>
         <DrillProvider>
         <ChatHost>
-          <div className="flex min-h-full flex-col">
+          {/* pb-24 on the column container clears the fixed BottomTabBar
+              (~64px) plus the FAB sitting above it on mobile. Footer stays
+              inside the flow so it sits above the bar, not hidden behind. */}
+          <div className="flex min-h-full flex-col pb-24 md:pb-0">
             <Header />
             <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
               <Routes>
@@ -31,6 +35,7 @@ export default function App() {
               </Routes>
             </main>
             <Footer />
+            <BottomTabBar />
             <UpdatePrompt />
           </div>
         </ChatHost>

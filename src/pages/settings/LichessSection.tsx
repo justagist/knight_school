@@ -43,20 +43,12 @@ export function LichessSection() {
   };
 
   if (loading) {
-    return (
-      <section className="card p-4 text-sm text-ink-500 dark:text-ink-400">
-        Loading Lichess token…
-      </section>
-    );
+    return <div className="text-sm text-muted">Loading Lichess token…</div>;
   }
 
   return (
-    <section className="card p-4">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-        Lichess account
-      </h2>
-
-      <p className="mb-3 text-[11px] leading-relaxed text-ink-500 dark:text-ink-400">
+    <>
+      <p className="mb-3 text-[11px] leading-relaxed text-muted">
         Optional. The app uses your token to call the Lichess Opening Explorer (master-game
         stats, popular continuations) and to import Studies. Without a token, opening names
         still work from the bundled ECO dataset.{' '}
@@ -72,7 +64,7 @@ export function LichessSection() {
       </p>
 
       {row ? <SavedTokenRow row={row} onChange={refresh} /> : <AddTokenForm onChange={refresh} />}
-    </section>
+    </>
   );
 }
 

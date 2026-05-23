@@ -70,10 +70,16 @@ export function MoveList({ moves, ply, onSelectPly, classifications }: MoveListP
       className="flex max-h-[60vh] flex-col overflow-y-auto text-sm lg:max-h-[70vh]"
       aria-label="Move list"
     >
-      {pairs.map((p) => (
+      {pairs.map((p, rowIdx) => {
+        // Every 5th row gets a subtle bottom border for visual rhythm —
+        // helps scanning long move lists without adding heavy zebra striping.
+        const rhythm = rowIdx > 0 && rowIdx % 5 === 0;
+        return (
         <li
           key={`${p.num}-${p.whiteIdx ?? ''}-${p.blackIdx ?? ''}`}
-          className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-1 px-2 py-0.5 odd:bg-ink-100/60 dark:odd:bg-ink-800/40"
+          className={`grid min-h-[44px] grid-cols-[2.5rem_1fr_1fr] items-center gap-1 px-2 py-0.5 odd:bg-ink-100/60 dark:odd:bg-ink-800/40 ${
+            rhythm ? 'border-t border-ink-200/70 dark:border-ink-700/60' : ''
+          }`}
         >
           <span className="text-xs tabular-nums text-ink-500 dark:text-ink-400">{p.num}.</span>
           <MoveCell
@@ -92,7 +98,8 @@ export function MoveList({ moves, ply, onSelectPly, classifications }: MoveListP
             klass={p.blackIdx !== undefined ? classifications?.[p.blackIdx] ?? null : null}
           />
         </li>
-      ))}
+        );
+      })}
     </ol>
   );
 }
@@ -121,8 +128,10 @@ function MoveCell({ move, isActive, onClick, activeRef, placeholder, klass }: Mo
       ref={isActive ? activeRef : null}
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1 rounded px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
-        isActive ? 'bg-accent text-white' : 'hover:bg-ink-200 dark:hover:bg-ink-700'
+      className={`flex h-11 items-center gap-1 rounded border-l-[3px] px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
+        isActive
+          ? 'border-l-accent bg-accent/10 font-bold text-ink-900 dark:text-ink-100'
+          : 'border-l-transparent hover:bg-ink-200 dark:hover:bg-ink-700'
       }`}
       aria-current={isActive ? 'true' : undefined}
       title={style ? style.label : undefined}
@@ -130,7 +139,7 @@ function MoveCell({ move, isActive, onClick, activeRef, placeholder, klass }: Mo
       <span>{move.san}</span>
       {showGlyph && (
         <span
-          className={`text-[11px] font-bold ${isActive ? 'text-white' : style.colorClass}`}
+          className={`text-[11px] font-bold ${style.colorClass}`}
           aria-label={style.ariaLabel}
         >
           {style.glyph}

@@ -1,28 +1,82 @@
-/* Base chessground layout + brown theme (default) + standard cburnett piece set. */
+/* Base chessground layout + standard cburnett piece set.
+   We intentionally do NOT import chessground.brown.css — board colors come
+   from the --board-light / --board-dark tokens so the board pairs with the
+   app theme automatically. */
 @import '@lichess-org/chessground/assets/chessground.base.css';
-@import '@lichess-org/chessground/assets/chessground.brown.css';
 @import '@lichess-org/chessground/assets/chessground.cburnett.css';
 
-/* Make the wrapper responsive — pinned to a square aspect ratio. */
+/*
+ * Board layout. The wrap gives 1.4em of room on the left (for rank labels)
+ * and below (for file labels) so coordinates render OUTSIDE the playing
+ * area — Lichess / classical chess-board style. The inner cg-wrap takes
+ * the remaining space and is locked to a 1:1 aspect ratio so the squares
+ * stay square at every viewport.
+ */
 .ks-board-wrap {
+  position: relative;
+  width: 100%;
+  padding-left: 1.4em;
+  padding-bottom: 1.4em;
+  box-sizing: border-box;
+  container-type: inline-size;
+}
+.ks-board-wrap .cg-wrap {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
 }
-.ks-board-wrap .cg-wrap {
-  width: 100%;
-  height: 100%;
+
+/*
+ * Default board surface — driven by tokens so it auto-switches with the
+ * app's light/dark mode. Light mode pairs the brown board-light/dark
+ * tokens (classic Lichess feel); dark mode pairs the slate pair.
+ *
+ * Pattern: a 2-step repeating-conic-gradient laid out at 25% × 25% tiles,
+ * giving an 8×8 checker. Picking pure CSS over an SVG data URI keeps the
+ * pattern theme-reactive — the variables resolve at paint, so the same
+ * rule covers both themes (and any future ones added by the picker).
+ */
+.ks-board-wrap cg-board {
+  background-color: var(--board-light);
+  /*
+   * Layer 1: a faint vertical gradient on the whole board for subtle depth
+   *          (about 5% darker at the top of every square). Adds production
+   *          polish over a flat-color board without changing the language.
+   * Layer 2: the checker — a 2-step repeating-conic-gradient laid out at
+   *          25% × 25% tiles, giving an 8×8 board.
+   */
+  background-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0)),
+    repeating-conic-gradient(
+      var(--board-dark) 0deg 90deg,
+      var(--board-light) 90deg 180deg
+    );
+  background-size: 100% 100%, 25% 25%;
 }
 
-/* Green theme: override the brown background-color + image. */
+/* Green board override — `boardTheme: 'green'` in settings. Theme-agnostic,
+   so the user gets the same green regardless of light/dark mode. */
 .ks-board-theme-green cg-board {
-  background-color: #769656;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><g id='a'><g id='b'><g id='c'><g id='d'><rect width='1' height='1' fill='%23eeeed2'/><rect x='1' y='1' width='1' height='1' fill='%23eeeed2'/></g><use x='2' href='%23d'/></g><use x='4' href='%23c'/></g><use y='2' href='%23b'/></g><use y='4' href='%23a'/></svg>");
+  background-color: #eeeed2;
+  background-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0)),
+    repeating-conic-gradient(#769656 0deg 90deg, #eeeed2 90deg 180deg);
+  background-size: 100% 100%, 25% 25%;
 }
 .ks-board-theme-green cg-board square.last-move {
   background-color: rgba(155, 199, 0, 0.41);
 }
-.ks-board-theme-green cg-board square.move-dest {
-  background: radial-gradient(rgba(20, 60, 30, 0.55) 22%, #144020 0, rgba(0, 0, 0, 0.3) 0, rgba(0, 0, 0, 0) 0);
+
+/* Last-move + selected highlights tinted with the accent so they match the
+   app palette in both themes. */
+.ks-board-wrap cg-board square.last-move {
+  background-color: rgba(199, 125, 61, 0.32);
+}
+.ks-board-wrap cg-board square.selected {
+  background-color: rgba(199, 125, 61, 0.45);
+}
+.ks-board-wrap cg-board square.move-dest {
+  background: radial-gradient(rgba(61, 90, 108, 0.55) 22%, rgba(61, 90, 108, 0.0) 0);
 }
 
 /* Hide coordinates when the toggle is off. */
@@ -31,104 +85,81 @@
 }
 
 /*
- * Coordinate-label overrides. Two modes, both driven by chessground:
+ * Coordinates — outside the board frame. Rank numbers live in the 1.4em
+ * margin to the LEFT of the board (vertically), file letters live in the
+ * 1.4em margin BELOW the board (horizontally). Both use the --board-coord
+ * token at 60% opacity per spec — small and unobtrusive but legible.
  *
- *   1. OUTSIDE (default) — file letters under the bottom row + rank
- *      numbers along the left edge, classic lichess / over-the-board UI.
- *      Chessground positions these in pixels (`left: 24px`, `top: -20px`)
- *      which drifts visibly on small mobile boards. We re-anchor them with
- *      percentage offsets so they scale with the board, and pin the font
- *      to a clamp() against the container's inline size.
- *
- *   2. ON-SQUARES — a label sits inside the corner of every square
- *      (chess.com style). Opt-in via Settings → "Coordinates on every
- *      square". Padding nudge keeps the labels off the edges.
- *
- * Text color is BLACK on both light and dark squares — the user picked
- * black explicitly for consistency. This intentionally drops chessground's
- * checker-flipped white/dark default in favour of a single readable colour.
+ * Chessground emits coords as a child of `.cg-wrap`, so absolutely
+ * positioning them relative to `.cg-wrap` and pulling them outside its
+ * box with `right: 100%` / `top: 100%` places them in the wrap's padding
+ * area. The wrap's padding is precisely what creates the room.
  */
-.ks-board-wrap {
-  /* Enables `cqi` (container-query inline-size) units in font sizing below. */
-  container-type: inline-size;
-}
-
 .ks-board-wrap .cg-wrap coords {
-  /* Override default opacity:0.8 + font-size:9px. */
-  opacity: 1;
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  color: var(--board-coord);
+  opacity: 0.6;
   font-weight: 600;
-  font-size: clamp(9px, 1.6cqi, 14px);
-  /* Force black labels regardless of theme / square color. */
-  color: #111;
+  font-size: clamp(9px, 1.8cqi, 14px);
+  font-family: var(--font-sans, system-ui, sans-serif);
 }
 
-/* --- Outside coordinate mode --- */
-/*
- * Lichess-style: rank numbers in the TOP-LEFT corner of each file-a square;
- * file letters in the BOTTOM-RIGHT corner of each rank-1 square. Pieces are
- * centered in their square so corner labels stay legible.
- *
- * Containers span the full board so each flex item (coord) gets exactly
- * one square's worth of space, then padding pushes the text to the right
- * corner. Earlier shrunken-strip approach (`height: 6%` for files) caused
- * the labels to overlap the bottom row pieces on mobile.
- */
-
-/* Rank numbers along the a-file column. */
+/* Rank numbers: in the left margin, anchored to the right edge so they
+   sit just outside the board's left edge. `left: auto` is critical —
+   chessground's base CSS sets `left: 4px`, and without unsetting that
+   first the rank container snaps back to inside the board. */
 .ks-board-wrap .cg-wrap coords.ranks {
-  left: 0;
+  left: auto;
+  right: 100%;
   top: 0;
-  width: 12.5%;
+  bottom: auto;
   height: 100%;
+  width: 1.4em;
   flex-flow: column-reverse;
-  align-items: flex-start;
+  align-items: flex-end;
+  padding-right: 0.4em;
 }
 .ks-board-wrap .cg-wrap coords.ranks.black {
   flex-flow: column;
 }
 .ks-board-wrap .cg-wrap coords.ranks coord {
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
   transform: none;
-  text-align: left;
-  padding: 2% 0 0 6%;
   line-height: 1;
 }
 
-/* File letters along the rank-1 row. */
+/* File letters: in the bottom margin, anchored to the top edge so they
+   sit just below the board. Same `bottom: auto` story as ranks — the base
+   chessground rule sets `bottom: -4px` which would otherwise win. */
 .ks-board-wrap .cg-wrap coords.files {
-  bottom: 0;
+  top: 100%;
+  bottom: auto;
   left: 0;
+  right: auto;
   width: 100%;
-  height: 12.5%;
+  height: 1.4em;
   flex-flow: row;
-  align-items: flex-end;
+  align-items: flex-start;
+  padding-top: 0.4em;
 }
 .ks-board-wrap .cg-wrap coords.files.black {
   flex-flow: row-reverse;
 }
 .ks-board-wrap .cg-wrap coords.files coord {
   flex: 1 1 auto;
-  text-align: right;
-  padding: 0 6% 2% 0;
+  display: flex;
+  justify-content: center;
   line-height: 1;
 }
 
-/* Force black on the outside labels too (chessground's brown theme
-   alternates them light/dark for visibility — we want a single colour). */
-.ks-board-wrap .cg-wrap coords.ranks coord,
-.ks-board-wrap .cg-wrap coords.files coord {
-  color: #111;
-}
-
-/* --- On-squares mode (opt-in) --- */
-
+/* On-squares mode (opt-in via Settings → "Coordinates on every square"):
+   each label sits inside the corner of its square. */
 .ks-board-wrap .cg-wrap coords.squares coord {
   padding: 3% 5%;
-  color: #111;
-}
-.ks-board-wrap .cg-wrap coords.squares:nth-of-type(odd) :nth-child(even),
-.ks-board-wrap .cg-wrap coords.squares:nth-of-type(odd) :nth-child(odd),
-.ks-board-wrap .cg-wrap coords.squares:nth-of-type(even) :nth-child(odd),
-.ks-board-wrap .cg-wrap coords.squares:nth-of-type(even) :nth-child(even) {
-  color: #111;
+  color: var(--board-coord);
+  opacity: 0.7;
 }

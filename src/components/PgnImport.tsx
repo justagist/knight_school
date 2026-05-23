@@ -76,24 +76,31 @@ export function PgnImport({ onLoad, error }: PgnImportProps) {
         )}
       </div>
 
-      <div className="border-t border-ink-200 pt-3 dark:border-ink-800">
-        <div className="text-xs text-ink-500 dark:text-ink-400">Or try a sample game:</div>
-        <div className="mt-2 flex flex-wrap gap-2">
+      <div className="border-t border-border pt-3">
+        <div className="text-xs uppercase tracking-wide text-muted">Or try a sample game</div>
+        <ul className="mt-2 flex flex-col gap-2">
           {SAMPLE_GAMES.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className="btn-ghost text-xs"
-              onClick={() => {
-                setText(g.pgn);
-                onLoad(g.pgn);
-              }}
-              title={g.label}
-            >
-              {g.label}
-            </button>
+            <li key={g.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setText(g.pgn);
+                  onLoad(g.pgn);
+                }}
+                title={g.label}
+                className="card flex w-full min-h-[44px] items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:border-accent"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-primary">{g.title}</div>
+                  <div className="truncate text-[11px] text-muted">{g.subtitle}</div>
+                </div>
+                <span className="text-xs text-accent" aria-hidden>
+                  →
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   );

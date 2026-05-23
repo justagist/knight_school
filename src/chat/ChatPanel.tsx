@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessageRow } from '../db/db';
 import { useChatScreen } from './ChatContextProvider';
 import { useChat } from './useChat';
 import { useOnline } from '../hooks/useOnline';
 import { getProvider } from '../llm/providers';
+import type { ScreenContext } from '../llm/personaPrompt';
 
 interface ChatPanelProps {
   rawPgn?: string | null;
@@ -15,6 +16,12 @@ interface ChatPanelProps {
  * Slide-in chat overlay. Right-aligned drawer on desktop (≥md), bottom
  * sheet on mobile. Hosted at the App root so it's reachable from every
  * screen via {@link FloatingChatButton}.
+ *
+ * Mobile sheet height: 50vh by default so the board (the user is trying
+ * to discuss) stays visible above the sheet. A "Expand" button in the
+ * header bumps the sheet to ~85vh when the user actually wants a full-
+ * screen chat. True drag-resize is deferred — toggle covers the common
+ * case without the gesture-engine plumbing.
  */
 export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const { screen } = useChatScreen();
@@ -25,6 +32,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   // can't accidentally web-search every future message; they have to flip
   // it back on if they want fresh info on a follow-up.
   const [webSearchOn, setWebSearchOn] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new messages arrive.
@@ -55,14 +63,6 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   // Compat providers (Groq, OpenRouter) have no web-search tool. Hide the
   // toggle entirely rather than render a confusing disabled state.
   const showWebSearchToggle = activeProviderObj?.supportsWebSearch ?? false;
-  const threadLabel =
-    screen.kind === 'game'
-      ? screen.gameLabel || 'Game'
-      : screen.kind === 'lesson'
-        ? screen.lesson
-          ? `${screen.lesson.studyName} · ${screen.lesson.chapterTitle}`
-          : 'Lesson'
-        : 'General';
   const canSend = online && !!chat.activeProvider && !chat.sending && draft.trim().length > 0;
   const inputDisabledReason =
     !online
@@ -74,42 +74,73 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const submit = () => {
     if (!canSend) return;
     const text = draft;
-    // Gate the request flag on provider capability — defence in depth alongside
-    // the hidden UI, so a stale `webSearchOn=true` from a previous provider
-    // doesn't leak into a Groq/OpenRouter request.
     const useWebSearch = webSearchOn && showWebSearchToggle;
     setDraft('');
     setWebSearchOn(false);
     void chat.send(text, { webSearch: useWebSearch });
   };
 
+  const heightClass = expanded ? 'h-[85vh]' : 'h-[50vh]';
+  const breadcrumb = buildBreadcrumb(screen);
+
+  // Empty-state suggestion chips — context-aware so the user gets actionable
+  // prompts without having to invent one cold.
+  const suggestions: string[] =
+    screen.kind === 'game'
+      ? ['Explain this position', 'What are the plans here?', 'Show me a critical idea']
+      : screen.kind === 'lesson'
+        ? ['Summarise this chapter', 'What if I played a different move here?', 'Quiz me on the main idea']
+        : ['Latest chess news', 'Explain a famous opening', 'Help me improve'];
+
   return (
     <>
-      {/*
-        No backdrop on either platform. The chat panel is a bottom sheet on
-        mobile (50vh) and a right drawer on desktop (420px); in both shapes
-        the rest of the page stays fully interactive — the user wants to
-        drag pieces and read replies at the same time. Dismiss via the
-        X button or the Esc key.
-      */}
       <aside
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[50vh] flex-col rounded-t-xl border-t border-ink-200 bg-white shadow-xl
-                   dark:border-ink-800 dark:bg-ink-950
-                   md:inset-y-0 md:right-0 md:left-auto md:h-full md:w-[420px] md:rounded-none md:border-l md:border-t-0"
+        className={`fixed inset-x-0 bottom-0 z-50 flex ${heightClass} flex-col rounded-t-xl border-t border-border shadow-xl
+                   md:inset-y-0 md:right-0 md:left-auto md:!h-full md:w-[420px] md:rounded-none md:border-l md:border-t-0`}
+        style={{ backgroundColor: 'var(--bg-surface-1)' }}
         aria-label="Chat with Elle"
         role="dialog"
       >
-        <header className="flex items-center justify-between border-b border-ink-200 px-3 py-2 dark:border-ink-800">
-          <div className="min-w-0">
+        {/* Drag-handle visual cue. Tapping it toggles expanded/half. */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mx-auto mt-1 h-1 w-10 cursor-pointer rounded-full bg-muted/40 md:hidden"
+          aria-label={expanded ? 'Collapse chat' : 'Expand chat'}
+          title={expanded ? 'Tap to collapse' : 'Tap to expand'}
+        />
+
+        <header className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
+          <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Elle</div>
-            <div className="truncate text-[11px] text-ink-500 dark:text-ink-400">
-              {threadLabel} · {providerLabel}
-            </div>
+            <div className="truncate text-[11px] text-muted">{breadcrumb}</div>
+            {!showWebSearchToggle && (
+              <button
+                type="button"
+                className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted hover:text-primary"
+                title="The current provider doesn't expose a web-search tool. Tap to open Settings and switch providers."
+                onClick={() => {
+                  window.location.assign('/settings');
+                }}
+              >
+                <span aria-hidden>🔍</span>
+                Web search disabled · {providerLabel}
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              className="btn-ghost text-xs"
+              onClick={() => setExpanded((v) => !v)}
+              title={expanded ? 'Half height' : 'Expand'}
+              aria-label={expanded ? 'Collapse chat' : 'Expand chat'}
+              className="hidden h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-primary md:hidden"
+            >
+              {expanded ? '▼' : '▲'}
+            </button>
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-primary"
               onClick={async () => {
                 if (
                   window.confirm(
@@ -120,40 +151,50 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 }
               }}
               title="Clear this thread"
+              aria-label="Clear this thread"
             >
-              Clear
+              {/* Trash glyph — differentiates from Close so the user can't
+                  mistake destroy for minimise. */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              </svg>
             </button>
             <button
               type="button"
-              className="btn-ghost text-xs"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-primary"
               onClick={onClose}
-              aria-label="Close chat"
+              aria-label="Minimise chat"
+              title="Minimise"
             >
-              ✕
+              {/* Chevron-down reads as 'minimise', not 'delete'. */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
           </div>
         </header>
 
         <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3 text-sm">
           {chat.messages.length === 0 && (
-            <div className="text-center text-xs text-ink-500 dark:text-ink-400">
-              {screen.kind === 'game'
-                ? 'Ask Elle about this game — moves, plans, ideas, theory.'
-                : 'Ask Elle anything chess-related.'}
-            </div>
+            <EmptyState
+              kind={screen.kind}
+              suggestions={suggestions}
+              onPick={(s) => {
+                if (!inputDisabledReason) {
+                  void chat.send(s, { webSearch: false });
+                }
+              }}
+              inputDisabledReason={inputDisabledReason}
+            />
           )}
           {chat.messages.map((m) => (
             <ChatBubble key={m.id} message={m} />
           ))}
-          {chat.sending && (
-            <div className="rounded-md bg-ink-100 px-3 py-2 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300">
-              Elle is typing…
-            </div>
-          )}
+          {chat.sending && <TypingIndicator />}
         </div>
 
         <form
-          className="border-t border-ink-200 p-3 dark:border-ink-800"
+          className="border-t border-border p-3"
           onSubmit={(e) => {
             e.preventDefault();
             submit();
@@ -172,7 +213,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
               }
             }}
           />
-          <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-ink-500 dark:text-ink-400">
+          <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted">
             {showWebSearchToggle ? (
               <button
                 type="button"
@@ -180,9 +221,9 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 disabled={!!inputDisabledReason}
                 className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
                   webSearchOn
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-ink-200 text-ink-500 hover:bg-ink-100 dark:border-ink-700 dark:text-ink-400 dark:hover:bg-ink-800'
-                }`}
+                    ? 'border-accent bg-accent-soft text-accent'
+                    : 'border-border text-muted hover:text-primary'
+                } disabled:opacity-40`}
                 title={
                   webSearchOn
                     ? 'Web search enabled for the next message. Click to disable.'
@@ -194,12 +235,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 <span>Web search {webSearchOn ? 'on' : 'off'}</span>
               </button>
             ) : (
-              <span
-                className="text-[11px] text-ink-500 dark:text-ink-400"
-                title="The current provider doesn't expose a web-search tool."
-              >
-                Web search unavailable on {providerLabel}
-              </span>
+              <span aria-hidden /> /* eats the flex slot so Send stays right-aligned */
             )}
             <button
               type="submit"
@@ -210,7 +246,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
               {chat.sending ? 'Sending…' : 'Send'}
             </button>
           </div>
-          <div className="mt-1 text-[10px] text-ink-500 dark:text-ink-400">
+          <div className="mt-1 text-[10px] text-muted">
             Enter to send · Shift+Enter for newline
           </div>
         </form>
@@ -219,11 +255,35 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   );
 }
 
+/**
+ * One-line breadcrumb shown under "Elle" in the header.
+ * Strips PGN date placeholders (`1858.??.??` → `1858`) so the game header
+ * doesn't read as a corrupted date.
+ */
+function buildBreadcrumb(screen: ScreenContext): string {
+  if (screen.kind === 'game') {
+    return tidyGameLabel(screen.gameLabel || 'Game');
+  }
+  if (screen.kind === 'lesson') {
+    if (screen.lesson) return `${screen.lesson.studyName} · ${screen.lesson.chapterTitle}`;
+    return 'Lesson';
+  }
+  return 'General';
+}
+
+function tidyGameLabel(label: string): string {
+  // 1858.??.?? → 1858, 1858.07.?? → 1858, 1858.07.21 → 1858.07.21 (left alone).
+  return label.replace(/(\d{4})(?:\.[?\d]{2}){1,2}/g, (full, year) => {
+    return full.includes('?') ? year : full;
+  });
+}
+
 function ChatBubble({ message }: { message: ChatMessageRow }) {
   const isUser = message.role === 'user';
+  const [modelExpanded, setModelExpanded] = useState(false);
   if (message.errorMessage) {
     return (
-      <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+      <div className="rounded-md border border-blunder/40 bg-blunder/10 px-3 py-2 text-xs text-blunder">
         {message.errorMessage}
       </div>
     );
@@ -232,23 +292,27 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
         className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
-          isUser
-            ? 'bg-accent text-white'
-            : 'bg-ink-100 text-ink-900 dark:bg-ink-800 dark:text-ink-100'
+          isUser ? 'bg-secondary text-white' : 'bg-surface-2 text-primary'
         }`}
       >
         <div className="whitespace-pre-wrap break-words">{message.content}</div>
         {!isUser && (message.usedWebSearch || message.provider) && (
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-ink-500 dark:text-ink-400">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted">
             {message.usedWebSearch && (
               <span title="This response used the provider's web search tool.">
                 🔎 with web search
               </span>
             )}
-            {message.provider && message.model && (
-              <span>
-                via {prettyProvider(message.provider)} ({message.model})
-              </span>
+            {message.provider && (
+              <button
+                type="button"
+                onClick={() => setModelExpanded((v) => !v)}
+                className="hover:text-primary"
+                title={modelExpanded ? 'Hide model name' : 'Show model name'}
+              >
+                via {prettyProvider(message.provider)}
+                {modelExpanded && message.model && <> ({message.model})</>}
+              </button>
             )}
           </div>
         )}
@@ -258,7 +322,7 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
               <li key={`${c.url}-${i}`} className="truncate">
                 <a
                   href={c.url}
-                  className="text-sky-700 hover:underline dark:text-sky-400"
+                  className="text-secondary hover:underline"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -273,9 +337,69 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
   );
 }
 
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex items-center gap-1 rounded-lg bg-surface-2 px-3 py-2 text-sm">
+        <span className="sr-only">Elle is typing</span>
+        <Dot delay={0} />
+        <Dot delay={150} />
+        <Dot delay={300} />
+      </div>
+    </div>
+  );
+}
+function Dot({ delay }: { delay: number }) {
+  return (
+    <span
+      className="block h-1.5 w-1.5 animate-pulse rounded-full bg-muted"
+      style={{ animationDelay: `${delay}ms` }}
+      aria-hidden
+    />
+  );
+}
+
+function EmptyState({
+  kind,
+  suggestions,
+  onPick,
+  inputDisabledReason,
+}: {
+  kind: ScreenContext['kind'];
+  suggestions: string[];
+  onPick: (s: string) => void;
+  inputDisabledReason: string | undefined;
+}) {
+  const intro = useMemo(() => {
+    if (kind === 'game') return 'Ask Elle about this game — moves, plans, ideas, theory.';
+    if (kind === 'lesson') return 'Ask Elle about the chapter — main ideas, alternatives, "what if?" questions.';
+    return 'Ask Elle anything chess-related.';
+  }, [kind]);
+  return (
+    <div className="space-y-3 text-center text-xs text-muted">
+      <p>{intro}</p>
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {suggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onPick(s)}
+            disabled={!!inputDisabledReason}
+            className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-primary transition-colors hover:bg-accent-soft hover:text-accent disabled:opacity-40"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function prettyProvider(p: string): string {
   if (p === 'anthropic') return 'Anthropic';
   if (p === 'openai') return 'OpenAI';
   if (p === 'gemini') return 'Gemini';
+  if (p === 'groq') return 'Groq';
+  if (p === 'openrouter') return 'OpenRouter';
   return p;
 }

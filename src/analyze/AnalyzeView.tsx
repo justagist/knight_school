@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Board } from '../components/Board';
 import { MoveList } from '../components/MoveList';
 import { PgnImport } from '../components/PgnImport';
@@ -24,6 +24,8 @@ import { GuessModePanel } from '../guess/GuessModePanel';
 import { useExploration } from './useExploration';
 import { summarizeCaptures } from './captures';
 import { summarizeEngine } from '../llm/engineSummary';
+import { MobileAnalysisTabs } from './MobileAnalysisTabs';
+import { humanizeEngineError } from '../engine/humanizeError';
 import { PlayerStrip } from './PlayerStrip';
 import { OpeningBadge, OpeningHeader } from './OpeningBadge';
 import { normalizeFenForExplorer } from '../db/explorer';
@@ -274,28 +276,26 @@ export function AnalyzeView() {
 
   const totalPlies = g.game.moves.length;
   const result = g.game.headers.Result;
+  const compactTitle = compactGameLabel(g.game.headers);
+  const fullTitle = gameLabel(g.game.headers);
+  const sideToMove: 'w' | 'b' =
+    g.currentFen?.split(' ')[1] === 'b' || (g.ply === 0 && g.game.startingFen.split(' ')[1] === 'b')
+      ? 'b'
+      : g.ply % 2 === 0
+        ? 'w'
+        : 'b';
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="btn-ghost px-2 text-xs"
-          onClick={g.clear}
-          title="Back to PGN import"
-          aria-label="Back to PGN import"
-        >
-          ← Back
-        </button>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{gameLabel(g.game.headers)}</div>
-          {result && (
-            <div className="text-xs text-ink-500 dark:text-ink-400">Result: {result}</div>
-          )}
-          {/* Inline opening line (Lichess/chess.com style). Shows current
-              position's opening if matched, else "Out of book — last: X"
-              breadcrumb. Hidden at starting position and when nothing's ever
-              been matched. */}
+    <div className="space-y-3">
+      {/* Compact header — small back button + truncated title. Tap title
+          to reveal the full header line (useful when the truncation hides
+          a tournament / location detail). */}
+      <CompactHeader
+        compactTitle={compactTitle}
+        fullTitle={fullTitle}
+        onBack={g.clear}
+        result={result}
+        opening={
           <OpeningHeader
             eco={currentEco}
             current={currentExplorerRow}
@@ -311,8 +311,11 @@ export function AnalyzeView() {
             atStartingPosition={g.ply === 0}
             hasLichessToken={lichessAuth.hasToken}
           />
-        </div>
-      </div>
+        }
+      />
+
+      {/* Status row — one short line telling the user where they are. */}
+      <StatusRow ply={g.ply} totalPlies={totalPlies} sideToMove={sideToMove} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         {/* Board column */}
@@ -351,6 +354,7 @@ export function AnalyzeView() {
                 ? Math.max(0, -captures.materialDelta)
                 : Math.max(0, captures.materialDelta)
             }
+            toMove={sideToMove === (g.orientation === 'white' ? 'b' : 'w')}
           />
 
           {/*
@@ -359,11 +363,12 @@ export function AnalyzeView() {
             chess.com / lichess-style "big board" feel; 920px stops it from
             getting silly on ultra-wide monitors.
           */}
-          <div className="mx-auto flex w-full max-w-[min(90vh,920px)] items-stretch gap-2">
-            {/* Eval bar is hidden during guessing so the user doesn't see
-                the answer before they pick. Reappears after reveal. */}
+          <div className="mx-auto flex w-full max-w-[min(90vh,920px)] items-stretch gap-1">
+            {/* Eval bar flush to the board (gap-1 instead of gap-2). Hidden
+                during guessing so the user doesn't see the answer before
+                they pick — reappears after reveal. */}
             {settings.engineEnabled && guess.mode !== 'guessing' && (
-              <div className="flex w-8 flex-col items-stretch">
+              <div className="flex w-9 flex-col items-stretch">
                 <EvalBar
                   snapshot={engine.snapshot}
                   orientation={g.orientation}
@@ -409,6 +414,7 @@ export function AnalyzeView() {
                 ? Math.max(0, captures.materialDelta)
                 : Math.max(0, -captures.materialDelta)
             }
+            toMove={sideToMove === (g.orientation === 'white' ? 'w' : 'b')}
           />
 
           <BoardControls
@@ -462,27 +468,76 @@ export function AnalyzeView() {
             <OpeningBadge current={currentExplorerRow} atStartingPosition={g.ply === 0} />
           )}
 
-          {!guess.active && analysis.progress.done > 0 && (
-            <EvalGraph
-              evals={analysis.result.evals}
-              ply={g.ply}
-              onSelectPly={g.setPly}
+          {/* Mobile-only tabbed secondary content. Replaces the stack of
+              cards below the board (eval graph + engine lines) and the
+              right-side move list panel that desktop keeps. */}
+          {!guess.active && (
+            <MobileAnalysisTabs
+              badges={{ moves: String(totalPlies) }}
+              panels={{
+                moves: (
+                  <MoveList
+                    moves={g.game.moves}
+                    ply={g.ply}
+                    onSelectPly={g.setPly}
+                    classifications={analysis.result.classifications}
+                  />
+                ),
+                engine: settings.engineEnabled ? (
+                  <div className="p-2">
+                    <EngineLines
+                      snapshot={engine.snapshot}
+                      ready={engine.ready}
+                      error={engine.error}
+                      variant={settings.engineVariant}
+                      fen={displayFen ?? g.game.startingFen}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid place-items-center p-6 text-xs text-ink-500 dark:text-ink-400">
+                    Engine analysis is disabled in Settings.
+                  </div>
+                ),
+                graph: (
+                  <GraphPanel
+                    evals={analysis.result.evals}
+                    ply={g.ply}
+                    onSelectPly={g.setPly}
+                    totalPlies={totalPlies}
+                    onStartAnalysis={analysis.start}
+                    analysisRunning={analysis.running}
+                    progress={analysis.progress}
+                  />
+                ),
+              }}
             />
           )}
 
-          {!guess.active && settings.engineEnabled && (
-            <EngineLines
-              snapshot={engine.snapshot}
-              ready={engine.ready}
-              error={engine.error}
-              variant={settings.engineVariant}
-              // Use the FEN the engine is *actually* analyzing — during
-              // exploration this differs from g.currentFen, and EngineLines
-              // uses it to replay UCI as SAN. Passing the wrong FEN makes
-              // chess.js reject every move, leaving the preview empty.
-              fen={displayFen ?? g.game.startingFen}
-            />
-          )}
+          {/* Desktop-only below-board stack — eval graph + engine lines. On
+              mobile these live inside MobileAnalysisTabs above. */}
+          <div className="hidden space-y-3 lg:block">
+            {!guess.active && analysis.progress.done > 0 && (
+              <EvalGraph
+                evals={analysis.result.evals}
+                ply={g.ply}
+                onSelectPly={g.setPly}
+              />
+            )}
+
+            {!guess.active && settings.engineEnabled && (
+              <EngineLines
+                snapshot={engine.snapshot}
+                ready={engine.ready}
+                error={engine.error}
+                variant={settings.engineVariant}
+                // Use the FEN the engine is *actually* analyzing — during
+                // exploration this differs from g.currentFen, and EngineLines
+                // uses it to replay UCI as SAN. Passing the wrong FEN makes
+                // chess.js reject every move, leaving the preview empty.
+                fen={displayFen ?? g.game.startingFen}
+              />
+            )}
+          </div>
 
           {/* Per-move commentary card — only meaningful when a move has
               actually been played (ply > 0). The card itself surfaces an
@@ -511,9 +566,10 @@ export function AnalyzeView() {
           })()}
         </div>
 
-        {/* Side panel: move list + load new */}
-        <aside className="card flex min-h-[300px] flex-col overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-ink-200 px-3 py-2 dark:border-ink-800">
+        {/* Side panel: move list + load new. Desktop only — mobile uses the
+            MobileAnalysisTabs above. */}
+        <aside className="card hidden min-h-[300px] flex-col overflow-hidden lg:flex">
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b-2 border-ink-200 bg-ink-50 px-3 py-2 dark:border-ink-800 dark:bg-ink-900">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
               Moves ({totalPlies})
             </span>
@@ -544,6 +600,164 @@ export function AnalyzeView() {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+interface GraphPanelProps {
+  evals: (PositionEvalRow | undefined)[];
+  ply: number;
+  onSelectPly: (ply: number) => void;
+  totalPlies: number;
+  onStartAnalysis: () => void;
+  analysisRunning: boolean;
+  progress: { done: number; total: number };
+}
+
+/**
+ * Wraps EvalGraph with a placeholder for the "not enough data yet" state.
+ * A near-empty graph reads as broken — the spec calls for a clear "Analyze
+ * the game first" message until at least 25% of positions are evaluated.
+ */
+function GraphPanel({
+  evals,
+  ply,
+  onSelectPly,
+  totalPlies,
+  onStartAnalysis,
+  analysisRunning,
+  progress,
+}: GraphPanelProps) {
+  const analyzed = evals.filter((e) => e !== undefined).length;
+  const enough = totalPlies > 0 ? analyzed / Math.max(1, totalPlies + 1) >= 0.25 : false;
+  if (enough) {
+    return (
+      <div className="p-2">
+        <EvalGraph evals={evals} ply={ply} onSelectPly={onSelectPly} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-sm">
+      <p className="text-ink-600 dark:text-ink-300">
+        Run full-game analysis to see the eval graph.
+      </p>
+      <button
+        type="button"
+        onClick={onStartAnalysis}
+        disabled={analysisRunning || totalPlies === 0}
+        className="btn-primary text-xs"
+      >
+        {analysisRunning
+          ? `Analyzing ${progress.done}/${progress.total}…`
+          : '▶ Analyze now'}
+      </button>
+      <p className="text-[11px] text-ink-500 dark:text-ink-400">
+        Graph appears once at least a quarter of the game has been evaluated.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Trim a game-headers object into a tight one-liner suitable for the
+ * mobile header. Drops Event when long, strips date placeholders, prefers
+ * surname-only player labels. Falls back to gameLabel() on short titles
+ * that don't need any trimming.
+ */
+function compactGameLabel(headers: Record<string, string>): string {
+  const rawW = headers.White || 'White';
+  const rawB = headers.Black || 'Black';
+  const w = lastName(rawW);
+  const b = lastName(rawB);
+  // Strip Lichess-style `1858.??.??` placeholders down to the year, and
+  // drop the date entirely if no year survived.
+  let yearOrDate = headers.Date && headers.Date !== '????.??.??' ? headers.Date : '';
+  if (yearOrDate) {
+    const m = yearOrDate.match(/^(\d{4})/);
+    if (m) yearOrDate = m[1];
+    else yearOrDate = '';
+  }
+  return yearOrDate ? `${w} vs ${b} — ${yearOrDate}` : `${w} vs ${b}`;
+}
+function lastName(full: string): string {
+  // "Adolf Anderssen" → "Anderssen". Keep single-token names as-is.
+  const parts = full.trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : full;
+}
+
+interface CompactHeaderProps {
+  compactTitle: string;
+  fullTitle: string;
+  onBack: () => void;
+  result?: string;
+  opening: React.ReactNode;
+}
+
+function CompactHeader({ compactTitle, fullTitle, onBack, result, opening }: CompactHeaderProps) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    // Fixed height — OpeningHeader is now locked to a single line (see
+    // src/analyze/OpeningBadge.tsx) so total here is back-btn row (9) +
+    // title (5) + result (3.5) + opening (6) ≈ 5.5rem. The `expanded`
+    // toggle adds another line; that case is rare enough that the small
+    // shift on tap is acceptable.
+    <div className="flex h-[5.5rem] items-start gap-2">
+      <button
+        type="button"
+        onClick={onBack}
+        title="Back to PGN import"
+        aria-label="Back to PGN import"
+        className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-base text-primary transition-colors hover:bg-surface-2"
+      >
+        ←
+      </button>
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="block w-full truncate text-left text-sm font-medium hover:text-accent"
+          title={fullTitle}
+          aria-expanded={expanded}
+        >
+          {compactTitle}
+        </button>
+        {expanded && fullTitle !== compactTitle && (
+          <p className="mt-1 text-[11px] text-muted">{fullTitle}</p>
+        )}
+        {result && (
+          <span className="mt-0.5 text-[11px] text-muted">Result: {result}</span>
+        )}
+        {opening}
+      </div>
+    </div>
+  );
+}
+
+interface StatusRowProps {
+  ply: number;
+  totalPlies: number;
+  sideToMove: 'w' | 'b';
+}
+
+function StatusRow({ ply, totalPlies, sideToMove }: StatusRowProps) {
+  const moveNumber = Math.floor(ply / 2) + 1;
+  const sideLabel = sideToMove === 'w' ? 'White to play' : 'Black to play';
+  const label =
+    ply === 0
+      ? `Starting position · ${sideLabel}`
+      : ply >= totalPlies
+        ? `End of game · ply ${ply}/${totalPlies}`
+        : `Move ${moveNumber} · ${sideLabel} · ply ${ply}/${totalPlies}`;
+  return (
+    <div className="flex h-6 items-center gap-2 text-[12px] text-muted">
+      <span
+        className={`inline-block h-2.5 w-2.5 rounded-full ring-1 ring-border ${
+          sideToMove === 'w' ? 'bg-white' : 'bg-primary'
+        }`}
+        aria-hidden="true"
+      />
+      <span>{label}</span>
     </div>
   );
 }
@@ -590,54 +804,63 @@ function AnalyzeAllBanner({
   // PGN often shows X/N "ready" without the user analyzing it. Mark that
   // case so the user doesn't read it as half-finished work.
   const cachedOnly = !running && !complete && progress.done > 0;
+
+  // Once analysis is complete the CTA disappears — keep the depth + error
+  // hints, since those still matter, but lose the full banner so the user's
+  // scroll doesn't fight a permanent "Done" pill.
+  if (complete && !depthTooLow && !error) return null;
+
   return (
     <div className="card flex flex-col gap-2 px-3 py-2 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-          Full-game analysis
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] tabular-nums text-ink-500 dark:text-ink-400">
-            {progress.done} / {progress.total}
-            {cachedOnly && ' cached'}
-          </span>
-          {!running && !complete && (
-            <button
-              type="button"
-              className="btn-primary text-xs"
-              onClick={onStart}
-              disabled={engineDisabled || progress.total === 0}
-              title={engineDisabled ? 'Enable engine analysis in Settings first.' : undefined}
-            >
-              Analyze game
-            </button>
+      {!complete && (
+        <>
+          {/* Primary action — full-width on mobile, content-width on
+              desktop. Progress + cancel live inside the button text when
+              running so the user doesn't have to find a separate control. */}
+          <div className="flex items-stretch gap-2">
+            {!running && (
+              <button
+                type="button"
+                onClick={onStart}
+                disabled={engineDisabled || progress.total === 0}
+                title={engineDisabled ? 'Enable engine analysis in Settings first.' : undefined}
+                className="btn-primary flex-1 py-2.5 text-sm font-semibold sm:flex-none sm:px-6"
+              >
+                ▶ Analyze full game
+                {progress.total > 0 && (
+                  <span className="ml-2 text-[11px] font-normal opacity-80 tabular-nums">
+                    ({progress.done}/{progress.total}
+                    {cachedOnly ? ' cached' : ''})
+                  </span>
+                )}
+              </button>
+            )}
+            {running && (
+              <>
+                <div className="flex-1 rounded-md bg-accent/15 px-3 py-2.5 text-sm font-semibold text-accent">
+                  Analyzing {progress.done}/{progress.total}…
+                </div>
+                <button type="button" className="btn-ghost text-xs" onClick={onCancel}>
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+          {(running || progress.done > 0) && (
+            <div className="h-1 w-full overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
+              <div
+                className="h-full bg-accent transition-[width] duration-200"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           )}
-          {running && (
-            <button type="button" className="btn-ghost text-xs" onClick={onCancel}>
-              Cancel
-            </button>
+          {cachedOnly && (
+            <div className="text-[11px] text-ink-500 dark:text-ink-400">
+              {progress.done} position{progress.done === 1 ? '' : 's'} already evaluated in earlier
+              analysis (engine evals are shared across games by FEN). Tap above to fill in the rest.
+            </div>
           )}
-          {complete && (
-            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              Done
-            </span>
-          )}
-        </div>
-      </div>
-      {(running || progress.done > 0) && (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
-          <div
-            className="h-full bg-accent transition-[width] duration-200"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-      {cachedOnly && (
-        <div className="text-[11px] text-ink-500 dark:text-ink-400">
-          {progress.done} position{progress.done === 1 ? '' : 's'} already evaluated in earlier
-          analysis (engine evals are shared across games by FEN). Click <em>Analyze game</em> to
-          fill in the rest.
-        </div>
+        </>
       )}
       {depthTooLow && (
         <div className="text-[11px] text-ink-500 dark:text-ink-400">
@@ -646,7 +869,10 @@ function AnalyzeAllBanner({
         </div>
       )}
       {error && (
-        <div className="text-xs text-red-600 dark:text-red-400">Analysis error: {error}</div>
+        <div className="rounded-md border border-blunder/40 bg-blunder/10 px-3 py-2 text-xs text-blunder">
+          <div className="font-semibold">Analysis error</div>
+          <div className="mt-0.5">{humanizeEngineError(error)}</div>
+        </div>
       )}
     </div>
   );
@@ -671,47 +897,42 @@ function BoardControls({
   onEnd,
   onFlip,
 }: BoardControlsProps) {
+  // 48×48dp minimum tap target — matches the Android material guideline
+  // and iOS HIG (44pt). Buttons grouped tightly with subtle dividers between
+  // start/prev | next/end | flip so the row reads as one control surface
+  // even though it has 5 actions.
+  const Btn = (props: {
+    onClick: () => void;
+    disabled?: boolean;
+    title: string;
+    'aria-label': string;
+    children: React.ReactNode;
+  }) => (
+    <button
+      type="button"
+      className="flex h-12 w-12 items-center justify-center rounded-md text-base text-ink-700 transition-colors hover:bg-ink-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-ink-200 dark:hover:bg-ink-700"
+      {...props}
+    />
+  );
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      <button
-        className="btn-ghost px-3"
-        onClick={onStart}
-        disabled={ply === 0}
-        title="Start (Home)"
-        aria-label="Go to start"
-      >
+    <div className="card flex items-center justify-center gap-1 px-2 py-1">
+      <Btn onClick={onStart} disabled={ply === 0} title="Start (Home)" aria-label="Go to start">
         ⏮
-      </button>
-      <button
-        className="btn-ghost px-3"
-        onClick={onPrev}
-        disabled={ply === 0}
-        title="Previous (←)"
-        aria-label="Previous move"
-      >
+      </Btn>
+      <Btn onClick={onPrev} disabled={ply === 0} title="Previous (←)" aria-label="Previous move">
         ◀
-      </button>
-      <button
-        className="btn-ghost px-3"
-        onClick={onNext}
-        disabled={ply >= totalPlies}
-        title="Next (→)"
-        aria-label="Next move"
-      >
+      </Btn>
+      <span className="h-6 w-px bg-ink-200 dark:bg-ink-700" aria-hidden="true" />
+      <Btn onClick={onNext} disabled={ply >= totalPlies} title="Next (→)" aria-label="Next move">
         ▶
-      </button>
-      <button
-        className="btn-ghost px-3"
-        onClick={onEnd}
-        disabled={ply >= totalPlies}
-        title="End (End)"
-        aria-label="Go to end"
-      >
+      </Btn>
+      <Btn onClick={onEnd} disabled={ply >= totalPlies} title="End (End)" aria-label="Go to end">
         ⏭
-      </button>
-      <button className="btn-ghost px-3" onClick={onFlip} title="Flip (f)" aria-label="Flip board">
+      </Btn>
+      <span className="h-6 w-px bg-ink-200 dark:bg-ink-700" aria-hidden="true" />
+      <Btn onClick={onFlip} title="Flip (f)" aria-label="Flip board">
         ⇅
-      </button>
+      </Btn>
     </div>
   );
 }

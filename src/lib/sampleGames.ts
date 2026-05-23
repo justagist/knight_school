@@ -6,6 +6,10 @@
 export interface SampleGame {
   id: string;
   label: string;
+  /** Short title (one line, used as the card's bold heading). */
+  title: string;
+  /** Year · location · result subtitle (e.g. "1858 · Paris · 1-0"). */
+  subtitle: string;
   pgn: string;
 }
 
@@ -13,6 +17,8 @@ export const SAMPLE_GAMES: SampleGame[] = [
   {
     id: 'opera',
     label: "Morphy's Opera Game (1858) — Paris",
+    title: "Morphy's Opera Game",
+    subtitle: '1858 · Paris · 1-0',
     pgn: `[Event "Paris"]
 [Site "Paris FRA"]
 [Date "1858.??.??"]
@@ -28,6 +34,8 @@ export const SAMPLE_GAMES: SampleGame[] = [
   {
     id: 'immortal',
     label: 'Anderssen vs Kieseritzky — The Immortal Game (1851)',
+    title: 'The Immortal Game',
+    subtitle: '1851 · London · 1-0',
     pgn: `[Event "London"]
 [Site "London ENG"]
 [Date "1851.06.21"]
@@ -44,6 +52,8 @@ export const SAMPLE_GAMES: SampleGame[] = [
   {
     id: 'evergreen',
     label: 'Anderssen vs Dufresne — The Evergreen Game (1852)',
+    title: 'The Evergreen Game',
+    subtitle: '1852 · Berlin · 1-0',
     pgn: `[Event "Berlin"]
 [Site "Berlin GER"]
 [Date "1852.??.??"]

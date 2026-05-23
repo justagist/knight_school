@@ -186,12 +186,19 @@ export interface MoveClassStyle {
   colorClass: string;
 }
 
+/*
+ * Per-class color comes from the `--class-*` tokens defined in
+ * src/styles/index.css. Tailwind config (tailwind.config.js) exposes them
+ * as `text-best`, `text-good`, `text-inaccuracy`, `text-mistake`,
+ * `text-blunder`, `text-book`. `opening` shares `--class-book` with
+ * `book` since both mean "in theory" semantically.
+ */
 export const MOVE_CLASS_STYLES: Record<MoveClass, MoveClassStyle> = {
   opening: {
     glyph: '○',
     label: 'Opening',
     ariaLabel: 'opening',
-    colorClass: 'text-sky-600 dark:text-sky-400',
+    colorClass: 'text-book',
   },
   // Reserved for Step 7. Visually distinct from 'opening' so future games
   // analyzed with Explorer-aware classification stand out.
@@ -199,13 +206,13 @@ export const MOVE_CLASS_STYLES: Record<MoveClass, MoveClassStyle> = {
     glyph: '◎',
     label: 'Theory',
     ariaLabel: 'opening theory',
-    colorClass: 'text-sky-700 dark:text-sky-300',
+    colorClass: 'text-book',
   },
   best: {
     glyph: '!',
     label: 'Best',
     ariaLabel: 'best move',
-    colorClass: 'text-emerald-600 dark:text-emerald-400',
+    colorClass: 'text-best',
   },
   good: {
     // No glyph by design — matches Lichess UX which keeps the move list quiet
@@ -213,24 +220,24 @@ export const MOVE_CLASS_STYLES: Record<MoveClass, MoveClassStyle> = {
     glyph: '',
     label: 'Good',
     ariaLabel: 'good move',
-    colorClass: 'text-ink-500 dark:text-ink-400',
+    colorClass: 'text-good',
   },
   inaccuracy: {
     glyph: '?!',
     label: 'Inaccuracy',
     ariaLabel: 'inaccuracy',
-    colorClass: 'text-amber-600 dark:text-amber-400',
+    colorClass: 'text-inaccuracy',
   },
   mistake: {
     glyph: '?',
     label: 'Mistake',
     ariaLabel: 'mistake',
-    colorClass: 'text-orange-600 dark:text-orange-400',
+    colorClass: 'text-mistake',
   },
   blunder: {
     glyph: '??',
     label: 'Blunder',
     ariaLabel: 'blunder',
-    colorClass: 'text-red-600 dark:text-red-400',
+    colorClass: 'text-blunder',
   },
 };

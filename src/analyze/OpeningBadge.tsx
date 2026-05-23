@@ -104,12 +104,16 @@ interface OpeningHeaderProps {
  *   - Nothing matched ever        → "Not in opening theory."
  */
 export function OpeningHeader(props: OpeningHeaderProps) {
+  // Fixed-height single-line row. `flex-wrap` would let long opening names
+  // wrap to a 2nd line, which on mobile pushes the board down 1.5rem per
+  // ply transition (state "name vs none vs out-of-book" all have different
+  // wrapped heights). `truncate` on the inner body keeps it locked at h-6.
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-      <span className="rounded bg-ink-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+    <div className="mt-1 flex h-6 items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs">
+      <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
         Opening
       </span>
-      {renderBody(props)}
+      <span className="min-w-0 flex-1 truncate">{renderBody(props)}</span>
     </div>
   );
 }
@@ -125,9 +129,7 @@ function renderBody({
 }: OpeningHeaderProps) {
   if (atStartingPosition) {
     return (
-      <span className="text-ink-500 dark:text-ink-400">
-        Starting position — play a move to see theory.
-      </span>
+      <span className="text-muted">Play a move to see opening theory.</span>
     );
   }
 
@@ -138,48 +140,60 @@ function renderBody({
 
   if (resolvedName) {
     return (
-      <span className="flex flex-wrap items-baseline gap-1.5">
+      <span className="flex min-w-0 items-baseline gap-1.5">
         {resolvedEco && (
-          <span className="font-mono text-xs text-ink-500 dark:text-ink-400">{resolvedEco}</span>
+          <span className="shrink-0 font-mono text-xs text-muted">{resolvedEco}</span>
         )}
         <Link
           to={openingsLink(resolvedName)}
-          className="text-sm font-medium hover:text-accent hover:underline"
+          className="min-w-0 truncate text-sm font-medium hover:text-accent hover:underline"
           title="Open in the Openings tab"
         >
           {resolvedName}
         </Link>
         {current && current.totalGames > 0 && (
-          <span className="text-[11px] text-ink-500 dark:text-ink-400">
-            · {formatCount(current.totalGames)} master games
+          <span className="shrink-0 text-[11px] text-muted">
+            · {formatCount(current.totalGames)}
           </span>
         )}
+        {/* "Add Lichess token" CTA — hidden on mobile (no room next to the
+            opening name) and rendered as a brief link on larger screens.
+            Settings is reachable from the bottom tab bar / top nav anyway. */}
         {!hasLichessToken && (
-          <a
-            href="#/settings"
-            className="text-[10px] text-sky-700 hover:underline dark:text-sky-400"
+          <Link
+            to="/settings#lichess"
+            className="hidden shrink-0 text-[10px] text-secondary hover:underline lg:inline"
             title="Configure in Settings → Lichess account"
           >
-            (add Lichess token for game stats)
-          </a>
+            (add token for stats)
+          </Link>
         )}
       </span>
     );
   }
 
-  // No ECO match — show breadcrumb if we matched theory earlier.
+  // No ECO match — show breadcrumb if we matched theory earlier. The
+  // opening name itself links to the Openings tab the same way the live
+  // header does, so the user can drill into theory for whatever they last
+  // recognised even after the game has wandered out of book.
   if (lastKnownName) {
     return (
-      <span className="text-ink-500 dark:text-ink-400">
+      <span className="text-muted">
         Out of book — last theory:{' '}
-        <span className="font-medium text-ink-700 dark:text-ink-200">{lastKnownName}</span>
+        <Link
+          to={openingsLink(lastKnownName)}
+          className="font-medium text-primary hover:text-accent hover:underline"
+          title="Open in the Openings tab"
+        >
+          {lastKnownName}
+        </Link>
         {lastKnownEco && <span className="ml-1 font-mono">({lastKnownEco})</span>}
       </span>
     );
   }
 
   if (currentStatus === 'loading') {
-    return <span className="italic text-ink-500 dark:text-ink-400">looking up…</span>;
+    return <span className="italic text-muted">looking up…</span>;
   }
 
   // Past opening + no theory matched. Middle-game / endgame territory.
