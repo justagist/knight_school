@@ -1,5 +1,11 @@
+import { Link } from 'react-router-dom';
 import type { ExplorerEntryRow } from '../db/db';
 import type { EcoEntry } from '../data/eco';
+
+/** Build a deep-link into the Openings tab for a given opening name. */
+function openingsLink(name: string): string {
+  return `/openings?name=${encodeURIComponent(name)}`;
+}
 
 interface OpeningBadgeProps {
   /** Cached Explorer row for the CURRENT ply. */
@@ -31,8 +37,6 @@ export function OpeningBadge({ current, atStartingPosition }: OpeningBadgeProps)
       <div className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
         Variations from here
       </div>
-      {/* TODO(lessons-tab): each row's openingName should link to the
-        Lessons tab filtered/scrolled to this opening, once that tab exists. */}
       <ul className="space-y-0.5">
         {cont.slice(0, 5).map((c, i) => (
           <li
@@ -41,7 +45,17 @@ export function OpeningBadge({ current, atStartingPosition }: OpeningBadgeProps)
           >
             <span className="font-mono text-ink-700 dark:text-ink-300">{c.san}</span>
             <span className="truncate text-ink-700 dark:text-ink-200">
-              {c.openingName ?? <span className="text-ink-500 dark:text-ink-400">—</span>}
+              {c.openingName ? (
+                <Link
+                  to={openingsLink(c.openingName)}
+                  className="hover:text-accent hover:underline"
+                  title={`Open ${c.openingName} in the Openings tab`}
+                >
+                  {c.openingName}
+                </Link>
+              ) : (
+                <span className="text-ink-500 dark:text-ink-400">—</span>
+              )}
             </span>
             <span className="font-mono tabular-nums text-[10px] text-ink-500 dark:text-ink-400">
               {formatCount(c.gameCount)}
@@ -118,14 +132,18 @@ function renderBody({
   const resolvedEco = current?.openingName ? current.ecoCode : eco?.eco;
 
   if (resolvedName) {
-    // TODO(lessons-tab): wrap `resolvedName` in a link to the Lessons tab
-    // anchored to this opening, once the Lessons tab is in place.
     return (
       <span className="flex flex-wrap items-baseline gap-1.5">
         {resolvedEco && (
           <span className="font-mono text-xs text-ink-500 dark:text-ink-400">{resolvedEco}</span>
         )}
-        <span className="text-sm font-medium">{resolvedName}</span>
+        <Link
+          to={openingsLink(resolvedName)}
+          className="text-sm font-medium hover:text-accent hover:underline"
+          title="Open in the Openings tab"
+        >
+          {resolvedName}
+        </Link>
         {current && current.totalGames > 0 && (
           <span className="text-[11px] text-ink-500 dark:text-ink-400">
             · {formatCount(current.totalGames)} master games

@@ -208,6 +208,31 @@ export interface ExplorerEntryRow {
  * One recorded guess from "Guess the move" mode. Indexed by gameKey so
  * per-game accuracy reads quickly; aggregate stats sweep the table.
  */
+/**
+ * An imported Lichess Study. We keep the raw PGN plus a parsed chapter
+ * breakdown so the viewer can render chapters without re-parsing on every
+ * mount. Refresh is manual — re-import overwrites the existing row.
+ */
+export interface StudyRow {
+  /** Lichess study id (8-char slug). Primary key. */
+  id: string;
+  /** Study title — falls back to `Study {id}` if Lichess didn't tag one. */
+  name: string;
+  /** Full multi-game PGN as Lichess returned it. */
+  rawPgn: string;
+  /** Pre-parsed chapter list. */
+  chapters: Array<{
+    /** ChapterName tag, or `Chapter N` if missing. */
+    title: string;
+    /** Single-game PGN slice for this chapter. */
+    pgn: string;
+  }>;
+  /** ms epoch when the study was imported / last refreshed. */
+  importedAt: number;
+  /** Catalog id when imported from the curated list; undefined for user imports. */
+  curatedKey?: string;
+}
+
 export interface GuessRecordRow {
   /** UUID. Primary key. */
   id: string;
@@ -240,6 +265,7 @@ export class KsDatabase extends Dexie {
   guessRecords!: EntityTable<GuessRecordRow, 'id'>;
   explorerEntries!: EntityTable<ExplorerEntryRow, 'fen'>;
   lichessAuth!: EntityTable<LichessAuthRow, 'id'>;
+  studies!: EntityTable<StudyRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -299,6 +325,20 @@ export class KsDatabase extends Dexie {
       guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
       explorerEntries: '&fen, fetchedAt',
       lichessAuth: '&id',
+    });
+    // v7: Lichess Study imports for the Openings tab.
+    this.version(7).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
     });
   }
 }

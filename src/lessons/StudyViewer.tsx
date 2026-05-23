@@ -1,0 +1,278 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { StudyRow } from '../db/db';
+import { Board } from '../components/Board';
+import { MoveList } from '../components/MoveList';
+import { parsePgn, type ParsedGame } from '../lib/pgn';
+import { importStudy } from './lichessStudy';
+import { notifyStudiesChanged } from './useStudies';
+
+interface StudyViewerProps {
+  study: StudyRow;
+  /** Initial chapter index to show. Clamped to chapter count. */
+  initialChapter?: number;
+  /** Notify the page when the chapter changes so it can update the URL. */
+  onChapterChange?: (index: number) => void;
+  /** "Back to library" button handler. */
+  onBack: () => void;
+  /** Called after a successful refresh (re-imports + overwrites). */
+  onRefreshed?: () => void;
+}
+
+/**
+ * Lichess-study viewer. Top row: back button + study title + chapter dropdown
+ * + refresh. Body: orientation-aware board on the left, move list on the
+ * right, chapter description below. Keyboard arrows step through plies.
+ */
+export function StudyViewer({
+  study,
+  initialChapter = 0,
+  onChapterChange,
+  onBack,
+  onRefreshed,
+}: StudyViewerProps) {
+  const chapterCount = study.chapters.length;
+  const safeInitial = clampIndex(initialChapter, chapterCount);
+  const [chapterIdx, setChapterIdx] = useState(safeInitial);
+  const [ply, setPly] = useState(0);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Reset to chapter 0 / ply 0 when the study itself changes.
+  useEffect(() => {
+    setChapterIdx(clampIndex(initialChapter, study.chapters.length));
+    setPly(0);
+  }, [study.id, study.chapters.length, initialChapter]);
+
+  const chapter = study.chapters[chapterIdx];
+
+  const parsed = useMemo<ParsedGame | null>(() => {
+    if (!chapter) return null;
+    try {
+      setParseError(null);
+      return parsePgn(chapter.pgn);
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : 'Could not parse chapter.');
+      return null;
+    }
+  }, [chapter]);
+
+  // Clamp ply if the chapter changed and the new chapter has fewer plies.
+  useEffect(() => {
+    if (!parsed) return;
+    setPly((p) => Math.min(p, parsed.moves.length));
+  }, [parsed]);
+
+  const changeChapter = useCallback(
+    (next: number) => {
+      const clamped = clampIndex(next, chapterCount);
+      setChapterIdx(clamped);
+      setPly(0);
+      onChapterChange?.(clamped);
+    },
+    [chapterCount, onChapterChange],
+  );
+
+  // Keyboard navigation: ← / → for ply, Home/End for chapter ends.
+  useEffect(() => {
+    if (!parsed) return;
+    const onKey = (e: KeyboardEvent) => {
+      // Ignore if a text input is focused (importer, future search, etc.)
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') {
+        setPly((p) => Math.min(p + 1, parsed.moves.length));
+      } else if (e.key === 'ArrowLeft') {
+        setPly((p) => Math.max(0, p - 1));
+      } else if (e.key === 'Home') {
+        setPly(0);
+      } else if (e.key === 'End') {
+        setPly(parsed.moves.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [parsed]);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await importStudy(study.id, { curatedKey: study.curatedKey });
+      notifyStudiesChanged();
+      onRefreshed?.();
+    } catch (err) {
+      // Surface in the parseError slot since we don't have a separate banner.
+      setParseError(err instanceof Error ? err.message : 'Refresh failed.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const orientation = inferOrientation(parsed, chapter?.title ?? '');
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Header row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={onBack} className="btn-secondary text-sm">
+          ← Library
+        </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold">{study.name}</h2>
+          <p className="text-[11px] text-ink-500 dark:text-ink-400">
+            <a
+              href={`https://lichess.org/study/${study.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline"
+            >
+              lichess.org/study/{study.id}
+            </a>
+            {' · '}
+            imported {formatRelative(study.importedAt)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={refreshing}
+          className="btn-secondary text-sm disabled:opacity-60"
+          title="Re-fetch the study PGN from Lichess"
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+
+      {/* Chapter dropdown */}
+      {chapterCount > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="chapter-pick" className="text-xs text-ink-500 dark:text-ink-400">
+            Chapter
+          </label>
+          <select
+            id="chapter-pick"
+            value={chapterIdx}
+            onChange={(e) => changeChapter(Number(e.target.value))}
+            className="input text-sm"
+          >
+            {study.chapters.map((c, i) => (
+              <option key={i} value={i}>
+                {i + 1}. {c.title}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-ink-500 dark:text-ink-400">
+            {chapterIdx + 1} / {chapterCount}
+          </span>
+        </div>
+      )}
+
+      {parseError && (
+        <div className="card border-red-300 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:text-red-300">
+          {parseError}
+        </div>
+      )}
+
+      {/* Body: board + sidebar */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
+        <div className="mx-auto w-full max-w-[min(80vh,_640px)]">
+          {parsed ? (
+            <Board
+              fen={parsed.fens[ply] ?? parsed.startingFen}
+              orientation={orientation}
+              lastMove={lastMoveOf(parsed, ply)}
+              viewOnly
+            />
+          ) : (
+            <div className="card grid aspect-square place-items-center text-sm text-ink-500 dark:text-ink-400">
+              No moves in this chapter.
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          {parsed && (
+            <>
+              <div className="card p-2">
+                <MoveList moves={parsed.moves} ply={ply} onSelectPly={setPly} />
+              </div>
+              <div className="flex gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setPly(0)}
+                  className="btn-secondary flex-1"
+                  disabled={ply === 0}
+                >
+                  ⏮ Start
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPly((p) => Math.max(0, p - 1))}
+                  className="btn-secondary flex-1"
+                  disabled={ply === 0}
+                >
+                  ← Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPly((p) => Math.min(p + 1, parsed.moves.length))}
+                  className="btn-secondary flex-1"
+                  disabled={ply === parsed.moves.length}
+                >
+                  Next →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPly(parsed.moves.length)}
+                  className="btn-secondary flex-1"
+                  disabled={ply === parsed.moves.length}
+                >
+                  End ⏭
+                </button>
+              </div>
+              <p className="text-[11px] text-ink-500 dark:text-ink-400">
+                Arrow keys navigate moves. Home / End jump to chapter ends.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function clampIndex(i: number, count: number): number {
+  if (count <= 0) return 0;
+  if (!Number.isFinite(i) || i < 0) return 0;
+  return Math.min(i, count - 1);
+}
+
+function lastMoveOf(parsed: ParsedGame, ply: number): [string, string] | undefined {
+  if (ply <= 0 || ply > parsed.moves.length) return undefined;
+  const m = parsed.moves[ply - 1];
+  return [m.from, m.to];
+}
+
+/**
+ * Pick a sensible board orientation for the chapter. Heuristic:
+ *   1. If chapter title says "black", orient for black.
+ *   2. Else default white.
+ *
+ * We don't try to read the FEN tag's side-to-move because most opening
+ * studies show a position from the perspective of the side being trained,
+ * not the side currently to move on the first ply.
+ */
+function inferOrientation(parsed: ParsedGame | null, title: string): 'white' | 'black' {
+  if (!parsed) return 'white';
+  if (/\bblack\b/i.test(title)) return 'black';
+  return 'white';
+}
+
+function formatRelative(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const days = Math.floor(diffMs / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return '1 month ago';
+  return `${months} months ago`;
+}

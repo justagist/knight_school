@@ -45,9 +45,19 @@ When the user pastes a personal token (Settings → Lichess account), the Explor
 
 Token verification uses `https://lichess.org/api/account` (any valid token works — no scope required).
 
-### Lichess Studies (Step 8B+)
+### Lichess Studies (Openings tab)
 
-`https://lichess.org/api/study/{id}/{id}.pgn` for study imports. Same token plumbing as Explorer. Cache-first, manual refresh button. Implementation lands with the Openings tab work in sub-step B.
+`https://lichess.org/api/study/{id}.pgn` returns the full multi-game PGN for a public study (one game per chapter). Anonymous reads work for public studies; the optional Lichess token from Settings is forwarded when present for higher rate limits and access to private studies the user has been added to.
+
+The Openings tab is the consumer. Three import paths:
+
+1. **Curated catalog** — hand-picked seed list in [src/lessons/catalog.ts](src/lessons/catalog.ts) (Italian Game, Ruy Lopez, Caro-Kann, etc.). Click a catalog card → fetch + parse + store in Dexie `studies` table → open the viewer.
+2. **Paste-import** — user pastes a `lichess.org/study/...` URL or 8-char slug. Same fetch/parse/store path.
+3. **Deep-link from Analyze** — opening name + each "Variations from here" row link to `/openings?name=<name>`. The Openings page resolves the name against `CURATED_STUDIES[].matches` and auto-imports the match (or shows a friendly "no curated study matches X" banner so the user can paste their own).
+
+Studies are cached forever in Dexie. The viewer has an explicit **Refresh** button that re-fetches and overwrites — no automatic SWR. Studies are user-curated content, not API lookups; we don't want silent background changes.
+
+Parser ([src/lessons/lichessStudy.ts](src/lessons/lichessStudy.ts)) splits Lichess's multi-game PGN on the boundary `\n\n[Event` (blank line followed by a new game's Event tag) and pulls each chapter's title from the `[ChapterName "..."]` tag (a Lichess-specific tag). Falls back to `Chapter N` when the tag is missing.
 
 ### Why hybrid (ECO + token-gated Explorer)?
 
