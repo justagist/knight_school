@@ -22,6 +22,12 @@ interface StudyViewerProps {
   onBack: () => void;
   /** Called after a successful refresh (re-imports + overwrites). */
   onRefreshed?: () => void;
+  /**
+   * Start drilling the current chapter as the given side. The page wires
+   * this to ensure-line + navigate to `?drill=<id>` so the parent
+   * OpeningsPage can render DrillView.
+   */
+  onStartDrill?: (chapterIndex: number, side: 'white' | 'black') => void;
 }
 
 /**
@@ -35,6 +41,7 @@ export function StudyViewer({
   onChapterChange,
   onBack,
   onRefreshed,
+  onStartDrill,
 }: StudyViewerProps) {
   const chapterCount = study.chapters.length;
   const safeInitial = clampIndex(initialChapter, chapterCount);
@@ -42,6 +49,7 @@ export function StudyViewer({
   const [ply, setPly] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [drillPickerOpen, setDrillPickerOpen] = useState(false);
   const { settings } = useSettings();
   const chatScreen = useChatScreen();
   const chatHost = useChatHost();
@@ -230,6 +238,52 @@ export function StudyViewer({
           <span className="text-xs text-ink-500 dark:text-ink-400">
             {chapterIdx + 1} / {chapterCount}
           </span>
+        </div>
+      )}
+
+      {onStartDrill && parsed && parsed.moves.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {drillPickerOpen ? (
+            <>
+              <span className="text-xs text-ink-600 dark:text-ink-300">Practise as:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setDrillPickerOpen(false);
+                  onStartDrill(chapterIdx, 'white');
+                }}
+                className="btn-primary text-xs"
+              >
+                White
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDrillPickerOpen(false);
+                  onStartDrill(chapterIdx, 'black');
+                }}
+                className="btn-primary text-xs"
+              >
+                Black
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrillPickerOpen(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDrillPickerOpen(true)}
+              className="btn-secondary text-xs"
+              title="Quiz yourself on this chapter — app plays the opponent moves, you play your side."
+            >
+              ▶ Drill this chapter
+            </button>
+          )}
         </div>
       )}
 

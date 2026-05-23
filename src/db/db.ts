@@ -240,6 +240,66 @@ export interface StudyRow {
   curatedKey?: string;
 }
 
+/**
+ * A drillable opening line extracted from a study chapter. One row per
+ * (study + chapter + user side). Same chapter can produce up to two rows
+ * (one for each colour the user wants to train against the chapter's
+ * main line). Stats accumulate across attempts.
+ */
+export interface DrillLineRow {
+  /** Composite key: `${studyId}::${chapterIndex}::${userSide}`. Primary. */
+  id: string;
+  studyId: string;
+  chapterIndex: number;
+  /** Cached for display so the queue UI doesn't need to load the study row. */
+  studyName: string;
+  chapterTitle: string;
+  /** Which side the user practises. App plays the other side from the line. */
+  userSide: 'white' | 'black';
+  /** Chapter starting FEN — usually the standard start, but FEN tag respected. */
+  startingFen: string;
+  /** UCI moves of the chapter's main line, in order. */
+  uciMoves: string[];
+  /** SAN parallel to uciMoves — used for display + comparison messages. */
+  sanMoves: string[];
+  /** Author comments per ply (parallel to uciMoves.length + 1). */
+  comments: (string | undefined)[];
+  /** Cumulative stats (excluding invalidated attempts). */
+  attempts: number;
+  successes: number;
+  /** Outcome of the most recent (non-invalidated) attempt; drives scheduling. */
+  lastResult?: 'pass' | 'fail';
+  /** ms epoch of the last attempt (any result, non-invalidated). */
+  lastDrilledAt?: number;
+  createdAt: number;
+}
+
+/**
+ * Per-attempt log. One row per drill attempt, including invalidated ones,
+ * so the user can audit history. Stats on {@link DrillLineRow} are derived
+ * from this table excluding `invalidated === true` rows.
+ */
+export interface DrillAttemptRow {
+  /** UUID. Primary key. */
+  id: string;
+  /** Foreign key to DrillLineRow.id. */
+  drillLineId: string;
+  /** When attempt started (ms epoch). */
+  startedAt: number;
+  /** When attempt finished (pass / fail / abandoned). */
+  endedAt?: number;
+  /** Final outcome. Undefined if abandoned mid-way. */
+  result?: 'pass' | 'fail';
+  /** First wrong move details (pass attempts won't have this). */
+  failurePly?: number;
+  failurePlayedSan?: string;
+  expectedSan?: string;
+  /** Variant the user picked for this attempt. */
+  variant: 'board' | 'guess';
+  /** True when chat was used during the attempt — does not count toward stats. */
+  invalidated: boolean;
+}
+
 export interface GuessRecordRow {
   /** UUID. Primary key. */
   id: string;
@@ -273,6 +333,8 @@ export class KsDatabase extends Dexie {
   explorerEntries!: EntityTable<ExplorerEntryRow, 'fen'>;
   lichessAuth!: EntityTable<LichessAuthRow, 'id'>;
   studies!: EntityTable<StudyRow, 'id'>;
+  drillLines!: EntityTable<DrillLineRow, 'id'>;
+  drillAttempts!: EntityTable<DrillAttemptRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -346,6 +408,22 @@ export class KsDatabase extends Dexie {
       explorerEntries: '&fen, fetchedAt',
       lichessAuth: '&id',
       studies: '&id, importedAt, curatedKey',
+    });
+    // v8: drill lines + per-attempt log for openings drill mode.
+    this.version(8).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt',
     });
   }
 }

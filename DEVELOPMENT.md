@@ -248,6 +248,37 @@ The search bar at the top of `/openings` filters the catalog + library client-si
 
 > There is **no public JSON search API for Lichess studies** — `lichess.org/study/search?q=…` serves HTML only and the route is not on Lichess's CORS allowlist. The bundled catalog plus the external-search link is the no-backend compromise.
 
+## Drill mode
+
+The lesson viewer has a `▶ Drill this chapter` button that quizzes the user on a chapter's main line. App plays the opponent moves; user plays their side. Pass / fail recorded per `(study, chapter, userSide)` row in Dexie's `drillLines` table (v8).
+
+Each chapter can produce two drill lines (one per colour). User picks the side on first drill — the picker is inline in the viewer header.
+
+### Variants
+
+- **Board** (default) — drag pieces; `Board` component is interactive with `movableColor` pinned to the user's side.
+- **Guess (SAN)** — board is read-only, user types the move in algebraic notation. Toggle in the drill header.
+
+### Scheduler
+
+Priority queue in [src/drill/scheduler.ts](src/drill/scheduler.ts):
+
+1. **Failed** — `lastResult === 'fail'`.
+2. **Stale** — never drilled OR `lastDrilledAt` more than 7 days ago.
+3. **Review** — recently passed.
+
+Within each bucket, oldest first. Surfaced as a `Practice queue` section on the Openings page when at least one line exists.
+
+### Chat invalidation
+
+Spec requires: opening chat mid-drill invalidates the attempt. Implementation:
+
+- [src/drill/DrillContext.tsx](src/drill/DrillContext.tsx) tracks `active` (any drill mounted) + an `invalidator` callback DrillView registers on mount.
+- `ChatHost.setOpen(true)` checks the drill context; if active + warning not yet acknowledged this attempt, shows a confirmation modal: *"Open chat during drill?"* with `Cancel` / `Continue and invalidate`.
+- Continue → calls the registered invalidator (sets `state.invalidated = true` on the drill) + opens the panel. Subsequent chat-opens during the same attempt skip the modal (`warningAcknowledged` flag).
+- Invalidated attempts get logged to `drillAttempts` but **do not** update the line's cumulative `attempts` / `successes` counters or `lastResult` — they're invisible to the scheduler.
+- Retrying a drill resets the warning flag so a new attempt re-prompts.
+
 ## Deployment
 
 - **Auto-deploy** — push to `main`.

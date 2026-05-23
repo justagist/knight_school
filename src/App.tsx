@@ -5,6 +5,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { ChatHost } from './chat/ChatHost';
+import { DrillProvider } from './drill/DrillContext';
 import { AnalyzePage } from './pages/AnalyzePage';
 import { OpeningsPage } from './pages/OpeningsPage';
 import { PlanPage } from './pages/PlanPage';
@@ -16,6 +17,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <SettingsProvider>
+        <DrillProvider>
         <ChatHost>
           <div className="flex min-h-full flex-col">
             <Header />
@@ -32,6 +34,7 @@ export default function App() {
             <UpdatePrompt />
           </div>
         </ChatHost>
+        </DrillProvider>
       </SettingsProvider>
     </ThemeProvider>
   );
