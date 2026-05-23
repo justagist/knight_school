@@ -3,16 +3,39 @@ import { createEngine, type EngineHandle } from '../engine/engine';
 import type { EvalSnapshot } from '../engine/types';
 import { db } from '../db/db';
 import { getPositionEvals, putPositionEval } from '../db/positionEvals';
+import { getExplorerEntries, normalizeFenForExplorer } from '../db/explorer';
+import { fetchExplorerEntry } from '../explorer/client';
+import { getLichessToken } from '../db/lichessAuth';
 import { classifyFromCachedRows, type MoveClass } from './classify';
 import { terminalEvalRow } from './terminal';
 import type { ParsedGame } from '../lib/pgn';
-import type { PositionEvalRow } from '../db/db';
+import type { PositionEvalRow, ExplorerEntryRow } from '../db/db';
+
+/**
+ * Plies past the start that we'll fetch Lichess Masters DB data for.
+ * Masters DB coverage drops off sharply after the opening; past ~ply 30 the
+ * vast majority of positions are unique to that game. Cap the network
+ * traffic accordingly — anything past this is unlikely to be "book."
+ */
+const OPENING_FETCH_PLIES = 30;
+
+/** Per-FEN Explorer lookup status — drives the "looking up…" vs "done"
+ * vs "error" branches in the opening header. */
+export type ExplorerStatus = 'loading' | 'loaded' | 'error';
 
 export interface GameAnalysisResult {
   /** Eval per FEN index (parallel to game.fens). */
   evals: (PositionEvalRow | undefined)[];
   /** Classification per played move (parallel to game.moves). */
   classifications: (MoveClass | null)[];
+  /** Lichess Explorer rows keyed by normalized FEN (only opening-phase). */
+  explorerByFen: Record<string, ExplorerEntryRow | undefined>;
+  /** Status of each Explorer fetch, keyed by normalized FEN. */
+  explorerStatus: Record<string, ExplorerStatus | undefined>;
+  /** Latest opening name detected in the trajectory, if any. */
+  openingName?: string;
+  /** ECO code for the deepest matched opening, if any. */
+  ecoCode?: string;
 }
 
 export interface UseGameAnalysisReturn {
@@ -50,6 +73,19 @@ export function useGameAnalysis(
   engineVariant: 'lite' | 'full',
 ): UseGameAnalysisReturn {
   const [evals, setEvals] = useState<(PositionEvalRow | undefined)[]>([]);
+  // Cached Lichess Masters DB rows aligned to game.fens by index. Drives
+  // "Book" classification: when the BEFORE position has >=1000 master
+  // games, the played move is labeled book. Limited to OPENING_FETCH_PLIES
+  // plies — Masters DB has near-zero coverage past the opening anyway.
+  const [explorerByFen, setExplorerByFen] = useState<
+    Record<string, ExplorerEntryRow | undefined>
+  >({});
+  // Per-FEN fetch status. Lets the UI distinguish "still loading" from
+  // "loaded but Lichess has nothing for this position" — both result in
+  // an undefined row, but the user-facing message differs.
+  const [explorerStatus, setExplorerStatus] = useState<
+    Record<string, ExplorerStatus | undefined>
+  >({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +100,8 @@ export function useGameAnalysis(
   useEffect(() => {
     if (!game) {
       setEvals([]);
+      setExplorerByFen({});
+      setExplorerStatus({});
       setError(null);
       return;
     }
@@ -91,6 +129,48 @@ export function useGameAnalysis(
           return undefined;
         });
         setEvals(usable);
+        // Rehydrate Explorer cache for the opening-phase positions. The
+        // initial read is just Dexie (no network). When a Lichess token
+        // is configured we also background-fetch missing entries; without
+        // a token we rely on bundled ECO (data/eco.json) for opening names.
+        const openingFens = game.fens.slice(0, OPENING_FETCH_PLIES);
+        const cachedExplorer = await getExplorerEntries(openingFens);
+        if (cancelled) return;
+        const token = await getLichessToken();
+        const indexed: Record<string, ExplorerEntryRow | undefined> = {};
+        const initialStatus: Record<string, ExplorerStatus | undefined> = {};
+        openingFens.forEach((fen, i) => {
+          const key = normalizeFenForExplorer(fen);
+          indexed[key] = cachedExplorer[i];
+          if (cachedExplorer[i]) initialStatus[key] = 'loaded';
+          // When no token: leave status undefined (NOT 'loading') so the UI
+          // stops showing "looking up…" for things we won't fetch.
+          else if (token) initialStatus[key] = 'loading';
+        });
+        setExplorerByFen(indexed);
+        setExplorerStatus(initialStatus);
+
+        if (!token) return; // ECO covers the offline baseline.
+
+        const missingFens = openingFens.filter((_, i) => !cachedExplorer[i]);
+        for (const fen of missingFens) {
+          const key = normalizeFenForExplorer(fen);
+          void fetchExplorerEntry(fen)
+            .then((row) => {
+              if (cancelled) return;
+              if (row) {
+                setExplorerByFen((prev) => ({ ...prev, [row.fen]: row }));
+                setExplorerStatus((prev) => ({ ...prev, [key]: 'loaded' }));
+              } else {
+                setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+              }
+            })
+            .catch(() => {
+              if (!cancelled) {
+                setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+              }
+            });
+        }
         setError(null);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -141,6 +221,14 @@ export function useGameAnalysis(
     (async () => {
       try {
         await engine.ready();
+
+        // Fire off Explorer fetches in parallel for the opening-phase FENs.
+        // These don't block the engine loop — they trickle in to
+        // explorerByFen as they resolve, and the classifier reads whatever
+        // is current when it runs. Cached entries return immediately;
+        // network ones piggyback on the SW runtime cache (30-day SWR).
+        kickOffExplorerFetches(game.fens.slice(0, OPENING_FETCH_PLIES), runId);
+
         for (let i = 0; i < game.fens.length; i++) {
           if (runIdRef.current !== runId) return; // cancelled
           // Skip if we already have an eval at the requested depth.
@@ -229,7 +317,40 @@ export function useGameAnalysis(
     return row.depth === 0 && row.lines.length > 0 && row.lines[0].uciMoves.length === 0;
   }
 
-  // Build per-played-move classifications from the eval array.
+  /**
+   * Fan-out Explorer fetches for the opening-phase FENs in parallel.
+   * Each resolves to a cached row (Dexie) or a fresh fetch (network). As
+   * each one lands, write it into the explorerByFen map so the classifier
+   * picks up "book" status incrementally.
+   *
+   * Aborts (via runIdRef check) so stale lookups from a previous run can't
+   * stomp state after the user switches games.
+   */
+  function kickOffExplorerFetches(fens: string[], runId: number) {
+    for (const fen of fens) {
+      const key = normalizeFenForExplorer(fen);
+      // Only mark as 'loading' if we haven't already loaded it. Status
+      // transitions: undefined → 'loading' → 'loaded' | 'error'.
+      setExplorerStatus((prev) => (prev[key] ? prev : { ...prev, [key]: 'loading' }));
+      void fetchExplorerEntry(fen)
+        .then((row) => {
+          if (runIdRef.current !== runId) return;
+          if (row) {
+            setExplorerByFen((prev) => ({ ...prev, [row.fen]: row }));
+            setExplorerStatus((prev) => ({ ...prev, [key]: 'loaded' }));
+          } else {
+            setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+          }
+        })
+        .catch(() => {
+          if (runIdRef.current === runId) {
+            setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+          }
+        });
+    }
+  }
+
+  // Build per-played-move classifications from the eval array + Explorer cache.
   const classifications = useMemo<(MoveClass | null)[]>(() => {
     if (!game) return [];
     return game.moves.map((mv, idx) => {
@@ -237,9 +358,10 @@ export function useGameAnalysis(
       const after = evals[idx + 1];
       if (!before || !after) return null;
       const playedUci = `${mv.from}${mv.to}`;
-      return classifyFromCachedRows(before, after, playedUci, idx);
+      const explorerBefore = explorerByFen[normalizeFenForExplorer(game.fens[idx])];
+      return classifyFromCachedRows(before, after, playedUci, idx, explorerBefore);
     });
-  }, [game, evals]);
+  }, [game, evals, explorerByFen]);
 
   // Derive progress from evals so it can't drift out of sync with the array
   // itself. The previous separate `done` state had a race where setEvals and
@@ -248,8 +370,26 @@ export function useGameAnalysis(
   const done = useMemo(() => evals.reduce((n, e) => n + (e ? 1 : 0), 0), [evals]);
   const complete = total > 0 && evals.length === total && done === total;
 
+  // Pick the deepest detected opening name along the game's actual line.
+  // Lichess hangs the opening tag on the *position* — as the line gets
+  // more specific, the name gets more specific too (Caro-Kann → Caro-Kann
+  // Defense: Exchange Variation), so we scan forward and keep the latest
+  // non-empty name we see.
+  const { openingName, ecoCode } = useMemo(() => {
+    if (!game) return { openingName: undefined, ecoCode: undefined };
+    let name: string | undefined;
+    let eco: string | undefined;
+    const upTo = Math.min(game.fens.length, OPENING_FETCH_PLIES + 1);
+    for (let i = 0; i < upTo; i++) {
+      const row = explorerByFen[normalizeFenForExplorer(game.fens[i])];
+      if (row?.openingName) name = row.openingName;
+      if (row?.ecoCode) eco = row.ecoCode;
+    }
+    return { openingName: name, ecoCode: eco };
+  }, [game, explorerByFen]);
+
   return {
-    result: { evals, classifications },
+    result: { evals, classifications, explorerByFen, explorerStatus, openingName, ecoCode },
     running,
     progress: { done, total },
     start,

@@ -10,6 +10,9 @@ export interface ExplorationMove {
 export interface ExplorationState {
   /** The FEN we branched off from. */
   baseFen: string;
+  /** Ply index where the user diverged from the game's main line. Lets
+   * downstream code (chat context, UI labels) say "branched after move N". */
+  branchPly: number;
   /** Moves played in this exploration line, in order. */
   moves: ExplorationMove[];
   /** Current FEN — baseFen if no moves yet, else last move's fenAfter. */
@@ -38,6 +41,8 @@ interface UseExplorationArgs {
    * board snaps back to the game's line.
    */
   anchorFen: string | null;
+  /** Current game ply at the anchor — captured when exploration begins. */
+  anchorPly: number;
 }
 
 /**
@@ -50,7 +55,7 @@ interface UseExplorationArgs {
  * Engine analysis (useEngine) consumes whatever FEN is currently shown,
  * so wiring is: callers ask the hook for `currentFen` and pass it down.
  */
-export function useExploration({ anchorFen }: UseExplorationArgs): UseExplorationReturn {
+export function useExploration({ anchorFen, anchorPly }: UseExplorationArgs): UseExplorationReturn {
   const [state, setState] = useState<ExplorationState | null>(null);
 
   // Whenever the user navigates to a different ply (or loads a new game),
@@ -80,10 +85,16 @@ export function useExploration({ anchorFen }: UseExplorationArgs): UseExploratio
           fenAfter: chess.fen(),
         };
         if (startingFromAnchor) {
-          setState({ baseFen: from, moves: [move], currentFen: move.fenAfter });
+          setState({
+            baseFen: from,
+            branchPly: anchorPly,
+            moves: [move],
+            currentFen: move.fenAfter,
+          });
         } else {
           setState({
             baseFen: state!.baseFen,
+            branchPly: state!.branchPly,
             moves: [...state!.moves, move],
             currentFen: move.fenAfter,
           });
@@ -93,7 +104,7 @@ export function useExploration({ anchorFen }: UseExplorationArgs): UseExploratio
         return false;
       }
     },
-    [anchorFen, state],
+    [anchorFen, anchorPly, state],
   );
 
   const takeBack = useCallback(() => {

@@ -26,7 +26,7 @@ export async function exportToBlob(opts: ExportOptions): Promise<Blob> {
   // without your past Elle conversations would be of limited use.
   const skipTables: string[] = opts.includeApiKeys
     ? []
-    : ['apiKeys', 'providerConfig', 'llmGlobal'];
+    : ['apiKeys', 'providerConfig', 'llmGlobal', 'lichessAuth'];
 
   return exportDB(db(), {
     prettyJson: true,

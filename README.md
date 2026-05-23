@@ -53,14 +53,34 @@ No environment variables. No `.env` file. Bring your own LLM API key in the in-a
 - **LLM (Elle)** — Provider (Anthropic / OpenAI), API key, model, test-connection button.
 - **Storage** — Used MB, export/import all data, clear everything.
 
-## LLM API key & news access
+## API keys
+
+All credentials are stored locally in your browser. Nothing leaves your device except the actual provider calls.
+
+### LLM (Elle)
 
 Elle uses your provider's built-in web search tool for current chess news.
 
 - **Anthropic** — Web search works on most current Claude models. Paid API account required, small per-search fee.
 - **OpenAI** — Requires a model that supports web search. Small per-search fee.
+- **Google Gemini** — Free tier available, paid for higher quotas.
 
-If your plan or model doesn't support web search, Elle will still answer chess questions from training knowledge but won't have current news.
+If your plan or model doesn't support web search, Elle will still answer chess questions from training knowledge but won't have current news. Multi-key support means you can stack a free-tier Gemini key as the daily driver and fall back to a paid Anthropic / OpenAI key when you hit rate limits.
+
+### Lichess (optional)
+
+A Lichess personal access token unlocks the **Opening Explorer** (master-game stats, popular continuations, finer opening tags) and **Study import** features. Without a token the app still works — opening names come from the bundled ECO database (3,700+ positions), and the Openings tab still imports PGN you paste in.
+
+To enable:
+
+1. Sign in at [lichess.org](https://lichess.org/) and visit [account/oauth/token/create](https://lichess.org/account/oauth/token/create).
+2. No scopes are required for the Explorer; leave them blank.
+3. Copy the generated token.
+4. In KnightSchool: **Settings → Lichess account → Add Lichess token**. Paste, save. The Settings UI validates the token immediately via `/api/account`.
+
+The token is stored alongside your other data in IndexedDB. Exporting your backup with "Include API keys" enabled brings it along; without that toggle, it stays on the originating device.
+
+> Lichess introduced auth on the Opening Explorer endpoint in 2026. The hybrid (bundled ECO + optional token) keeps the app fully usable for users who haven't created one.
 
 ## Deployment
 

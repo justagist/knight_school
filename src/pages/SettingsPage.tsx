@@ -7,6 +7,7 @@ import {
   ANALYSIS_DEPTH_MAX,
 } from '../settings/SettingsProvider';
 import { LlmSection } from './settings/LlmSection';
+import { LichessSection } from './settings/LichessSection';
 import { StorageSection } from './settings/StorageSection';
 
 const MODES: { value: ThemeMode; label: string }[] = [
@@ -183,6 +184,8 @@ export function SettingsPage() {
       </section>
 
       <LlmSection />
+
+      <LichessSection />
 
       <StorageSection />
 

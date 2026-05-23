@@ -33,7 +33,8 @@
  * "Brilliant" is intentionally skipped for MVP (per the build spec).
  */
 
-import type { PositionEvalRow } from '../db/db';
+import type { ExplorerEntryRow, PositionEvalRow } from '../db/db';
+import { BOOK_MIN_GAMES } from '../explorer/client';
 
 export type MoveClass =
   | 'opening' // Temporary: first 6 moves; unclassified by design
@@ -126,25 +127,44 @@ export function classifyMove(args: ClassifyArgs): MoveClass {
  * Per-move classifier consuming cached eval rows.
  *
  * Returns:
+ *   - `'book'` if Lichess Masters DB has >= {@link BOOK_MIN_GAMES} games at
+ *     the BEFORE position (the played move is opening theory — engine eval
+ *     isn't the right framing). This supersedes everything else.
  *   - `null` if either cached row is below {@link MIN_CLASSIFY_DEPTH} or
  *     missing — caller renders no glyph + can surface a "depth too low" note.
- *   - `'opening'` for the first {@link OPENING_PLY_THRESHOLD} plies of the
- *     game (temporary fallback until Step 7's Opening Explorer lookup).
+ *   - `'opening'` as an offline fallback for the first
+ *     {@link OPENING_PLY_THRESHOLD} plies when no Explorer data is in cache
+ *     yet (the user hasn't run analysis, hasn't been online, or this is
+ *     transient before Explorer fetches resolve). Once Explorer lands a
+ *     real "book" answer it takes over.
  *   - Otherwise the win-probability classification.
  *
  * `moveIndex` is the 0-based index of the move in the game (move 1 white = 0).
+ * `explorerBefore` is the cached Explorer row for the position BEFORE the
+ * move (may be undefined — for opening positions we still emit 'opening' as
+ * a fallback, for later positions the absence is normal).
  */
 export function classifyFromCachedRows(
   before: PositionEvalRow | undefined,
   after: PositionEvalRow | undefined,
   playedUci: string,
   moveIndex: number,
+  explorerBefore?: ExplorerEntryRow | undefined,
 ): MoveClass | null {
   if (!before || !after) return null;
-  // Opening fallback. Skipping classification by design — the engine's
-  // evaluation in the first few moves of mainline opening play is meaningless
-  // for "did you make a mistake?" purposes.
-  if (moveIndex < OPENING_PLY_THRESHOLD) return 'opening';
+
+  // Real book: Lichess Masters DB has at least BOOK_MIN_GAMES master games
+  // at this position. The played move is by-definition theory; engine
+  // micro-eval differences are noise here.
+  if (explorerBefore && explorerBefore.totalGames >= BOOK_MIN_GAMES) {
+    return 'book';
+  }
+
+  // Offline / not-yet-fetched fallback: for the first few plies we still
+  // suppress harsh classifications. Real Explorer data above supersedes
+  // this once it arrives.
+  if (moveIndex < OPENING_PLY_THRESHOLD && !explorerBefore) return 'opening';
+
   // Terminal rows are stored at depth 0; classify them anyway since they're
   // not "shallow analysis" — they're definitive outcomes.
   const isTerminalBefore = before.depth === 0 && (before.mate != null || before.scoreCp != null);

@@ -16,12 +16,13 @@ Identity
 - If asked if you're human: "I'm Elle, an AI chess assistant."
 
 Voice — read this twice
-- Warm, curious, a little playful. You genuinely enjoy chess and it shows.
-- **Concise.** 2–4 sentences usually does it. The personality comes from word choice, not word count.
-- **Vivid chess language.** Pieces "rake the diagonal", knights "outpost", attacks "land", kings sit "naked" or "airy", a rook "barges in" on the seventh. Don't write like a textbook.
-- **Lead with the answer, then the reason** — only if reason isn't obvious. Skip "Great question!", recapping the user's message, or any throat-clearing.
+- You are a **cheerful chess instructor**: upbeat, encouraging, curious about every position. The user is your student; you're the friendly coach watching their game over their shoulder.
+- **Concise.** 2–4 sentences. Brevity is part of the warmth — long lectures from a coach feel preachy. Personality lives in word choice, not word count.
+- **Vivid chess language.** Pieces "rake the diagonal", knights "outpost", attacks "land", kings sit "naked" or "airy", a rook "barges in" on the seventh. Sounds like a coach pointing at the board, not a textbook.
+- **Celebrate the good stuff.** When the student finds a strong move or solid plan, name it — "nice knight maneuver", "that pawn break is well-timed". Not gushing — one beat, then the substance.
+- **Lead with the answer, then the reason** — only if the reason isn't obvious. Skip "Great question!", recapping the user's message, or any throat-clearing.
 - **No bulleted lists** unless the user asks for one. Prose by default.
-- **Light wit when natural.** A dry quip or a chess pun lands if it fits — don't force it.
+- **Light wit when natural.** A dry quip or chess pun lands if it fits — don't force it.
 - **Match the user's register.** Casual question → casual answer. Technical → technical.
 - **No emojis** in your responses. The "🔎 with web search" badge is system-rendered, not typed by you.
 
@@ -46,6 +47,11 @@ Reading the screen context
 - **"This move", "the current move", "the played move", "the move I'm looking at", "the selected move"** all refer to the move identified as "Move at current ply" in the context block.
 - If the user asks about a specific numbered move ("why was 15.Bf4 a blunder?"), use the engine trajectory in the context. If the trajectory lists that move as anything *other than* a blunder, gently correct the framing rather than agreeing.
 - If the user asks for a game summary, lean on the engine trajectory (move classifications + eval shifts) and the PGN. Don't invent narrative details the data doesn't support.
+
+Comparing the user's exploration to the actual game
+- The KnightSchool app has an "interactive mode": the user can drag pieces on the board to try alternative moves without affecting the game cursor. When they do, the context block includes an "Exploration / interactive mode" section with (a) the branch point, (b) the user's tried moves so far, (c) the moves that were actually played in the game from that point on.
+- If the user asks "is my line better than what was played?", "how does this compare to the game?", or anything along those lines, **compare both lines explicitly**. Mention the eval delta when present. Walk both sequences in SAN with move numbers. Be honest: if the user's exploration is worse, say so kindly; if it's better than the game, celebrate it ("nice — your line keeps the bishop pair").
+- If the user just makes moves without asking, don't lecture — wait for the question.
 
 Explaining a mistake — concrete lines, not abstractions
 - When the user asks "why is this a blunder/mistake/inaccuracy" or "how is the advantage gained", you MUST give the **concrete tactical or positional sequence**. Don't write hand-wavy things like "it swings the evaluation by N points" — that's circular. The user can see the eval; they want the *mechanism*.
@@ -106,6 +112,31 @@ export interface ScreenContext {
    * model to invent details the engine actually has.
    */
   trajectory?: string;
+  /** Opening name from Lichess Explorer (e.g. "Caro-Kann Defense: Exchange"). */
+  openingName?: string;
+  /** ECO code paired with openingName. */
+  ecoCode?: string;
+  /**
+   * Set when the user has branched off the game's main line to try
+   * alternative moves. Includes the branch point + the user's exploration
+   * moves + the moves that were ACTUALLY played in the game from that
+   * point on, so Elle can compare the two lines.
+   */
+  exploration?: {
+    /** Game ply where the user diverged. */
+    branchPly: number;
+    /** Move label at the branch point (e.g. "14..." or "15."). */
+    branchLabel: string;
+    /** User's exploration moves in SAN, e.g. ["Nxe4", "Qxe4", "Bxh2+"]. */
+    userMoves: string[];
+    /** Moves actually played in the game from the branch point on, in SAN.
+     * Lets Elle answer "is my line better than what was played?". */
+    gameContinuation: string[];
+    /** Engine eval (pawns, White POV) at the user's current exploration FEN. */
+    explorationEval?: number;
+    /** Engine eval (pawns, White POV) at the game's matching ply. */
+    gameLineEval?: number;
+  };
 }
 
 /**
@@ -121,6 +152,9 @@ export function buildSystemPrompt(ctx: ScreenContext): string {
   lines.push('--- Current screen ---');
   if (ctx.gameLabel) lines.push(`Game: ${ctx.gameLabel}`);
   if (ctx.result) lines.push(`Result: ${ctx.result}`);
+  if (ctx.openingName) {
+    lines.push(`Opening: ${ctx.openingName}${ctx.ecoCode ? ` (${ctx.ecoCode})` : ''}`);
+  }
   if (typeof ctx.ply === 'number') {
     lines.push(`Current ply: ${ctx.ply} (the position shown is AFTER ply ${ctx.ply}).`);
   }
@@ -168,6 +202,31 @@ export function buildSystemPrompt(ctx: ScreenContext): string {
 
   if (ctx.trajectory) {
     lines.push(`Engine trajectory for the full game (use this for summaries):\n${ctx.trajectory}`);
+  }
+
+  if (ctx.exploration) {
+    // The user is in "interactive analysis" mode — they've branched off
+    // the main line to try alternative moves. The board is showing their
+    // exploration position, not the game line. Surface both sides so the
+    // model can compare the two lines on request.
+    const e = ctx.exploration;
+    lines.push('--- Exploration / interactive mode ---');
+    lines.push(
+      `User branched at ${e.branchLabel} (game ply ${e.branchPly}). The board now shows the USER's tried line, not the actual game.`,
+    );
+    lines.push(`User's exploration moves: ${e.userMoves.join(' ') || '(none yet)'}`);
+    if (e.gameContinuation.length > 0) {
+      lines.push(
+        `Game continued (what was actually played from the branch): ${e.gameContinuation.slice(0, 16).join(' ')}${e.gameContinuation.length > 16 ? ' …' : ''}`,
+      );
+    } else {
+      lines.push('Game continued: (branch is at the end of the game)');
+    }
+    if (e.explorationEval != null && e.gameLineEval != null) {
+      lines.push(
+        `Eval comparison (White POV): user's line ${formatPawns(e.explorationEval)} vs game's line ${formatPawns(e.gameLineEval)}`,
+      );
+    }
   }
 
   if (ctx.pgn) {

@@ -149,6 +149,62 @@ export interface MoveCommentaryRow {
 }
 
 /**
+ * A cached Lichess Opening Explorer (Masters DB) lookup, keyed by the
+ * position-only portion of the FEN. We only store the fields that drive
+ * classification + UI (total games + opening name) — the full response
+ * lives in the service-worker runtime cache for offline reuse.
+ *
+ * "Book" classification fires when `totalGames >= 1000`.
+ */
+/**
+ * Singleton row holding the user's optional Lichess API token. Stored
+ * separately from LLM `apiKeys` because it's a different credential
+ * category (not an LLM provider — a Lichess account token used for the
+ * Opening Explorer and Study endpoints).
+ *
+ * Lichess started requiring auth for the Explorer in 2026; this is opt-in
+ * and the app falls back to bundled ECO when absent.
+ */
+export interface LichessAuthRow {
+  id: 'singleton';
+  /** Personal access token from lichess.org/account/oauth/token. */
+  token: string;
+  /** Free-text label (defaults to "Lichess"). */
+  label: string;
+  /** ms epoch of last test connection. */
+  lastTestedAt?: number;
+  /** Outcome of last test. */
+  lastTestStatus?: 'ok' | 'error';
+  lastTestMessage?: string;
+}
+
+export interface ExplorerEntryRow {
+  /** Normalized FEN: position + side-to-move + castling + en-passant only. */
+  fen: string;
+  /** white + draws + black, computed at fetch time. */
+  totalGames: number;
+  /** Lichess's "opening" name, e.g. "Caro-Kann Defense: Exchange Variation". */
+  openingName?: string;
+  /** ECO code, e.g. "B13". */
+  ecoCode?: string;
+  /**
+   * Top popular continuations from this position, each with its own opening
+   * tag (if Lichess names it). Lets the UI render "narrows to:" lists so
+   * the user can see which lines they're choosing between. Omitted on rows
+   * cached before this field was introduced — UI falls back gracefully.
+   */
+  topContinuations?: Array<{
+    san: string;
+    openingName?: string;
+    ecoCode?: string;
+    /** white + draws + black for this continuation. */
+    gameCount: number;
+  }>;
+  /** ms epoch when this row was written. */
+  fetchedAt: number;
+}
+
+/**
  * One recorded guess from "Guess the move" mode. Indexed by gameKey so
  * per-game accuracy reads quickly; aggregate stats sweep the table.
  */
@@ -182,6 +238,8 @@ export class KsDatabase extends Dexie {
   chatMessages!: EntityTable<ChatMessageRow, 'id'>;
   moveCommentaries!: EntityTable<MoveCommentaryRow, 'key'>;
   guessRecords!: EntityTable<GuessRecordRow, 'id'>;
+  explorerEntries!: EntityTable<ExplorerEntryRow, 'fen'>;
+  lichessAuth!: EntityTable<LichessAuthRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -215,6 +273,32 @@ export class KsDatabase extends Dexie {
       chatMessages: '&id, threadId, createdAt',
       moveCommentaries: '&key, fen, createdAt',
       guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+    });
+    // v5: Lichess Opening Explorer cache (parsed totals + opening name).
+    this.version(5).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+    });
+    // v6: optional Lichess API token (separate from LLM keys — different
+    // credential category, different consumer).
+    this.version(6).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
     });
   }
 }

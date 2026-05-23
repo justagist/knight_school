@@ -12,6 +12,53 @@ KnightSchool is a fully client-side React + TypeScript PWA. There is no backend.
 - **LLM** — Thin `LLMProvider` interface. Anthropic + OpenAI implementations. Direct browser → provider calls.
 - **PWA** — `vite-plugin-pwa` with `registerType: 'prompt'`. Service worker precaches app shell + WASM + sounds + ECO data.
 
+## Data sources
+
+KnightSchool talks to three external surfaces. Everything else is local.
+
+### Bundled ECO opening database
+
+`src/data/eco.json` — a position-keyed map (FEN → `{ eco, name }`) produced by [`scripts/build-eco.mjs`](scripts/build-eco.mjs) from [`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings) (CC0). 3,704 named positions covering ECO A00–E99.
+
+This is the **always-available** opening-name source. Works offline. No auth. The inline `[OPENING]` badge in the Analyze view reads from this first.
+
+To rebuild after upstream updates:
+
+```sh
+# Fetch the latest TSVs
+for f in a b c d e; do curl -sL "https://raw.githubusercontent.com/lichess-org/chess-openings/master/${f}.tsv" -o "/tmp/eco-${f}.tsv"; done
+# Re-generate the JSON
+node scripts/build-eco.mjs
+# Commit the updated src/data/eco.json
+```
+
+The build script normalizes FENs to the 4-field form (position + side-to-move + castling + en-passant) so transpositions collapse. On conflict the longer (more specific) name wins.
+
+### Lichess Opening Explorer (optional, token-gated)
+
+`https://explorer.lichess.ovh/masters` — master-game stats per FEN (white/draws/black totals, top continuations, opening tags). **As of 2026 this endpoint requires authentication** — anon access returns 401. KnightSchool falls back to bundled ECO when no token is set.
+
+When the user pastes a personal token (Settings → Lichess account), the Explorer is fetched in parallel during game-load and Analyze-game runs. Cached aggressively in two tiers:
+
+- **Dexie** (`explorerEntries` table) — parsed totals + opening name + top continuations. 30-day stale-while-revalidate. Driven by `src/explorer/client.ts`.
+- **Service Worker runtime cache** — raw HTTP responses, also 30-day SWR. Defined in `vite.config.ts` workbox runtime caching rules.
+
+Token verification uses `https://lichess.org/api/account` (any valid token works — no scope required).
+
+### Lichess Studies (Step 8B+)
+
+`https://lichess.org/api/study/{id}/{id}.pgn` for study imports. Same token plumbing as Explorer. Cache-first, manual refresh button. Implementation lands with the Openings tab work in sub-step B.
+
+### Why hybrid (ECO + token-gated Explorer)?
+
+Originally Explorer was public; we used it as the single source of truth for opening names + book classification. Lichess shipped an auth requirement in 2026 and the entire flow broke (401 on every call). Options were:
+
+1. Require every user to make a token → bad first-run UX.
+2. Proxy through a Cloudflare Worker → breaks the "no backend" spec rule.
+3. Bundle ECO data + make Explorer optional. **Chosen.**
+
+Bundled ECO is enough for the inline opening name on most positions. Explorer adds master-game counts, popular-continuation lists, and finer-grained opening tags. Step 8B's Openings tab degrades gracefully without a token but lights up with one.
+
 ## Move classification logic
 
 KnightSchool classifies each played move as one of:

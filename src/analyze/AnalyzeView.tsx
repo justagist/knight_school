@@ -24,9 +24,14 @@ import { GuessModePanel } from '../guess/GuessModePanel';
 import { useExploration } from './useExploration';
 import { summarizeCaptures } from './captures';
 import { PlayerStrip } from './PlayerStrip';
+import { OpeningBadge, OpeningHeader } from './OpeningBadge';
+import { normalizeFenForExplorer } from '../db/explorer';
+import { lookupOpening } from '../data/eco';
+import { useLichessAuth } from '../hooks/useLichessAuth';
 
 export function AnalyzeView() {
   const g = useGame();
+  const lichessAuth = useLichessAuth();
   const { settings } = useSettings();
   const chatScreen = useChatScreen();
   const chatHost = useChatHost();
@@ -35,7 +40,7 @@ export function AnalyzeView() {
   // (outside guess mode), they branch off the main line. The exploration
   // FEN supersedes the game's FEN for both the board display and engine
   // analysis. Navigating moves resets it.
-  const exploration = useExploration({ anchorFen: g.currentFen });
+  const exploration = useExploration({ anchorFen: g.currentFen, anchorPly: g.ply });
 
   // FEN actually displayed: exploration if active, else the game's FEN.
   const displayFen = exploration.active
@@ -101,6 +106,28 @@ export function AnalyzeView() {
         }
       : undefined;
     const trajectory = summarizeTrajectory(g.game, analysis.result);
+
+    // Build the exploration block when the user has branched off — gives
+    // Elle both the user's tried line AND the game's continuation so she
+    // can compare on request.
+    let explorationCtx: import('../llm/personaPrompt').ScreenContext['exploration'];
+    if (exploration.active && exploration.state) {
+      const bp = exploration.state.branchPly;
+      const branchMove = g.game.moves[bp - 1]; // last actual game move before the branch
+      const branchLabel = branchMove
+        ? `${branchMove.moveNumber}${branchMove.color === 'w' ? '.' : '...'} ${branchMove.san}`
+        : 'start';
+      const gameContinuation = g.game.moves.slice(bp).map((m) => m.san);
+      explorationCtx = {
+        branchPly: bp,
+        branchLabel,
+        userMoves: exploration.state.moves.map((m) => m.san),
+        gameContinuation,
+        explorationEval: pawnsFromRow(analysis.result.evals[bp]) ?? undefined,
+        gameLineEval: pawnsFromRow(analysis.result.evals[bp + exploration.state.moves.length]),
+      };
+    }
+
     chatScreen.setScreen({
       kind: 'game',
       gameLabel: gameLabel(g.game.headers),
@@ -111,6 +138,9 @@ export function AnalyzeView() {
       currentMove,
       engineSummary,
       trajectory,
+      openingName: analysis.result.openingName,
+      ecoCode: analysis.result.ecoCode,
+      exploration: explorationCtx,
     });
     // chatScreen.setScreen identity is stable; chatHost.setRawPgn is stable too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,6 +151,8 @@ export function AnalyzeView() {
     g.currentFen,
     engine.snapshot,
     analysis.result,
+    exploration.active,
+    exploration.state,
   ]);
 
   useEffect(() => {
@@ -153,6 +185,45 @@ export function AnalyzeView() {
     () => summarizeCaptures(g.game, g.ply, exploration.state?.moves ?? []),
     [g.game, g.ply, exploration.state],
   );
+
+  // Opening breadcrumb: scan ECO + Explorer rows for plies 0..currentPly so
+  // the "Last recognized theory" out-of-book fallback only goes as deep as
+  // the user has navigated (not the entire game). ECO is the offline-first
+  // source (always available, ~3,700 named positions from bundled Lichess
+  // chess-openings data). Explorer adds the same name when authed — we
+  // prefer ECO since it's free of API state.
+  const openingBreadcrumb = useMemo(() => {
+    if (!g.game) return { name: undefined as string | undefined, eco: undefined as string | undefined };
+    let name: string | undefined;
+    let eco: string | undefined;
+    const upTo = Math.min(g.ply, g.game.fens.length - 1);
+    for (let i = 0; i <= upTo; i++) {
+      // ECO first (offline, deterministic).
+      const ecoEntry = lookupOpening(g.game.fens[i]);
+      if (ecoEntry) {
+        name = ecoEntry.name;
+        eco = ecoEntry.eco;
+      }
+      // Explorer fills the same fields when present — useful for richer
+      // names sometimes (Lichess has finer-grained tags than the ECO TSV).
+      const row = analysis.result.explorerByFen[normalizeFenForExplorer(g.game.fens[i])];
+      if (row?.openingName) name = row.openingName;
+      if (row?.ecoCode) eco = row.ecoCode;
+    }
+    return { name, eco };
+  }, [g.game, g.ply, analysis.result.explorerByFen]);
+
+  // Opening name from ECO at the CURRENT ply — primary display source.
+  // Works fully offline; doesn't depend on Explorer / Lichess token.
+  const currentEco = g.game ? lookupOpening(g.currentFen ?? g.game.startingFen) : undefined;
+
+  // Explorer row for the position currently on the board (only meaningful
+  // when we're on the actual game line — not while exploring branches).
+  const currentExplorerRow = g.game
+    ? analysis.result.explorerByFen[
+        normalizeFenForExplorer(g.currentFen ?? g.game.startingFen)
+      ]
+    : undefined;
 
   // Keyboard shortcuts: ← prev, → next, Home start, End end, f flip
   useEffect(() => {
@@ -220,6 +291,25 @@ export function AnalyzeView() {
           {result && (
             <div className="text-xs text-ink-500 dark:text-ink-400">Result: {result}</div>
           )}
+          {/* Inline opening line (Lichess/chess.com style). Shows current
+              position's opening if matched, else "Out of book — last: X"
+              breadcrumb. Hidden at starting position and when nothing's ever
+              been matched. */}
+          <OpeningHeader
+            eco={currentEco}
+            current={currentExplorerRow}
+            currentStatus={
+              g.game
+                ? analysis.result.explorerStatus[
+                    normalizeFenForExplorer(g.currentFen ?? g.game.startingFen)
+                  ]
+                : undefined
+            }
+            lastKnownName={openingBreadcrumb.name}
+            lastKnownEco={openingBreadcrumb.eco}
+            atStartingPosition={g.ply === 0}
+            hasLichessToken={lichessAuth.hasToken}
+          />
         </div>
       </div>
 
@@ -365,6 +455,10 @@ export function AnalyzeView() {
               engineDisabled={!settings.engineEnabled}
               depth={settings.analysisDepth}
             />
+          )}
+
+          {!guess.active && !exploration.active && (
+            <OpeningBadge current={currentExplorerRow} atStartingPosition={g.ply === 0} />
           )}
 
           {!guess.active && analysis.progress.done > 0 && (
