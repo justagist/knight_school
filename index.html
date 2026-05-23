@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- iOS PWA meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KnightSchool" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>KnightSchool — Chess made easy.</title>
+    <meta name="description" content="KnightSchool: learn chess with engine analysis, opening drills, and Elle, your AI chess assistant. Everything runs in your browser." />
+
+    <!-- Prevent FOUC on theme: set html.dark before paint -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('ks-theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = stored === 'dark' || (stored !== 'light' && prefersDark);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-ink-50 text-ink-900 dark:bg-ink-950 dark:text-ink-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
