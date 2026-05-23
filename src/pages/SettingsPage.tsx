@@ -68,6 +68,13 @@ export function SettingsPage() {
             checked={settings.showCoordinates}
             onChange={(v) => update('showCoordinates', v)}
           />
+          {settings.showCoordinates && (
+            <Toggle
+              label="Coordinates on every square"
+              checked={settings.coordinatesOnSquares}
+              onChange={(v) => update('coordinatesOnSquares', v)}
+            />
+          )}
           <Toggle
             label="Highlight last move"
             checked={settings.highlightLastMove}

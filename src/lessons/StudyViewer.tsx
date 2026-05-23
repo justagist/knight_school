@@ -2,9 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudyRow } from '../db/db';
 import { Board } from '../components/Board';
 import { MoveList } from '../components/MoveList';
+import { EvalBar } from '../components/EvalBar';
 import { parsePgn, type ParsedGame } from '../lib/pgn';
 import { importStudy } from './lichessStudy';
 import { notifyStudiesChanged } from './useStudies';
+import { useEngine } from '../engine/useEngine';
+import { useSettings } from '../settings/SettingsProvider';
+import { useChatScreen } from '../chat/ChatContextProvider';
+import { useChatHost } from '../chat/ChatHost';
+import { summarizeEngine } from '../llm/engineSummary';
 
 interface StudyViewerProps {
   study: StudyRow;
@@ -36,6 +42,9 @@ export function StudyViewer({
   const [ply, setPly] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { settings } = useSettings();
+  const chatScreen = useChatScreen();
+  const chatHost = useChatHost();
 
   // Reset to chapter 0 / ply 0 when the study itself changes.
   useEffect(() => {
@@ -109,6 +118,62 @@ export function StudyViewer({
 
   const orientation = inferOrientation(parsed, chapter?.title ?? '');
 
+  // FEN at the current ply — drives the eval bar engine.
+  const currentFen = parsed ? parsed.fens[ply] ?? parsed.startingFen : null;
+
+  // Per-position live engine for the eval bar. Same setup as the Analyze
+  // view (lite variant, user-configured depth). No interactivity in lesson
+  // mode, but the user still wants the eval to follow them through the
+  // chapter so they can see how the position swings as the author walks
+  // through theory.
+  const engine = useEngine({
+    fen: currentFen,
+    depth: settings.analysisDepth,
+    enabled: settings.engineEnabled && settings.engineVariant === 'lite',
+  });
+
+  // Publish the lesson screen context to the chat host so Elle has full
+  // visibility of the chapter — all moves, every author comment, the ply
+  // the user is looking at, and the current engine eval. Lets the user ask
+  // hypotheticals like "what if I played X instead of Y here?".
+  useEffect(() => {
+    if (!chapter) return;
+    chatHost.setRawPgn(chapter.pgn);
+    if (!parsed) {
+      chatScreen.setScreen({ kind: 'idle' });
+      return;
+    }
+    const currentMoveSan = ply > 0 ? parsed.moves[ply - 1]?.san : undefined;
+    chatScreen.setScreen({
+      kind: 'lesson',
+      lesson: {
+        studyName: study.name,
+        studyId: study.id,
+        chapterIndex: chapterIdx + 1,
+        chapterCount,
+        chapterTitle: chapter.title,
+        chapterMoves: parsed.moves.map((m) => m.san),
+        chapterComments: parsed.comments,
+        currentPly: ply,
+        currentFen: currentFen ?? parsed.startingFen,
+        currentMoveSan,
+        engineSummary: summarizeEngine(engine.snapshot),
+      },
+    });
+    // chatHost.setRawPgn + chatScreen.setScreen identities are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter, parsed, ply, chapterIdx, chapterCount, study.name, study.id, engine.snapshot, currentFen]);
+
+  // Revert to idle on unmount so the General chat thread comes back when
+  // the user leaves the lesson viewer.
+  useEffect(() => {
+    return () => {
+      chatHost.setRawPgn(null);
+      chatScreen.setScreen({ kind: 'idle' });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="flex flex-col gap-3">
       {/* Header row */}
@@ -142,7 +207,9 @@ export function StudyViewer({
         </button>
       </div>
 
-      {/* Chapter dropdown */}
+      {/* Chapter dropdown — Prev/Next chapter buttons live next to the
+        move-nav buttons in the sidebar so the user's hand doesn't have to
+        travel up to the header for them. */}
       {chapterCount > 1 && (
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="chapter-pick" className="text-xs text-ink-500 dark:text-ink-400">
@@ -174,19 +241,34 @@ export function StudyViewer({
 
       {/* Body: board + sidebar */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
-        <div className="mx-auto w-full max-w-[min(80vh,_640px)]">
+        <div className="mx-auto flex w-full max-w-[min(80vh,_640px)] flex-col gap-2">
           {parsed ? (
-            <Board
-              fen={parsed.fens[ply] ?? parsed.startingFen}
-              orientation={orientation}
-              lastMove={lastMoveOf(parsed, ply)}
-              viewOnly
-            />
+            <div className="flex items-stretch gap-2">
+              {settings.engineEnabled && (
+                <div className="w-3 shrink-0 sm:w-4">
+                  <EvalBar
+                    snapshot={engine.snapshot}
+                    orientation={orientation}
+                    analyzing={engine.analyzing}
+                    showCaption={false}
+                  />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <Board
+                  fen={parsed.fens[ply] ?? parsed.startingFen}
+                  orientation={orientation}
+                  lastMove={lastMoveOf(parsed, ply)}
+                  viewOnly
+                />
+              </div>
+            </div>
           ) : (
             <div className="card grid aspect-square place-items-center text-sm text-ink-500 dark:text-ink-400">
               No moves in this chapter.
             </div>
           )}
+          {parsed && <LessonComment text={parsed.comments[ply]} />}
         </div>
         <div className="flex flex-col gap-3">
           {parsed && (
@@ -228,6 +310,28 @@ export function StudyViewer({
                   End ⏭
                 </button>
               </div>
+              {chapterCount > 1 && (
+                <div className="flex gap-2 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => changeChapter(chapterIdx - 1)}
+                    disabled={chapterIdx === 0}
+                    className="btn-secondary flex-1 disabled:opacity-40"
+                    title="Previous chapter"
+                  >
+                    ← Prev chapter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeChapter(chapterIdx + 1)}
+                    disabled={chapterIdx >= chapterCount - 1}
+                    className="btn-secondary flex-1 disabled:opacity-40"
+                    title="Next chapter"
+                  >
+                    Next chapter →
+                  </button>
+                </div>
+              )}
               <p className="text-[11px] text-ink-500 dark:text-ink-400">
                 Arrow keys navigate moves. Home / End jump to chapter ends.
               </p>
@@ -264,6 +368,21 @@ function inferOrientation(parsed: ParsedGame | null, title: string): 'white' | '
   if (!parsed) return 'white';
   if (/\bblack\b/i.test(title)) return 'black';
   return 'white';
+}
+
+/**
+ * Author's note for the current ply, pulled from PGN `{ ... }` comments by
+ * the parser. Lichess study chapters often use these as the "lesson" text;
+ * showing them under the board lets users read along while stepping through
+ * moves. Hidden when the current ply has no commentary.
+ */
+function LessonComment({ text }: { text: string | undefined }) {
+  if (!text) return null;
+  return (
+    <div className="card whitespace-pre-line border-l-4 border-l-accent px-3 py-2 text-sm leading-relaxed text-ink-700 dark:text-ink-200">
+      {text}
+    </div>
+  );
 }
 
 function formatRelative(ts: number): string {

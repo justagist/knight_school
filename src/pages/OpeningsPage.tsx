@@ -1,27 +1,29 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { StudyImporter } from '../lessons/StudyImporter';
 import { StudyCatalog } from '../lessons/StudyCatalog';
 import { StudyLibrary } from '../lessons/StudyLibrary';
 import { StudyViewer } from '../lessons/StudyViewer';
 import { useStudies } from '../lessons/useStudies';
-import { CURATED_STUDIES, findStudyByKey, findStudyByOpeningName } from '../lessons/catalog';
+import { CURATED_STUDIES, findStudyByKey, studyMatchesQuery } from '../lessons/catalog';
 import { importStudy, isStudyImported } from '../lessons/lichessStudy';
 import { notifyStudiesChanged } from '../lessons/useStudies';
 
+const HAS_CURATED = CURATED_STUDIES.length > 0;
+
 /**
  * Openings tab. Two modes:
- *   - Library mode (default): paste-import + curated catalog + imported list
+ *   - Library mode (default): search bar + paste-import + curated catalog + imported list
  *   - Viewer mode: a selected study with chapter navigation
  *
  * Deep links the Analyze view uses:
- *   /openings?study=<lichess-id>             open this specific study
- *   /openings?curated=<catalog-key>          open by catalog key (imports first if needed)
- *   /openings?name=<opening-name>            best-effort match against curated `matches` field
- *   /openings?chapter=<n>                    1-based chapter to open (paired with the above)
+ *   /openings?search=<text>                   pre-fill the search bar (used by opening-name links)
+ *   /openings?study=<lichess-id>              open this specific study
+ *   /openings?curated=<catalog-key>           open by catalog key (imports first if needed)
+ *   /openings?chapter=<n>                     1-based chapter to open (paired with `study`)
  *
- * The URL is the single source of truth for "what's selected" — back/forward
- * browser nav and shareable links both work for free.
+ * The URL is the single source of truth for "what's selected" so back/forward
+ * browser nav and shareable links both work.
  */
 export function OpeningsPage() {
   const [params, setParams] = useSearchParams();
@@ -29,48 +31,33 @@ export function OpeningsPage() {
 
   const studyId = params.get('study');
   const curatedKey = params.get('curated');
-  const openingName = params.get('name');
+  const searchParam = params.get('search') ?? '';
   const chapterParam = Number(params.get('chapter') ?? '1');
   const chapterIdx = Number.isFinite(chapterParam) && chapterParam > 0 ? chapterParam - 1 : 0;
 
-  // Resolve curated/name params to a concrete study id once, then re-write
-  // the URL so subsequent renders take the simpler `study=` path.
+  // Local search state — kept in sync with the URL `search` param. The URL is
+  // canonical (so the Analyze deep-link works), but typing should feel
+  // responsive without rewriting history on every keystroke.
+  const [searchText, setSearchText] = useState(searchParam);
   useEffect(() => {
-    if (studyId || loading) return;
-    if (curatedKey) {
-      const entry = findStudyByKey(curatedKey);
-      if (!entry) return;
-      void ensureImported(entry.studyId, entry.key).then((id) => {
-        setParams((p) => {
-          const next = new URLSearchParams(p);
-          next.delete('curated');
-          next.set('study', id);
-          return next;
-        });
+    setSearchText(searchParam);
+  }, [searchParam]);
+
+  // Resolve `curated=` to a concrete study id (imports if needed), then
+  // rewrite the URL.
+  useEffect(() => {
+    if (studyId || loading || !curatedKey) return;
+    const entry = findStudyByKey(curatedKey);
+    if (!entry) return;
+    void ensureImported(entry.studyId, entry.key).then((id) => {
+      setParams((p) => {
+        const next = new URLSearchParams(p);
+        next.delete('curated');
+        next.set('study', id);
+        return next;
       });
-      return;
-    }
-    if (openingName) {
-      const entry = findStudyByOpeningName(openingName);
-      if (!entry) {
-        // No curated match — show the library so the user can paste a URL.
-        setParams((p) => {
-          const next = new URLSearchParams(p);
-          next.delete('name');
-          return next;
-        });
-        return;
-      }
-      void ensureImported(entry.studyId, entry.key).then((id) => {
-        setParams((p) => {
-          const next = new URLSearchParams(p);
-          next.delete('name');
-          next.set('study', id);
-          return next;
-        });
-      });
-    }
-  }, [studyId, curatedKey, openingName, loading, setParams]);
+    });
+  }, [studyId, curatedKey, loading, setParams]);
 
   const selected = useMemo(
     () => (studyId ? studies.find((s) => s.id === studyId) : undefined),
@@ -84,7 +71,6 @@ export function OpeningsPage() {
       const next = new URLSearchParams(p);
       next.set('study', id);
       next.delete('curated');
-      next.delete('name');
       next.delete('chapter');
       return next;
     });
@@ -110,6 +96,19 @@ export function OpeningsPage() {
     );
   };
 
+  const updateSearch = (value: string) => {
+    setSearchText(value);
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        if (value.trim()) next.set('search', value);
+        else next.delete('search');
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   if (selected) {
     return (
       <StudyViewer
@@ -122,36 +121,115 @@ export function OpeningsPage() {
   }
 
   // Library mode
-  const noMatchForName =
-    !!openingName && !CURATED_STUDIES.some((s) => findStudyByOpeningName(openingName)?.key === s.key);
+  const queryActive = searchText.trim().length > 0;
+  const catalogMatches = HAS_CURATED
+    ? CURATED_STUDIES.filter((s) => studyMatchesQuery(s, searchText)).length
+    : 0;
+  const libraryMatches = studies.filter(
+    (s) =>
+      !queryActive ||
+      s.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      s.chapters.some((c) => c.title.toLowerCase().includes(searchText.toLowerCase())),
+  ).length;
+  const nothingMatched = queryActive && catalogMatches === 0 && libraryMatches === 0;
+
+  const lichessSearchUrl = queryActive
+    ? `https://lichess.org/study/search?q=${encodeURIComponent(searchText)}`
+    : 'https://lichess.org/study/all/popular';
+  const lichessSearchLabel = queryActive ? 'Search on Lichess' : 'Browse popular on Lichess';
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Openings</h1>
         <p className="text-sm text-ink-500 dark:text-ink-400">
-          Import a Lichess study or pick from the starter catalog.
+          Search the starter catalog or paste a Lichess study URL to import.
         </p>
       </div>
 
-      {noMatchForName && (
-        <div className="card border-amber-300 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:text-amber-300">
-          No curated study matches “{openingName}”. Paste a Lichess study URL below to add your own.
+      {/* Search row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[220px]">
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => updateSearch(e.target.value)}
+            placeholder="Search openings — “Caro-Kann”, “London”, “Sicilian”…"
+            className="input w-full pr-8"
+            aria-label="Search openings"
+          />
+          {searchText && (
+            <button
+              type="button"
+              onClick={() => updateSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-ink-500 hover:bg-ink-200 dark:hover:bg-ink-700"
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <a
+          href={lichessSearchUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-secondary text-xs"
+          title={
+            queryActive
+              ? `Open lichess.org search for “${searchText}”`
+              : 'Browse the most popular studies on Lichess'
+          }
+        >
+          {lichessSearchLabel} ↗
+        </a>
+      </div>
+
+      {nothingMatched && (
+        <div className="card border-dashed px-3 py-3 text-xs text-ink-600 dark:text-ink-300">
+          No matches in your library or the starter catalog for “{searchText}”.
+          {' '}
+          <a
+            href={lichessSearchUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
+            Search Lichess for “{searchText}” ↗
+          </a>
+          , copy the study URL, then paste it below.
         </div>
       )}
 
       <StudyImporter onImported={openStudy} />
 
       {studies.length > 0 && (
-        <StudyLibrary studies={studies} onOpen={openStudy} onRemove={remove} />
+        <StudyLibrary
+          studies={studies}
+          onOpen={openStudy}
+          onRemove={remove}
+          searchQuery={searchText}
+        />
       )}
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600 dark:text-ink-400">
-          Starter catalog
-        </h3>
-        <StudyCatalog importedIds={importedIds} onOpen={openStudy} />
-      </section>
+      {HAS_CURATED ? (
+        <section className="flex flex-col gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600 dark:text-ink-400">
+            {queryActive ? `Catalog matches for "${searchText}"` : 'Starter catalog'}
+          </h3>
+          <StudyCatalog
+            importedIds={importedIds}
+            onOpen={openStudy}
+            searchQuery={searchText}
+          />
+        </section>
+      ) : (
+        studies.length === 0 && (
+          <div className="card border-dashed px-3 py-6 text-center text-xs text-ink-500 dark:text-ink-400">
+            No curated studies yet — paste a Lichess study URL above to add one.
+          </div>
+        )
+      )}
     </div>
   );
 }

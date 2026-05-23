@@ -97,6 +97,16 @@ export interface LLMProvider {
   displayName: string;
   /** Models available for the user to pick from. */
   models: ModelDescriptor[];
+  /**
+   * Provider-level capability flag: does *any* model under this provider
+   * support a built-in web-search / grounding tool? When false, the chat UI
+   * hides the 🔎 toggle and never sends `enableWebSearch: true`. This is the
+   * top-level escape hatch for OpenAI-compatible providers like Groq and
+   * OpenRouter that have no web-search surface at all.
+   *
+   * Per-model granularity still lives in {@link ModelDescriptor.webSearch}.
+   */
+  supportsWebSearch: boolean;
   /** Convenience: provider's default model id. */
   defaultModel(): string;
   /**

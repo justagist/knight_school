@@ -50,10 +50,19 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
 
   if (!open) return null;
 
-  const providerLabel = chat.activeProvider
-    ? getProvider(chat.activeProvider).displayName
-    : 'No provider';
-  const threadLabel = screen.kind === 'game' ? screen.gameLabel || 'Game' : 'General';
+  const activeProviderObj = chat.activeProvider ? getProvider(chat.activeProvider) : null;
+  const providerLabel = activeProviderObj?.displayName ?? 'No provider';
+  // Compat providers (Groq, OpenRouter) have no web-search tool. Hide the
+  // toggle entirely rather than render a confusing disabled state.
+  const showWebSearchToggle = activeProviderObj?.supportsWebSearch ?? false;
+  const threadLabel =
+    screen.kind === 'game'
+      ? screen.gameLabel || 'Game'
+      : screen.kind === 'lesson'
+        ? screen.lesson
+          ? `${screen.lesson.studyName} · ${screen.lesson.chapterTitle}`
+          : 'Lesson'
+        : 'General';
   const canSend = online && !!chat.activeProvider && !chat.sending && draft.trim().length > 0;
   const inputDisabledReason =
     !online
@@ -65,7 +74,10 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const submit = () => {
     if (!canSend) return;
     const text = draft;
-    const useWebSearch = webSearchOn;
+    // Gate the request flag on provider capability — defence in depth alongside
+    // the hidden UI, so a stale `webSearchOn=true` from a previous provider
+    // doesn't leak into a Groq/OpenRouter request.
+    const useWebSearch = webSearchOn && showWebSearchToggle;
     setDraft('');
     setWebSearchOn(false);
     void chat.send(text, { webSearch: useWebSearch });
@@ -161,25 +173,34 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
             }}
           />
           <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-ink-500 dark:text-ink-400">
-            <button
-              type="button"
-              onClick={() => setWebSearchOn((on) => !on)}
-              disabled={!!inputDisabledReason}
-              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
-                webSearchOn
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-ink-200 text-ink-500 hover:bg-ink-100 dark:border-ink-700 dark:text-ink-400 dark:hover:bg-ink-800'
-              }`}
-              title={
-                webSearchOn
-                  ? 'Web search enabled for the next message. Click to disable.'
-                  : 'Enable web search for the next message. Off by default — Elle relies on training knowledge unless you turn this on.'
-              }
-              aria-pressed={webSearchOn}
-            >
-              <span aria-hidden="true">🔎</span>
-              <span>Web search {webSearchOn ? 'on' : 'off'}</span>
-            </button>
+            {showWebSearchToggle ? (
+              <button
+                type="button"
+                onClick={() => setWebSearchOn((on) => !on)}
+                disabled={!!inputDisabledReason}
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                  webSearchOn
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-ink-200 text-ink-500 hover:bg-ink-100 dark:border-ink-700 dark:text-ink-400 dark:hover:bg-ink-800'
+                }`}
+                title={
+                  webSearchOn
+                    ? 'Web search enabled for the next message. Click to disable.'
+                    : 'Enable web search for the next message. Off by default — Elle relies on training knowledge unless you turn this on.'
+                }
+                aria-pressed={webSearchOn}
+              >
+                <span aria-hidden="true">🔎</span>
+                <span>Web search {webSearchOn ? 'on' : 'off'}</span>
+              </button>
+            ) : (
+              <span
+                className="text-[11px] text-ink-500 dark:text-ink-400"
+                title="The current provider doesn't expose a web-search tool."
+              >
+                Web search unavailable on {providerLabel}
+              </span>
+            )}
             <button
               type="submit"
               className="btn-primary text-xs"

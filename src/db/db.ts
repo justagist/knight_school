@@ -35,7 +35,14 @@ export interface PositionEvalRow {
   engine: 'lite' | 'full';
 }
 
-export type LlmProviderId = 'anthropic' | 'openai' | 'gemini';
+/**
+ * LLM provider identifiers. Five surfaces:
+ *  - `anthropic`, `openai` — paid, support built-in web search
+ *  - `gemini` — Google; supports web search; small free tier
+ *  - `groq` — OpenAI-compatible; generous free tier on Llama 3.3 70B; no web search
+ *  - `openrouter` — OpenAI-compatible aggregator; model variety; no web search
+ */
+export type LlmProviderId = 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openrouter';
 
 /**
  * A stored LLM API key. Multiple keys per provider are supported

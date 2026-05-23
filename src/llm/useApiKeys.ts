@@ -13,8 +13,15 @@ import {
   type NewApiKey,
 } from '../db/apiKeys';
 import type { ApiKeyRow, LlmProviderId, ProviderConfigRow } from '../db/db';
-import { getProvider } from './providers';
+import { getProvider, PROVIDERS } from './providers';
 import type { TestResult } from './types';
+
+/** Build an empty `Record<LlmProviderId, T>` populated for every registered provider. */
+function emptyProviderRecord<T>(fill: () => T): Record<LlmProviderId, T> {
+  const acc = {} as Record<LlmProviderId, T>;
+  for (const p of PROVIDERS) acc[p.id] = fill();
+  return acc;
+}
 
 export interface UseApiKeysReturn {
   loading: boolean;
@@ -50,19 +57,21 @@ export function useApiKeys(): UseApiKeysReturn {
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [configByProvider, setConfigByProvider] = useState<
     Record<LlmProviderId, ProviderConfigRow | undefined>
-  >({ anthropic: undefined, openai: undefined, gemini: undefined });
+  >(() => emptyProviderRecord<ProviderConfigRow | undefined>(() => undefined));
   const [activeProvider, setActiveProviderState] = useState<LlmProviderId | null>(null);
 
   const refresh = useCallback(async () => {
-    const [allKeys, anthropicCfg, openaiCfg, geminiCfg, global] = await Promise.all([
+    const [allKeys, cfgs, global] = await Promise.all([
       getAllApiKeys(),
-      getProviderConfig('anthropic'),
-      getProviderConfig('openai'),
-      getProviderConfig('gemini'),
+      Promise.all(PROVIDERS.map((p) => getProviderConfig(p.id))),
       getLlmGlobal(),
     ]);
+    const cfgByProvider = emptyProviderRecord<ProviderConfigRow | undefined>(() => undefined);
+    PROVIDERS.forEach((p, i) => {
+      cfgByProvider[p.id] = cfgs[i];
+    });
     setKeys(allKeys);
-    setConfigByProvider({ anthropic: anthropicCfg, openai: openaiCfg, gemini: geminiCfg });
+    setConfigByProvider(cfgByProvider);
     setActiveProviderState(global?.activeProvider ?? null);
     setLoading(false);
   }, []);
@@ -139,7 +148,7 @@ export function useApiKeys(): UseApiKeysReturn {
   );
 
   const keysByProvider = useMemo(() => {
-    const acc: Record<LlmProviderId, ApiKeyRow[]> = { anthropic: [], openai: [], gemini: [] };
+    const acc = emptyProviderRecord<ApiKeyRow[]>(() => []);
     for (const k of keys) acc[k.provider].push(k);
     return acc;
   }, [keys]);

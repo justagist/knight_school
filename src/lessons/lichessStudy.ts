@@ -72,8 +72,27 @@ export async function fetchStudyPgn(studyId: string): Promise<string> {
     throw new Error(err instanceof Error ? err.message : 'Network error');
   }
   if (resp.status === 404) throw new Error('Study not found — check the URL.');
-  if (resp.status === 401 || resp.status === 403) {
-    throw new Error('Study is private — a Lichess token with access is required.');
+  if (resp.status === 401) {
+    throw new Error(
+      token
+        ? 'Lichess rejected the token (401). Re-paste it in Settings → Lichess account.'
+        : 'This study requires a Lichess token. Add one in Settings → Lichess account.',
+    );
+  }
+  if (resp.status === 403) {
+    // 403 from /api/study/{id}.pgn covers two distinct cases:
+    //   (a) Study is private and the token (if any) doesn't have access.
+    //   (b) Owner has disabled PGN export on an otherwise-public study.
+    // We surface both because the user can't tell from outside which it is —
+    // and the "private" message is wrong half the time.
+    throw new Error(
+      token
+        ? 'Lichess returned 403 — your token doesn\'t have access, or the owner has disabled PGN export for this study.'
+        : 'Lichess returned 403 — this study is private, or the owner has disabled PGN export. Add a Lichess token in Settings if you have access.',
+    );
+  }
+  if (resp.status === 429) {
+    throw new Error('Lichess rate-limited the request (429). Wait a moment and try again.');
   }
   if (!resp.ok) throw new Error(`Lichess responded ${resp.status}`);
   const text = await resp.text();

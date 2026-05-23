@@ -23,6 +23,7 @@ import { useGuessMode } from '../guess/useGuessMode';
 import { GuessModePanel } from '../guess/GuessModePanel';
 import { useExploration } from './useExploration';
 import { summarizeCaptures } from './captures';
+import { summarizeEngine } from '../llm/engineSummary';
 import { PlayerStrip } from './PlayerStrip';
 import { OpeningBadge, OpeningHeader } from './OpeningBadge';
 import { normalizeFenForExplorer } from '../db/explorer';
@@ -715,20 +716,7 @@ function BoardControls({
   );
 }
 
-/**
- * Compact, model-readable summary of the current engine snapshot. Used by
- * the chat host to ground Elle's responses in the same eval the user is
- * looking at on the board.
- */
-function summarizeEngine(snapshot: { lines: { pvIndex: number; scoreCp?: number; mate?: number; uciMoves: string[]; depth: number }[]; depth: number } | null): string | undefined {
-  if (!snapshot || snapshot.lines.length === 0) return undefined;
-  const lines = snapshot.lines.slice(0, 3).map((l) => {
-    const score = l.mate != null ? `M${l.mate}` : l.scoreCp != null ? `${(l.scoreCp / 100).toFixed(2)}` : '—';
-    const pv = l.uciMoves.slice(0, 6).join(' ');
-    return `  PV${l.pvIndex}: ${score}  ${pv}`;
-  });
-  return `Depth ${snapshot.depth} — top lines:\n${lines.join('\n')}`;
-}
+// summarizeEngine lives in src/llm/engineSummary.ts (shared with the lesson viewer).
 
 /**
  * Convert a cached PositionEvalRow to a White-POV pawn value. Mate flattens

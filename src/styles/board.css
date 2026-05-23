@@ -29,3 +29,90 @@
 .ks-board-no-coords .cg-wrap coords {
   display: none;
 }
+
+/*
+ * Coordinate-label overrides. Two modes, both driven by chessground:
+ *
+ *   1. OUTSIDE (default) — file letters under the bottom row + rank
+ *      numbers along the left edge, classic lichess / over-the-board UI.
+ *      Chessground positions these in pixels (`left: 24px`, `top: -20px`)
+ *      which drifts visibly on small mobile boards. We re-anchor them with
+ *      percentage offsets so they scale with the board, and pin the font
+ *      to a clamp() against the container's inline size.
+ *
+ *   2. ON-SQUARES — a label sits inside the corner of every square
+ *      (chess.com style). Opt-in via Settings → "Coordinates on every
+ *      square". Padding nudge keeps the labels off the edges.
+ *
+ * Text color is BLACK on both light and dark squares — the user picked
+ * black explicitly for consistency. This intentionally drops chessground's
+ * checker-flipped white/dark default in favour of a single readable colour.
+ */
+.ks-board-wrap {
+  /* Enables `cqi` (container-query inline-size) units in font sizing below. */
+  container-type: inline-size;
+}
+
+.ks-board-wrap .cg-wrap coords {
+  /* Override default opacity:0.8 + font-size:9px. */
+  opacity: 1;
+  font-weight: 600;
+  font-size: clamp(9px, 1.6cqi, 14px);
+  /* Force black labels regardless of theme / square color. */
+  color: #111;
+}
+
+/* --- Outside coordinate mode --- */
+
+/* Rank numbers along the left of the board. The default
+   `left: 4px; top: -20px` puts them in a 12px-wide column above the board,
+   anchored in pixels. Re-pin to a percentage offset INSIDE the leftmost
+   column so they sit just inside each rank's left edge — no pixel drift. */
+.ks-board-wrap .cg-wrap coords.ranks {
+  left: 1%;
+  top: 0;
+  width: 6%;
+  height: 100%;
+  align-items: flex-start;
+  justify-content: space-around;
+}
+.ks-board-wrap .cg-wrap coords.ranks coord {
+  transform: none;
+  text-align: left;
+}
+
+/* File letters along the bottom of the board. Default `bottom: -4px;
+   left: 24px` is the same pixel-drift problem. Anchor to a percentage
+   offset INSIDE the bottom row. */
+.ks-board-wrap .cg-wrap coords.files {
+  bottom: 1%;
+  left: 0;
+  width: 100%;
+  height: 6%;
+  align-items: flex-end;
+  justify-content: space-around;
+}
+.ks-board-wrap .cg-wrap coords.files coord {
+  text-align: right;
+  padding-right: 2%;
+}
+
+/* Force black on the outside labels too (chessground's brown theme
+   alternates them light/dark for visibility — we want a single colour). */
+.ks-board-wrap .cg-wrap coords.ranks coord,
+.ks-board-wrap .cg-wrap coords.files coord {
+  color: #111;
+}
+
+/* --- On-squares mode (opt-in) --- */
+
+.ks-board-wrap .cg-wrap coords.squares coord {
+  padding: 3% 5%;
+  color: #111;
+}
+.ks-board-wrap .cg-wrap coords.squares:nth-of-type(odd) :nth-child(even),
+.ks-board-wrap .cg-wrap coords.squares:nth-of-type(odd) :nth-child(odd),
+.ks-board-wrap .cg-wrap coords.squares:nth-of-type(even) :nth-child(odd),
+.ks-board-wrap .cg-wrap coords.squares:nth-of-type(even) :nth-child(even) {
+  color: #111;
+}

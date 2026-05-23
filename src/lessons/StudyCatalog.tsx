@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORY_LABELS, CURATED_STUDIES, type CuratedStudy } from './catalog';
+import { CATEGORY_LABELS, CURATED_STUDIES, studyMatchesQuery, type CuratedStudy } from './catalog';
 import { importStudy } from './lichessStudy';
 import { notifyStudiesChanged } from './useStudies';
 
@@ -8,6 +8,8 @@ interface StudyCatalogProps {
   importedIds: Set<string>;
   /** Fires once import succeeds (or when user clicks an already-imported entry). */
   onOpen: (studyId: string) => void;
+  /** Free-text filter. Empty string = show all. */
+  searchQuery?: string;
 }
 
 /**
@@ -15,8 +17,11 @@ interface StudyCatalogProps {
  * Clicking a row imports the study (or jumps straight to its viewer if it's
  * already imported).
  */
-export function StudyCatalog({ importedIds, onOpen }: StudyCatalogProps) {
-  const grouped = groupByCategory(CURATED_STUDIES);
+export function StudyCatalog({ importedIds, onOpen, searchQuery = '' }: StudyCatalogProps) {
+  if (CURATED_STUDIES.length === 0) return null;
+  const filtered = CURATED_STUDIES.filter((s) => studyMatchesQuery(s, searchQuery));
+  if (filtered.length === 0) return null;
+  const grouped = groupByCategory(filtered).filter(([, entries]) => entries.length > 0);
   return (
     <div className="flex flex-col gap-4">
       {grouped.map(([cat, entries]) => (
@@ -103,6 +108,7 @@ function CatalogCard({ entry, imported, onOpen }: CardProps) {
         <p className="text-xs text-ink-600 dark:text-ink-300">{entry.blurb}</p>
         <p className="text-[11px] text-ink-500 dark:text-ink-400">
           {entry.side === 'both' ? 'Both sides' : `For ${entry.side}`}
+          {entry.author && <> · by {entry.author}</>}
           {' · '}
           <a
             href={`https://lichess.org/study/${entry.studyId}`}

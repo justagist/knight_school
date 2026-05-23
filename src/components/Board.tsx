@@ -64,6 +64,13 @@ export function Board({
       turnColor: turnFromFen(fen),
       viewOnly,
       coordinates: settings.showCoordinates,
+      // Two coordinate modes:
+      //  - false (default): outside labels (lichess / classic chess board UI)
+      //  - true: a label inside every square (chess.com style)
+      // The Settings page exposes this. CSS overrides (src/styles/board.css)
+      // fix chessground's pixel-based outside positioning so the labels
+      // scale with the board instead of drifting on mobile.
+      coordinatesOnSquares: settings.showCoordinates && settings.coordinatesOnSquares,
       highlight: {
         lastMove: settings.highlightLastMove,
         check: true,

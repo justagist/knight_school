@@ -24,6 +24,15 @@ export interface ParsedGame {
   moves: ParsedMove[];
   /** FENs[0] is the starting position; FENs[i] is the position AFTER move i-1 */
   fens: string[];
+  /**
+   * Author comments keyed by ply, parallel to {@link fens}. `comments[0]` is
+   * the comment shown before move 1 (the introduction). `comments[i]` is the
+   * comment for the position AFTER move i was played. `undefined` when no
+   * comment is attached to that ply. Lichess study / annotated game PGNs use
+   * this heavily — the Openings lesson viewer surfaces the current ply's
+   * comment so the user can read along.
+   */
+  comments: (string | undefined)[];
 }
 
 export class PgnParseError extends Error {
@@ -31,6 +40,47 @@ export class PgnParseError extends Error {
     super(message);
     this.name = 'PgnParseError';
   }
+}
+
+/**
+ * Sanitize a PGN before passing it to chess.js v1.4.x. Three problems Lichess
+ * study exports introduce:
+ *
+ *  1. **Annotation-only comments** — `{ [%csl Ge4][%cal Ge2e4] }` — board
+ *     decorations the viewer doesn't render. Drop them entirely.
+ *  2. **Inline `[%xxx ...]` markers** inside otherwise-textual comments — also
+ *     not rendered; strip the markers but keep the surrounding author text.
+ *  3. **Adjacent `{...}{...}` comments** — chess.js v1.4 throws on these
+ *     even though they're valid PGN. After step 1 fewer remain, but we
+ *     still merge any leftover pair by replacing the `}` ... `{` boundary
+ *     with whitespace. Iterate until stable for `} { } {` chains.
+ *
+ * The remaining comments are clean author text that `chess.getComments()`
+ * returns directly.
+ */
+function sanitizePgnForChessJs(pgn: string): string {
+  // (1) Annotation-only comments.
+  let result = pgn.replace(/\{\s*(?:\[%[^\]]*\]\s*)+\}/g, '');
+  // (2) Inline annotation markers inside mixed comments.
+  result = result.replace(/\[%[^\]]*\]/g, '');
+  // (3) Adjacent comments.
+  let prev: string;
+  do {
+    prev = result;
+    result = result.replace(/\}\s*\{/g, ' ');
+  } while (result !== prev);
+  return result;
+}
+
+/**
+ * Clean up a single comment string returned by `chess.getComments()`: trim,
+ * collapse runs of whitespace into single spaces, and return undefined when
+ * the result is empty (so the viewer can hide the comment panel cleanly).
+ */
+function cleanComment(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/\s+/g, ' ').trim();
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 /**
@@ -45,9 +95,10 @@ export function parsePgn(pgn: string): ParsedGame {
   const trimmed = pgn.trim();
   if (!trimmed) throw new PgnParseError('PGN is empty.');
 
+  const sanitized = sanitizePgnForChessJs(trimmed);
   const chess = new Chess();
   try {
-    chess.loadPgn(trimmed, { strict: false });
+    chess.loadPgn(sanitized, { strict: false });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new PgnParseError(`Invalid PGN: ${message}`);
@@ -60,6 +111,14 @@ export function parsePgn(pgn: string): ParsedGame {
   }
 
   const history = chess.history({ verbose: true }) as Move[];
+
+  // Author comments keyed by the FEN they're attached to. chess.js's
+  // getComments() returns one entry per commented position.
+  const commentByFen = new Map<string, string>();
+  for (const c of chess.getComments() as Array<{ fen: string; comment: string }>) {
+    const clean = cleanComment(c.comment);
+    if (clean) commentByFen.set(c.fen, clean);
+  }
 
   // Determine starting position. chess.js exposes the FEN tag through headers.
   const startingFen = headers.FEN ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -87,7 +146,9 @@ export function parsePgn(pgn: string): ParsedGame {
     fens.push(fenAfter);
   }
 
-  return { headers, startingFen, moves, fens };
+  const comments = fens.map((f) => commentByFen.get(f));
+
+  return { headers, startingFen, moves, fens, comments };
 }
 
 /**

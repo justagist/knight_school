@@ -36,6 +36,13 @@ export interface AppSettings {
   // Appearance
   boardTheme: BoardTheme;
   showCoordinates: boolean;
+  /**
+   * When true, render a coord label inside every square (chess.com style).
+   * When false (default), render only the outside rank/file labels in the
+   * lichess / classic chess UI style — letters under the bottom row, numbers
+   * to the left of the leftmost column.
+   */
+  coordinatesOnSquares: boolean;
   highlightLastMove: boolean;
   showLegalMoves: boolean;
   // Engine
@@ -53,6 +60,7 @@ export const ANALYSIS_DEPTH_DEFAULT = 18;
 const DEFAULT_SETTINGS: AppSettings = {
   boardTheme: 'brown',
   showCoordinates: true,
+  coordinatesOnSquares: false,
   highlightLastMove: true,
   showLegalMoves: true,
   engineVariant: 'lite',

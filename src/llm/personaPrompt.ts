@@ -90,8 +90,49 @@ export interface MoveDetail {
   bestLinesAfter?: Array<{ score: string; sanLine: string }>;
 }
 
+export interface LessonContext {
+  /** Display name of the parent study, e.g. "Italian Opening". */
+  studyName: string;
+  /** 1-based chapter index of the chapter currently open. */
+  chapterIndex: number;
+  /** Total chapter count in the study. */
+  chapterCount: number;
+  /** Title of the current chapter, e.g. "Greco Attack". */
+  chapterTitle: string;
+  /** Lichess study id (slug) — included so Elle can cite back to the source. */
+  studyId?: string;
+  /** Full SAN move list for the chapter's main line. */
+  chapterMoves: string[];
+  /**
+   * Author commentary per ply, parallel to chapter ply count + 1. `[0]` is
+   * the comment shown before move 1 (intro); `[i]` is the comment for the
+   * position AFTER move i. Empty strings / undefined entries are normal —
+   * the prompt renderer skips them.
+   */
+  chapterComments: (string | undefined)[];
+  /** Current ply the user is viewing (0 = starting position of the chapter). */
+  currentPly: number;
+  /** FEN at currentPly. */
+  currentFen: string;
+  /**
+   * The single move SAN played at currentPly (i.e. `chapterMoves[currentPly-1]`)
+   * for convenience — undefined at ply 0. Lets Elle answer "this move" without
+   * the model recomputing the index.
+   */
+  currentMoveSan?: string;
+  /**
+   * Engine eval summary for the position at currentPly (top PVs with scores
+   * in pawn units, from White's POV). Same shape as the game prompt's
+   * engineSummary — lets Elle ground hypotheticals ("would Bxh7+ work
+   * here?") in real Stockfish numbers rather than guessing.
+   */
+  engineSummary?: string;
+}
+
 export interface ScreenContext {
-  kind: 'game' | 'idle';
+  kind: 'game' | 'idle' | 'lesson';
+  /** Lesson-specific payload, present only when kind === 'lesson'. */
+  lesson?: LessonContext;
   /** Game label, e.g. "Morphy vs Duke — 1858". */
   gameLabel?: string;
   /** Result tag, e.g. "1-0". */
@@ -147,6 +188,8 @@ export interface ScreenContext {
  */
 export function buildSystemPrompt(ctx: ScreenContext): string {
   if (ctx.kind === 'idle') return ELLE_BASE_PROMPT;
+
+  if (ctx.kind === 'lesson') return buildLessonPrompt(ctx);
 
   const lines: string[] = [];
   lines.push('--- Current screen ---');
@@ -241,4 +284,73 @@ export function buildSystemPrompt(ctx: ScreenContext): string {
 function formatPawns(p: number): string {
   if (Math.abs(p) >= 10) return p > 0 ? '+M' : '-M';
   return `${p >= 0 ? '+' : ''}${p.toFixed(2)}`;
+}
+
+/**
+ * Render the system prompt for the lesson viewer. The board is read-only in
+ * this mode — the user steps through the chapter and the author's comments
+ * are the main pedagogy. We give Elle the whole chapter (moves + commentary
+ * + current ply) so the user can ask hypotheticals like "what if I played X
+ * instead of Y here?" and Elle has every move and note to reason from.
+ */
+function buildLessonPrompt(ctx: ScreenContext): string {
+  const l = ctx.lesson;
+  if (!l) return ELLE_BASE_PROMPT;
+
+  const lines: string[] = [];
+  lines.push('--- Lesson ---');
+  lines.push(
+    `Study: ${l.studyName}${l.studyId ? ` (lichess.org/study/${l.studyId})` : ''}`,
+  );
+  lines.push(
+    `Chapter ${l.chapterIndex}/${l.chapterCount}: ${l.chapterTitle}`,
+  );
+  lines.push(
+    `Current ply: ${l.currentPly} (the board is showing the position AFTER ply ${l.currentPly}).`,
+  );
+  if (l.currentMoveSan) {
+    lines.push(
+      `Move just played at the current ply: ${l.currentMoveSan}. ` +
+        `When the user says "this move" / "the current move", they mean this one.`,
+    );
+  } else {
+    lines.push(
+      'The user is at the starting position of the chapter — no move has been played yet.',
+    );
+  }
+  lines.push(`Current FEN: ${l.currentFen}`);
+  if (l.engineSummary) {
+    lines.push(`Engine analysis (current position):\n${l.engineSummary}`);
+  }
+
+  // Full chapter move list with the author's comment per ply, so Elle has
+  // total visibility of the lesson and can answer "what if I played X
+  // instead of Y at move N" with full context.
+  const totalPlies = l.chapterMoves.length;
+  lines.push('Chapter walkthrough (ply by ply, with the author\'s commentary inline where present):');
+  // Intro / pre-move-1 comment.
+  const intro = l.chapterComments[0];
+  if (intro) lines.push(`  (intro) ${intro}`);
+  for (let i = 0; i < totalPlies; i++) {
+    const moveNumber = Math.floor(i / 2) + 1;
+    const dots = i % 2 === 0 ? '.' : '...';
+    const label = `${moveNumber}${dots}`;
+    const san = l.chapterMoves[i];
+    const comment = l.chapterComments[i + 1];
+    const cursor = i + 1 === l.currentPly ? ' ← current position' : '';
+    if (comment) {
+      lines.push(`  ${label} ${san}${cursor}  // ${comment}`);
+    } else {
+      lines.push(`  ${label} ${san}${cursor}`);
+    }
+  }
+  if (totalPlies === 0) {
+    lines.push('  (the chapter has no moves — it is a position-only lesson)');
+  }
+
+  lines.push(
+    'Guidance: the user can ask hypothetical questions like "what if I played X instead of Y here?" — answer using the moves above plus your chess judgment. If they ask about a position they describe in words, anchor it to a specific ply in the walkthrough so the answer is unambiguous.',
+  );
+
+  return `${ELLE_BASE_PROMPT}\n\n${lines.join('\n')}`;
 }

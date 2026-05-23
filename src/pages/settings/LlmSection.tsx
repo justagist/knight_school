@@ -123,8 +123,7 @@ export function LlmSection() {
 
       {!anythingSaved && (
         <p className="mt-4 border-t border-ink-200 pt-3 text-[11px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
-          Tip: start with Gemini. It has a free tier and works for most casual chat. Add a paid
-          Anthropic or OpenAI key later if you hit limits — auto-fallback handles the switching.
+          Tip: start with Groq for the most generous free tier (no credit card, ~1,000 requests/day on Llama 3.3 70B). Gemini is the easiest free path if you want web search. Add a paid Anthropic or OpenAI key for stronger reasoning — auto-fallback handles the switching between keys when one hits a limit.
         </p>
       )}
     </section>
@@ -445,6 +444,10 @@ function maskedExample(provider: LlmProviderId): string {
       return 'sk-…';
     case 'gemini':
       return 'AIza…';
+    case 'groq':
+      return 'gsk_…';
+    case 'openrouter':
+      return 'sk-or-…';
   }
 }
 

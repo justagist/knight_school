@@ -188,14 +188,65 @@ git push --follow-tags      # pushes commits + tag → auto-deploy
 
 ## Adding a new LLM provider
 
-1. Add a file under `src/llm/providers/yourProvider.ts` that implements `LLMProvider`.
-2. Register it in the provider registry (`src/llm/providers/index.ts`).
-3. Add a model dropdown entry in Settings.
-4. If the provider has a different web-search tool shape, return appropriate `usedWebSearch` flag.
+Five providers ship today: Groq, Gemini, Anthropic, OpenAI, OpenRouter. Two patterns:
+
+**OpenAI-compatible (`/v1/chat/completions`)** — Groq, OpenRouter, and most aggregators. The reusable factory at [src/llm/providers/openaiCompat.ts](src/llm/providers/openaiCompat.ts) handles the request/response shape; a new provider is usually just a base URL + model list:
+
+```ts
+// src/llm/providers/mything.ts
+export const mythingProvider = createOpenAiCompatProvider({
+  id: 'mything',
+  displayName: 'MyThing',
+  baseURL: 'https://api.mything.example/v1',
+  models: [{ id: 'mything-pro', label: 'MyThing Pro', webSearch: false, default: true }],
+});
+```
+
+**Custom protocol** — Anthropic (Messages API), OpenAI (Responses API), Gemini (generateContent). Native client per provider under `src/llm/providers/<name>.ts` implementing the full `LLMProvider` interface.
+
+Steps for either pattern:
+
+1. Add a file under `src/llm/providers/yourProvider.ts`. Export both `<name>Provider: LLMProvider` and `<name>Info: ProviderInfo`.
+2. Add the id to `LlmProviderId` in [src/db/db.ts](src/db/db.ts).
+3. Register in [src/llm/providers/index.ts](src/llm/providers/index.ts) — both `PROVIDERS` (controls dropdown order) and the `*_BY_ID` records.
+4. Add the masked-key prefix in `maskedExample()` in [src/pages/settings/LlmSection.tsx](src/pages/settings/LlmSection.tsx).
+5. Set `supportsWebSearch: true` only if the provider exposes a built-in web-search / grounding tool. The chat UI's 🔎 toggle is hidden on providers where this is false.
+
+### Web search capability matrix
+
+| Provider   | Web search | Notes                                                                       |
+|------------|------------|-----------------------------------------------------------------------------|
+| Anthropic  | ✓          | `web_search_20250305` tool, small per-search fee                            |
+| OpenAI     | ✓          | Responses API `web_search` tool                                             |
+| Gemini     | ✓          | `googleSearch` grounding tool                                               |
+| Groq       | ✗          | No web-search surface in the compat API                                     |
+| OpenRouter | ✗          | Routes to many models, but no exposed search tool through chat.completions  |
+
+When `supportsWebSearch` is false, the chat panel renders the disabled label (`Web search unavailable on <providerName>`) in place of the 🔎 toggle, and the chat call forces `enableWebSearch: false` as defence in depth.
 
 ## Adding a curated opening
 
-The Openings page shows 4–6 hand-picked Lichess Study URLs on first run. Edit `src/openings/curated.ts` and add `{ name, url, description, level }`. No content is bundled — only the URL.
+The Openings page seeds the catalog from [src/lessons/catalog.ts](src/lessons/catalog.ts). The shipped list is the top of `lichess.org/study/all/popular` filtered to studies that fetch publicly (HTTP 200 on `/api/study/{id}.pgn`).
+
+To add or refresh entries:
+
+```sh
+# pull the current popular list
+curl -s https://lichess.org/study/all/popular | grep -oE 'href="/study/[A-Za-z0-9]{8}"' | sort -u
+
+# verify each slug is publicly fetchable
+for id in <slug1> <slug2>; do
+  curl -sS -o /dev/null -w "$id: %{http_code}\n" "https://lichess.org/api/study/${id}.pgn"
+done
+```
+
+Append a `CuratedStudy` row per verified slug — fill in `author`, `blurb`, `category` (`fundamentals` / `openings-white` / `openings-black` / `endgames`), and `matches` aliases that should match the opening name when the Analyze view links here.
+
+### Search + deep-link
+
+The search bar at the top of `/openings` filters the catalog + library client-side (substring match on name, author, blurb, aliases). The Analyze view's opening name + "Variations from here" rows link to `/openings?search=<encoded-opening-name>` which pre-fills the search box. An external "Search on Lichess ↗" link sits next to the bar as the fallback for openings outside the catalog.
+
+> There is **no public JSON search API for Lichess studies** — `lichess.org/study/search?q=…` serves HTML only and the route is not on Lichess's CORS allowlist. The bundled catalog plus the external-search link is the no-backend compromise.
 
 ## Deployment
 

@@ -2,9 +2,14 @@ import { Link } from 'react-router-dom';
 import type { ExplorerEntryRow } from '../db/db';
 import type { EcoEntry } from '../data/eco';
 
-/** Build a deep-link into the Openings tab for a given opening name. */
+/**
+ * Build a deep-link into the Openings tab that pre-fills the search bar
+ * with the given opening name. The Openings page then shows whichever
+ * curated studies match (substring against title / blurb / aliases) plus
+ * an external "Search on Lichess" link as the fallback.
+ */
 function openingsLink(name: string): string {
-  return `/openings?name=${encodeURIComponent(name)}`;
+  return `/openings?search=${encodeURIComponent(name)}`;
 }
 
 interface OpeningBadgeProps {

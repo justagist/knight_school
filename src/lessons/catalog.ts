@@ -16,6 +16,8 @@ export interface CuratedStudy {
   studyId: string;
   /** Display name — what we render before the user imports. */
   name: string;
+  /** Author / curator on Lichess. Surfaced so users know who maintains it. */
+  author?: string;
   /** Which side of the board this study is from (informational). */
   side: 'white' | 'black' | 'both';
   /** One-line blurb under the title. */
@@ -27,87 +29,154 @@ export interface CuratedStudy {
   matches: string[];
 }
 
+/**
+ * Seed list of popular public Lichess studies. Slugs pulled from
+ * lichess.org/study/all/popular and verified against
+ * https://lichess.org/api/study/{id}.pgn — each returns HTTP 200 as of
+ * the time these were imported.
+ *
+ * Titles are cleaned (emojis stripped) for consistent display. Authors
+ * are surfaced so users know who curates each study.
+ *
+ * Refresh procedure: re-run `curl -s https://lichess.org/study/all/popular
+ * | grep -oE 'href="/study/[A-Za-z0-9]{8}"'` and update slugs that have
+ * fallen out of the popular list.
+ */
 export const CURATED_STUDIES: CuratedStudy[] = [
+  // Fundamentals — broad guides, traps, study plans
   {
-    key: 'chess-fundamentals',
-    studyId: '14targuY',
-    name: 'Chess Fundamentals',
+    key: 'ideal-opening',
+    studyId: 'bbxmDYZV',
+    name: 'What is your Ideal Opening?',
+    author: 'LeninPerez',
     side: 'both',
-    blurb: 'Capablanca\'s classic — opening principles, pawn structures, basic endgames.',
+    blurb: 'Pick the right opening for your level — beginner, intermediate, advanced paths.',
     category: 'fundamentals',
     matches: [],
   },
   {
-    key: 'common-openings',
-    studyId: 'aHJlJsx7',
-    name: 'Common Opening Traps',
+    key: 'study-plan-mastery',
+    studyId: '1POKgJWJ',
+    name: 'Study Plan — Road to Mastery',
+    author: 'MagicalzDragonz',
     side: 'both',
-    blurb: 'Frequently-played traps every club player should recognize.',
+    blurb: 'Structured improvement plan with puzzles, openings, and middlegame ideas.',
     category: 'fundamentals',
     matches: [],
   },
   {
-    key: 'italian-game',
-    studyId: 'AjJWZvgM',
-    name: 'The Italian Game',
+    key: 'stafford-traps',
+    studyId: 'whCVdUeM',
+    name: 'Stafford Gambit Traps',
+    author: 'IM EricRosen',
+    side: 'black',
+    blurb: 'IM Eric Rosen\'s famous Stafford Gambit traps for 1.e4 e5 2.Nf3 Nf6.',
+    category: 'fundamentals',
+    matches: ['stafford'],
+  },
+
+  // White openings
+  {
+    key: 'italian-opening',
+    studyId: 'vJsZScnC',
+    name: 'Italian Opening',
+    author: 'LeninPerez',
     side: 'white',
-    blurb: 'Classical 1.e4 e5 2.Nf3 Nc6 3.Bc4 setups — Giuoco Piano + Evans Gambit.',
+    blurb: 'Giuoco Piano, Greco Attack, Giuoco Pianissimo — classical 1.e4 e5 2.Nf3 Nc6 3.Bc4 lines.',
     category: 'openings-white',
     matches: ['italian', 'giuoco', 'evans gambit'],
   },
   {
     key: 'ruy-lopez',
-    studyId: 'gqkwo6Cu',
-    name: 'Ruy Lopez (Spanish)',
+    studyId: 'ZkCxh0nB',
+    name: 'Ruy Lopez',
+    author: 'LeninPerez',
     side: 'white',
-    blurb: 'Main lines of 1.e4 e5 2.Nf3 Nc6 3.Bb5 — Berlin, Closed, Open.',
+    blurb: 'Exchange and Morphy Defense (closed + open) — the Spanish main lines.',
     category: 'openings-white',
     matches: ['ruy lopez', 'spanish'],
   },
   {
     key: 'london-system',
-    studyId: 'sPb5MMYw',
+    studyId: 'vIEKP8t3',
     name: 'The London System',
+    author: 'LeninPerez',
     side: 'white',
-    blurb: 'Solid 1.d4 + Bf4 setup — easy to learn, hard to refute.',
+    blurb: 'Solid 1.d4 + Bf4 setup — formation, principal line.',
     category: 'openings-white',
     matches: ['london'],
   },
   {
+    key: 'london-ideas',
+    studyId: 'KjivNw7F',
+    name: 'Ideas in the London System',
+    author: 'FunnyAnimatorJimTV',
+    side: 'white',
+    blurb: 'Plans + kingside crashes from the London — pairs well with the LeninPerez study.',
+    category: 'openings-white',
+    matches: ['london'],
+  },
+  {
+    key: 'queens-gambit',
+    studyId: 'rMrAjlAG',
+    name: "The Queen's Gambit",
+    author: 'Yonushke',
+    side: 'white',
+    blurb: 'Queen\'s Gambit Accepted and Declined — main lines and traps.',
+    category: 'openings-white',
+    matches: ["queen's gambit", 'queens gambit', 'qgd', 'qga'],
+  },
+  {
+    key: 'e4-repertoire',
+    studyId: '4JQtS6iu',
+    name: 'Repertoire for 1.e4 players',
+    author: 'LeninPerez',
+    side: 'white',
+    blurb: 'Italian, Ruy Lopez, Scotch — a complete 1.e4 repertoire pack.',
+    category: 'openings-white',
+    matches: [],
+  },
+
+  // Black openings
+  {
     key: 'caro-kann',
-    studyId: 'fENPxlrR',
+    studyId: 'jtlLwUvh',
     name: 'Caro-Kann Defense',
+    author: 'LeninPerez',
     side: 'black',
-    blurb: '1...c6 vs 1.e4 — main lines through the Exchange, Advance, Classical.',
+    blurb: 'Advance, Exchange, and Panov Attack — the solid 1...c6 reply to 1.e4.',
     category: 'openings-black',
     matches: ['caro-kann', 'caro kann'],
   },
   {
-    key: 'sicilian-najdorf',
-    studyId: 'lhMNFgN8',
-    name: 'Sicilian Najdorf',
+    key: 'sicilian-all',
+    studyId: '8c8bmUfy',
+    name: 'All about the Sicilian Defense',
+    author: 'francesco_super',
     side: 'black',
-    blurb: 'The fighter — 1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6.',
+    blurb: 'Dragon, Yugoslav Attack, Accelerated Dragon — a broad Sicilian tour.',
     category: 'openings-black',
-    matches: ['sicilian', 'najdorf'],
+    matches: ['sicilian', 'dragon', 'najdorf'],
+  },
+  {
+    key: 'french-defense',
+    studyId: 'UzKIIAtz',
+    name: 'French Defense',
+    author: 'LeninPerez',
+    side: 'black',
+    blurb: 'Exchange and Advance Variations — fundamentals of 1...e6 vs 1.e4.',
+    category: 'openings-black',
+    matches: ['french'],
   },
   {
     key: 'kings-indian',
-    studyId: 'iVWmK1Sx',
-    name: "King's Indian Defense",
+    studyId: '9XAhbaE7',
+    name: "King's Indian: Fantastic Opening",
+    author: 'FunnyAnimatorJimTV',
     side: 'black',
-    blurb: 'Hypermodern setup vs 1.d4 — fianchetto and central pawn break.',
+    blurb: "Classical Variation main line + kingside attack — Black's hypermodern weapon vs 1.d4.",
     category: 'openings-black',
     matches: ["king's indian", 'kings indian', 'kid'],
-  },
-  {
-    key: 'basic-endgames',
-    studyId: 'fhKDQEcM',
-    name: 'Essential Endgames',
-    side: 'both',
-    blurb: 'K+P vs K, Lucena, Philidor, basic rook endings.',
-    category: 'endgames',
-    matches: [],
   },
 ];
 
@@ -130,4 +199,18 @@ export function findStudyByOpeningName(name: string): CuratedStudy | undefined {
 
 export function findStudyByKey(key: string): CuratedStudy | undefined {
   return CURATED_STUDIES.find((s) => s.key === key);
+}
+
+/**
+ * Does a catalog entry match a free-text query? Case-insensitive substring
+ * against name + author + blurb + each opening-name alias. Empty query
+ * matches everything (page shows the full catalog).
+ */
+export function studyMatchesQuery(entry: CuratedStudy, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (entry.name.toLowerCase().includes(q)) return true;
+  if (entry.author?.toLowerCase().includes(q)) return true;
+  if (entry.blurb.toLowerCase().includes(q)) return true;
+  return entry.matches.some((m) => m.includes(q));
 }

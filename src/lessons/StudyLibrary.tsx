@@ -5,6 +5,8 @@ interface StudyLibraryProps {
   studies: StudyRow[];
   onOpen: (studyId: string) => void;
   onRemove: (studyId: string) => void;
+  /** Free-text filter applied across study name + chapter titles. Empty = show all. */
+  searchQuery?: string;
 }
 
 /**
@@ -12,15 +14,23 @@ interface StudyLibraryProps {
  * viewer; secondary "Remove" button deletes from Dexie (PGN is fetchable
  * again, so this is non-destructive in spirit).
  */
-export function StudyLibrary({ studies, onOpen, onRemove }: StudyLibraryProps) {
-  if (studies.length === 0) return null;
+export function StudyLibrary({ studies, onOpen, onRemove, searchQuery = '' }: StudyLibraryProps) {
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? studies.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.chapters.some((c) => c.title.toLowerCase().includes(q)),
+      )
+    : studies;
+  if (filtered.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600 dark:text-ink-400">
         Your library
       </h3>
       <ul className="flex flex-col gap-1">
-        {studies.map((s) => (
+        {filtered.map((s) => (
           <li
             key={s.id}
             className="card flex items-center justify-between gap-2 px-3 py-2"

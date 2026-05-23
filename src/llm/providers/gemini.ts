@@ -71,6 +71,7 @@ export const geminiProvider: LLMProvider = {
   id: 'gemini',
   displayName: 'Google Gemini',
   models: MODELS,
+  supportsWebSearch: true,
   defaultModel: () => MODELS.find((m) => m.default)?.id ?? MODELS[0].id,
 
   async testConnection(apiKey: string, model: string): Promise<TestResult> {

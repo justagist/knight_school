@@ -21,7 +21,7 @@ Everything runs in your browser. Your games, your API key, your chat history —
 
 - Stockfish (local WASM, no network)
 - Lichess APIs (`lichess.org`, `explorer.lichess.ovh`) for studies and explorer stats
-- Your chosen LLM provider (Anthropic or OpenAI) for Elle
+- Your chosen LLM provider (Groq, Google Gemini, Anthropic, OpenAI, or OpenRouter) for Elle
 
 No analytics, no telemetry, no third-party tracking.
 
@@ -50,7 +50,7 @@ No environment variables. No `.env` file. Bring your own LLM API key in the in-a
 - **Appearance** — Light / dark / system theme. Board theme and piece options (step 2+).
 - **Engine** — Stockfish Lite (~6 MB, default) or Full (~40 MB, downloaded on demand). Analysis depth 10–30.
 - **Sounds** — Move / capture / check / game-end. Off by default.
-- **LLM (Elle)** — Provider (Anthropic / OpenAI), API key, model, test-connection button.
+- **LLM (Elle)** — Provider (Groq / Gemini / Anthropic / OpenAI / OpenRouter), API key, model, test-connection button. Multiple keys per provider with auto-fallback on rate-limit.
 - **Storage** — Used MB, export/import all data, clear everything.
 
 ## API keys
@@ -59,13 +59,23 @@ All credentials are stored locally in your browser. Nothing leaves your device e
 
 ### LLM (Elle)
 
-Elle uses your provider's built-in web search tool for current chess news.
+Five providers are supported. Pick what fits your budget and feature needs.
 
-- **Anthropic** — Web search works on most current Claude models. Paid API account required, small per-search fee.
-- **OpenAI** — Requires a model that supports web search. Small per-search fee.
-- **Google Gemini** — Free tier available, paid for higher quotas.
+- **Groq** — Free tier, no credit card. ~1,000 requests/day on Llama 3.3 70B. Strongest free option as of 2026. **No web search.** Get a key at [console.groq.com/keys](https://console.groq.com/keys).
+- **Google Gemini** — Free tier with daily caps (slashed in 2026 — Flash ~20 RPD). Paid for higher quotas. Web search supported. Get a key at [aistudio.google.com](https://aistudio.google.com/app/apikey).
+- **Anthropic Claude** — Paid only. Strongest reasoning. Web search supported on most current models, small per-search fee. Get a key at [console.anthropic.com](https://console.anthropic.com/settings/keys).
+- **OpenAI** — Paid only. Web search supported on most current models via the Responses API, small per-search fee. Get a key at [platform.openai.com](https://platform.openai.com/api-keys).
+- **OpenRouter** — Aggregator. ~50 requests/day free; rises to ~1,000/day after a one-time $10 top-up. Useful for accessing free-tier Llama / DeepSeek / Gemini variants without separate accounts. **No web search.** Get a key at [openrouter.ai/keys](https://openrouter.ai/keys).
 
-If your plan or model doesn't support web search, Elle will still answer chess questions from training knowledge but won't have current news. Multi-key support means you can stack a free-tier Gemini key as the daily driver and fall back to a paid Anthropic / OpenAI key when you hit rate limits.
+> Free tier limits can change without notice — check the provider before relying on a quota.
+
+**Choosing a provider:**
+
+- Free, no card → **Groq** (best quota) or **Gemini** (cheapest path that also gives web search).
+- Cheapest paid → **Gemini Flash-Lite** or **Anthropic Claude Haiku**.
+- Need web search → **Anthropic, OpenAI, or Gemini**. Groq and OpenRouter don't expose a web-search tool; Elle's 🔎 toggle hides on those providers and the response comes from training knowledge only.
+
+Multi-key support means you can stack a Groq free key as the daily driver and add a paid Anthropic / OpenAI key as the fallback for when you hit the free quota — switching happens automatically.
 
 ### Lichess (optional)
 
