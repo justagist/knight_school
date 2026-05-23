@@ -63,38 +63,54 @@
 }
 
 /* --- Outside coordinate mode --- */
+/*
+ * Lichess-style: rank numbers in the TOP-LEFT corner of each file-a square;
+ * file letters in the BOTTOM-RIGHT corner of each rank-1 square. Pieces are
+ * centered in their square so corner labels stay legible.
+ *
+ * Containers span the full board so each flex item (coord) gets exactly
+ * one square's worth of space, then padding pushes the text to the right
+ * corner. Earlier shrunken-strip approach (`height: 6%` for files) caused
+ * the labels to overlap the bottom row pieces on mobile.
+ */
 
-/* Rank numbers along the left of the board. The default
-   `left: 4px; top: -20px` puts them in a 12px-wide column above the board,
-   anchored in pixels. Re-pin to a percentage offset INSIDE the leftmost
-   column so they sit just inside each rank's left edge — no pixel drift. */
+/* Rank numbers along the a-file column. */
 .ks-board-wrap .cg-wrap coords.ranks {
-  left: 1%;
+  left: 0;
   top: 0;
-  width: 6%;
+  width: 12.5%;
   height: 100%;
+  flex-flow: column-reverse;
   align-items: flex-start;
-  justify-content: space-around;
+}
+.ks-board-wrap .cg-wrap coords.ranks.black {
+  flex-flow: column;
 }
 .ks-board-wrap .cg-wrap coords.ranks coord {
+  flex: 1 1 auto;
   transform: none;
   text-align: left;
+  padding: 2% 0 0 6%;
+  line-height: 1;
 }
 
-/* File letters along the bottom of the board. Default `bottom: -4px;
-   left: 24px` is the same pixel-drift problem. Anchor to a percentage
-   offset INSIDE the bottom row. */
+/* File letters along the rank-1 row. */
 .ks-board-wrap .cg-wrap coords.files {
-  bottom: 1%;
+  bottom: 0;
   left: 0;
   width: 100%;
-  height: 6%;
+  height: 12.5%;
+  flex-flow: row;
   align-items: flex-end;
-  justify-content: space-around;
+}
+.ks-board-wrap .cg-wrap coords.files.black {
+  flex-flow: row-reverse;
 }
 .ks-board-wrap .cg-wrap coords.files coord {
+  flex: 1 1 auto;
   text-align: right;
-  padding-right: 2%;
+  padding: 0 6% 2% 0;
+  line-height: 1;
 }
 
 /* Force black on the outside labels too (chessground's brown theme

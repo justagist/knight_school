@@ -100,6 +100,15 @@ export function parsePgn(pgn: string): ParsedGame {
   try {
     chess.loadPgn(sanitized, { strict: false });
   } catch (err) {
+    // Lichess studies sometimes ship chapters with diagram-only positions
+    // — boards built in the editor showing a piece formation. These have a
+    // `[FEN ...]` tag with no black king (or no white king, or fewer than
+    // 2 kings), which is not a legal chess position so chess.js rejects.
+    // Fall back to a position-only ParsedGame: pull the FEN tag + any
+    // top-level comment, return zero moves. The viewer still renders the
+    // board (chessground doesn't validate) and shows the author's note.
+    const positionOnly = tryParsePositionOnlyChapter(sanitized);
+    if (positionOnly) return positionOnly;
     const message = err instanceof Error ? err.message : String(err);
     throw new PgnParseError(`Invalid PGN: ${message}`);
   }
@@ -149,6 +158,50 @@ export function parsePgn(pgn: string): ParsedGame {
   const comments = fens.map((f) => commentByFen.get(f));
 
   return { headers, startingFen, moves, fens, comments };
+}
+
+/**
+ * Best-effort recovery when chess.js rejects a chapter PGN. Looks for a
+ * `[FEN "..."]` tag and the first `{ ... }` comment in the raw PGN text.
+ * Returns a ParsedGame with zero moves so the viewer can still display
+ * the diagram + author note. Returns undefined if no FEN tag was found
+ * (the chapter is genuinely broken and the caller should re-throw).
+ */
+function tryParsePositionOnlyChapter(pgn: string): ParsedGame | undefined {
+  const fenMatch = pgn.match(/^\[FEN\s+"([^"]+)"\]/m);
+  if (!fenMatch) return undefined;
+  const startingFen = fenMatch[1];
+
+  // Crude tag extraction — same pattern chess.js's header() walks, but
+  // we can't call header() because the load failed.
+  const headers: Record<string, string> = {};
+  const tagRe = /^\[([A-Za-z0-9_]+)\s+"([^"]*)"\]/gm;
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = tagRe.exec(pgn)) !== null) {
+    headers[tagMatch[1]] = tagMatch[2];
+  }
+
+  // Grab the first comment that appears AFTER the last tag (intro note).
+  const lastTagEnd = (() => {
+    let end = 0;
+    const re = /^\[[A-Za-z0-9_]+\s+"[^"]*"\]/gm;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(pgn)) !== null) {
+      end = m.index + m[0].length;
+    }
+    return end;
+  })();
+  const tail = pgn.slice(lastTagEnd);
+  const commentMatch = tail.match(/\{([^}]+)\}/);
+  const intro = cleanComment(commentMatch?.[1]);
+
+  return {
+    headers,
+    startingFen,
+    moves: [],
+    fens: [startingFen],
+    comments: [intro],
+  };
 }
 
 /**
