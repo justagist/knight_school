@@ -14,10 +14,17 @@ import { useSettings } from '../settings/SettingsProvider';
 import { useGameSounds } from '../sounds/useGameSounds';
 import { buildClassificationShapes } from './classificationShapes';
 import { MIN_CLASSIFY_DEPTH } from '../analysis/classify';
+import { useChatScreen } from '../chat/ChatContextProvider';
+import { useChatHost } from '../chat/ChatHost';
+import { MoveCommentary } from '../chat/MoveCommentary';
+import { sanSequenceWithNumbers, uciSequenceToSan } from '../lib/uciToSan';
+import type { PositionEvalRow } from '../db/db';
 
 export function AnalyzeView() {
   const g = useGame();
   const { settings } = useSettings();
+  const chatScreen = useChatScreen();
+  const chatHost = useChatHost();
 
   // Per-position live engine for the move-by-move review.
   const engine = useEngine({
@@ -29,6 +36,72 @@ export function AnalyzeView() {
   // Full-game analysis pass — runs on a separate engine worker so it doesn't
   // queue behind the interactive `engine` above.
   const analysis = useGameAnalysis(g.game, settings.analysisDepth, settings.engineVariant);
+
+  // Publish the current screen context to the chat host so the floating
+  // chat panel knows we're looking at a specific game / position. Reverts
+  // to idle on unmount so the General thread comes back when navigating.
+  useEffect(() => {
+    chatHost.setRawPgn(g.rawPgn);
+    if (!g.game) {
+      chatScreen.setScreen({ kind: 'idle' });
+      return;
+    }
+    const playedMove = g.ply > 0 ? g.game.moves[g.ply - 1] : undefined;
+    const engineSummary = summarizeEngine(engine.snapshot);
+    const currentMove = playedMove
+      ? {
+          label: `${playedMove.moveNumber}${playedMove.color === 'w' ? '.' : '...'}`,
+          san: playedMove.san,
+          uci: `${playedMove.from}${playedMove.to}`,
+          color: playedMove.color,
+          moveNumber: playedMove.moveNumber,
+          classification: analysis.result.classifications[g.ply - 1] ?? undefined,
+          evalBefore: pawnsFromRow(analysis.result.evals[g.ply - 1]),
+          evalAfter: pawnsFromRow(analysis.result.evals[g.ply]),
+          // Counterfactual lines (what should have been played) come from
+          // the eval row for the position BEFORE the played move.
+          bestLinesBefore: renderLines(
+            g.game.fens[g.ply - 1],
+            analysis.result.evals[g.ply - 1],
+          ),
+          // Refutation lines (how the opponent now exploits / responds)
+          // come from the eval row for the position AFTER the played move.
+          bestLinesAfter: renderLines(
+            g.game.fens[g.ply],
+            analysis.result.evals[g.ply],
+          ),
+        }
+      : undefined;
+    const trajectory = summarizeTrajectory(g.game, analysis.result);
+    chatScreen.setScreen({
+      kind: 'game',
+      gameLabel: gameLabel(g.game.headers),
+      result: g.game.headers.Result,
+      pgn: g.rawPgn ?? undefined,
+      ply: g.ply,
+      currentFen: g.currentFen ?? g.game.startingFen,
+      currentMove,
+      engineSummary,
+      trajectory,
+    });
+    // chatScreen.setScreen identity is stable; chatHost.setRawPgn is stable too.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    g.game,
+    g.rawPgn,
+    g.ply,
+    g.currentFen,
+    engine.snapshot,
+    analysis.result,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      chatHost.setRawPgn(null);
+      chatScreen.setScreen({ kind: 'idle' });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sound playback on ply transitions.
   useGameSounds({
@@ -176,6 +249,30 @@ export function AnalyzeView() {
               fen={g.currentFen ?? g.game.startingFen}
             />
           )}
+
+          {/* Per-move commentary card — only meaningful when a move has
+              actually been played (ply > 0). The card itself surfaces an
+              "Explain move" button; clicking it calls Elle and caches the
+              result so subsequent renders are instant. */}
+          {g.ply > 0 && g.game && (() => {
+            const move = g.game.moves[g.ply - 1];
+            if (!move) return null;
+            const fenBefore = g.game.fens[g.ply - 1];
+            return (
+              <MoveCommentary
+                visible
+                fenBefore={fenBefore}
+                uciMove={`${move.from}${move.to}`}
+                sanMove={move.san}
+                evalBefore={analysis.result.evals[g.ply - 1] ?? undefined}
+                evalAfter={analysis.result.evals[g.ply] ?? undefined}
+                classification={analysis.result.classifications[g.ply - 1] ?? undefined}
+                gameLabel={gameLabel(g.game.headers)}
+                moveNumber={move.moveNumber}
+                color={move.color}
+              />
+            );
+          })()}
         </div>
 
         {/* Side panel: move list + load new */}
@@ -381,4 +478,111 @@ function BoardControls({
       </button>
     </div>
   );
+}
+
+/**
+ * Compact, model-readable summary of the current engine snapshot. Used by
+ * the chat host to ground Elle's responses in the same eval the user is
+ * looking at on the board.
+ */
+function summarizeEngine(snapshot: { lines: { pvIndex: number; scoreCp?: number; mate?: number; uciMoves: string[]; depth: number }[]; depth: number } | null): string | undefined {
+  if (!snapshot || snapshot.lines.length === 0) return undefined;
+  const lines = snapshot.lines.slice(0, 3).map((l) => {
+    const score = l.mate != null ? `M${l.mate}` : l.scoreCp != null ? `${(l.scoreCp / 100).toFixed(2)}` : '—';
+    const pv = l.uciMoves.slice(0, 6).join(' ');
+    return `  PV${l.pvIndex}: ${score}  ${pv}`;
+  });
+  return `Depth ${snapshot.depth} — top lines:\n${lines.join('\n')}`;
+}
+
+/**
+ * Convert a cached PositionEvalRow to a White-POV pawn value. Mate flattens
+ * to ±10 so prompts stay readable. Returns undefined when there's no eval
+ * data (un-analyzed position).
+ */
+function pawnsFromRow(
+  row: { turn: 'w' | 'b'; scoreCp?: number; mate?: number } | undefined,
+): number | undefined {
+  if (!row) return undefined;
+  if (row.mate != null) {
+    if (row.mate > 0) return row.turn === 'w' ? 10 : -10;
+    if (row.mate < 0) return row.turn === 'w' ? -10 : 10;
+    return row.turn === 'w' ? -10 : 10; // mate=0 means side-to-move is mated
+  }
+  if (row.scoreCp == null) return undefined;
+  const fromWhite = row.turn === 'w' ? row.scoreCp : -row.scoreCp;
+  return fromWhite / 100;
+}
+
+/**
+ * Compact game-wide eval trajectory for the system prompt. Format:
+ *   1.  e4    [opening]  +0.18 → -0.05
+ *   1... e5   [opening]  -0.05 → -0.00
+ *   ...
+ *   15. Bf4   [mistake]  +0.42 → -0.10
+ *
+ * Includes every analyzed move; unanalyzed ones are skipped. Truncates to
+ * 200 lines so the prompt stays bounded for very long games.
+ */
+function summarizeTrajectory(
+  game: import('../lib/pgn').ParsedGame,
+  result: { evals: (import('../db/db').PositionEvalRow | undefined)[]; classifications: (string | null)[] },
+): string | undefined {
+  if (!result.evals.length) return undefined;
+  const rows: string[] = [];
+  for (let i = 0; i < game.moves.length; i++) {
+    const m = game.moves[i];
+    const before = pawnsFromRow(result.evals[i]);
+    const after = pawnsFromRow(result.evals[i + 1]);
+    if (before == null && after == null) continue;
+    const label = `${m.moveNumber}${m.color === 'w' ? '.' : '...'} ${m.san}`.padEnd(10);
+    const cls = result.classifications[i] ? `[${result.classifications[i]}]` : '';
+    const evalText =
+      before != null && after != null
+        ? `${fmt(before)} → ${fmt(after)}`
+        : before != null
+          ? `${fmt(before)} → ?`
+          : after != null
+            ? `? → ${fmt(after)}`
+            : '';
+    rows.push(`  ${label} ${cls.padEnd(14)} ${evalText}`);
+    if (rows.length >= 200) {
+      rows.push('  […truncated]');
+      break;
+    }
+  }
+  return rows.length > 0 ? rows.join('\n') : undefined;
+}
+
+function fmt(p: number): string {
+  if (Math.abs(p) >= 10) return p > 0 ? '+M' : '-M';
+  return `${p >= 0 ? '+' : ''}${p.toFixed(2)}`;
+}
+
+/**
+ * Render the engine's top PV lines at a position as SAN sequences with
+ * move numbers, e.g. "15. Nf3 Nxe4 16. Qxe4 Nf6". Used both for
+ * counterfactual ("what should have been played") and refutation ("how
+ * the opponent exploits this") rendering in the chat prompt.
+ *
+ * Returns up to 3 lines, each truncated to ~8 plies — enough for Elle to
+ * narrate the key idea without overflowing the prompt.
+ */
+function renderLines(
+  fen: string | undefined,
+  row: PositionEvalRow | undefined,
+): Array<{ score: string; sanLine: string }> | undefined {
+  if (!fen || !row || !row.lines.length) return undefined;
+  const out: Array<{ score: string; sanLine: string }> = [];
+  for (const line of row.lines.slice(0, 3)) {
+    const sans = uciSequenceToSan(fen, line.uciMoves.slice(0, 8));
+    if (sans.length === 0) continue;
+    const score = line.mate != null
+      ? `M${line.mate}`
+      : line.scoreCp != null
+        ? `${(line.scoreCp / 100).toFixed(2)}`
+        : '—';
+    out.push({ score, sanLine: sanSequenceWithNumbers(fen, sans) });
+  }
+  return out.length > 0 ? out : undefined;
 }

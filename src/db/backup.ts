@@ -21,6 +21,9 @@ const BACKUP_VERSION = 1;
  * is preserved.
  */
 export async function exportToBlob(opts: ExportOptions): Promise<Blob> {
+  // When excluding api keys we also exclude per-key state. Chat history and
+  // commentary travel regardless — they aren't credentials, and a backup
+  // without your past Elle conversations would be of limited use.
   const skipTables: string[] = opts.includeApiKeys
     ? []
     : ['apiKeys', 'providerConfig', 'llmGlobal'];

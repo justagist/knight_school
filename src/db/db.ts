@@ -92,11 +92,70 @@ export interface LlmGlobalRow {
   activeProvider: LlmProviderId | null;
 }
 
+/**
+ * A chat thread. The general/idle thread is one row with contextType='general'
+ * and a fixed id; per-game threads have contextType='game' and a contextId
+ * keyed off the PGN hash so reloading the same game restores its chat.
+ */
+export interface ChatThreadRow {
+  id: string;
+  contextType: 'general' | 'game';
+  /** For 'game' threads, the stable PGN hash. Undefined for general. */
+  contextId?: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * One turn in a thread. We persist provider/model/key on the assistant turn
+ * so the UI can render "via Claude Sonnet" captions and signal when a
+ * non-primary key was used as a fallback.
+ */
+export interface ChatMessageRow {
+  id: string;
+  threadId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: number;
+  /** Assistant-only: which provider/model/key produced this turn. */
+  provider?: LlmProviderId;
+  model?: string;
+  keyId?: string;
+  /** True if the provider's web-search tool was actually invoked. */
+  usedWebSearch?: boolean;
+  /** Web-search citations (URL + title) when usedWebSearch is true. */
+  citations?: Array<{ url: string; title?: string }>;
+  /** For assistant errors — captures the message so we can render it inline. */
+  errorMessage?: string;
+}
+
+/**
+ * Per-move Elle commentary cache. Spec: cache by (FEN + move). We also
+ * include provider+model in the key since different models produce
+ * meaningfully different commentary — caching across models would be wrong.
+ */
+export interface MoveCommentaryRow {
+  /** Composite key: `${fen}::${uciMove}::${provider}::${model}`. */
+  key: string;
+  fen: string;
+  uciMove: string;
+  provider: LlmProviderId;
+  model: string;
+  text: string;
+  usedWebSearch: boolean;
+  citations?: Array<{ url: string; title?: string }>;
+  createdAt: number;
+}
+
 export class KsDatabase extends Dexie {
   positionEvals!: EntityTable<PositionEvalRow, 'fen'>;
   apiKeys!: EntityTable<ApiKeyRow, 'id'>;
   providerConfig!: EntityTable<ProviderConfigRow, 'provider'>;
   llmGlobal!: EntityTable<LlmGlobalRow, 'id'>;
+  chatThreads!: EntityTable<ChatThreadRow, 'id'>;
+  chatMessages!: EntityTable<ChatMessageRow, 'id'>;
+  moveCommentaries!: EntityTable<MoveCommentaryRow, 'key'>;
 
   constructor() {
     super('knightschool');
@@ -109,6 +168,16 @@ export class KsDatabase extends Dexie {
       apiKeys: '&id, provider, createdAt',
       providerConfig: '&provider',
       llmGlobal: '&id',
+    });
+    // v3: chat threads/messages + per-move commentary cache.
+    this.version(3).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
     });
   }
 }

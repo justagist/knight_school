@@ -1,4 +1,13 @@
-import type { LLMProvider, ModelDescriptor, ProviderInfo, TestResult } from '../types';
+import {
+  LLMError,
+  type ChatRequest,
+  type ChatResult,
+  type LLMProvider,
+  type ModelDescriptor,
+  type ProviderInfo,
+  type TestResult,
+  type ChatCitation,
+} from '../types';
 
 const MODELS: ModelDescriptor[] = [
   {
@@ -35,6 +44,26 @@ export const openaiInfo: ProviderInfo = {
   webSearchNote:
     'Web search via the Responses API (web_search tool). Only some models support it — check the model picker. Small per-search fee.',
 };
+
+interface OpenAIResponsesOutputItem {
+  type: string;
+  role?: string;
+  content?: Array<{
+    type: string;
+    text?: string;
+    annotations?: Array<{
+      type: string;
+      url?: string;
+      title?: string;
+    }>;
+  }>;
+}
+
+interface OpenAIResponsesPayload {
+  output?: OpenAIResponsesOutputItem[];
+  output_text?: string;
+  error?: { message?: string };
+}
 
 export const openaiProvider: LLMProvider = {
   id: 'openai',
@@ -80,6 +109,93 @@ export const openaiProvider: LLMProvider = {
         message: err instanceof Error ? err.message : 'Network error',
       };
     }
+  },
+
+  async chat(req: ChatRequest): Promise<ChatResult> {
+    // Responses API is OpenAI's chat-plus-tools surface. We use it
+    // unconditionally so web_search support is uniform.
+    const input = [
+      ...req.messages.map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      })),
+    ];
+
+    const body: Record<string, unknown> = {
+      model: req.model,
+      instructions: req.system,
+      input,
+      // See anthropic.ts for the rationale on 2048 — same logic applies.
+      max_output_tokens: req.maxTokens ?? 2048,
+    };
+    if (req.enableWebSearch) {
+      body.tools = [{ type: 'web_search' }];
+    }
+
+    let resp: Response;
+    try {
+      resp = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${req.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: req.signal,
+      });
+    } catch (err) {
+      throw new LLMError(err instanceof Error ? err.message : 'Network error', {
+        retryable: false,
+      });
+    }
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      let detail = text;
+      try {
+        const json = JSON.parse(text) as { error?: { message?: string } };
+        if (json.error?.message) detail = json.error.message;
+      } catch {}
+      const retryable = resp.status === 429;
+      throw new LLMError(`HTTP ${resp.status}: ${truncate(detail, 240)}`, {
+        status: resp.status,
+        retryable,
+      });
+    }
+
+    const json = (await resp.json()) as OpenAIResponsesPayload;
+
+    // Prefer the convenience field if present; otherwise scrape output.
+    let text = (json.output_text ?? '').trim();
+    let usedWebSearch = false;
+    const citations: ChatCitation[] = [];
+
+    if (Array.isArray(json.output)) {
+      for (const item of json.output) {
+        if (item.type === 'web_search_call' || item.type === 'web_search') {
+          usedWebSearch = true;
+        }
+        if (item.type === 'message' && Array.isArray(item.content)) {
+          for (const part of item.content) {
+            if (part.type === 'output_text' && typeof part.text === 'string' && !text) {
+              text = part.text.trim();
+            }
+            if (Array.isArray(part.annotations)) {
+              for (const ann of part.annotations) {
+                if (ann.type === 'url_citation' && ann.url) {
+                  citations.push({ url: ann.url, title: ann.title });
+                  // Citations imply web search was used even when no
+                  // explicit web_search_call item is present.
+                  usedWebSearch = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { text, usedWebSearch, citations };
   },
 };
 

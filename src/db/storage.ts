@@ -35,13 +35,24 @@ export async function clearAllData(): Promise<void> {
   const d = db();
   await d.transaction(
     'rw',
-    [d.positionEvals, d.apiKeys, d.providerConfig, d.llmGlobal],
+    [
+      d.positionEvals,
+      d.apiKeys,
+      d.providerConfig,
+      d.llmGlobal,
+      d.chatThreads,
+      d.chatMessages,
+      d.moveCommentaries,
+    ],
     async () => {
       await Promise.all([
         d.positionEvals.clear(),
         d.apiKeys.clear(),
         d.providerConfig.clear(),
         d.llmGlobal.clear(),
+        d.chatThreads.clear(),
+        d.chatMessages.clear(),
+        d.moveCommentaries.clear(),
       ]);
     },
   );
