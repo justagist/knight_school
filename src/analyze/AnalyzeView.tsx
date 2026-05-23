@@ -19,6 +19,11 @@ import { useChatHost } from '../chat/ChatHost';
 import { MoveCommentary } from '../chat/MoveCommentary';
 import { sanSequenceWithNumbers, uciSequenceToSan } from '../lib/uciToSan';
 import type { PositionEvalRow } from '../db/db';
+import { useGuessMode } from '../guess/useGuessMode';
+import { GuessModePanel } from '../guess/GuessModePanel';
+import { useExploration } from './useExploration';
+import { summarizeCaptures } from './captures';
+import { PlayerStrip } from './PlayerStrip';
 
 export function AnalyzeView() {
   const g = useGame();
@@ -26,9 +31,22 @@ export function AnalyzeView() {
   const chatScreen = useChatScreen();
   const chatHost = useChatHost();
 
-  // Per-position live engine for the move-by-move review.
+  // Interactive exploration. When the user drags a piece on the board
+  // (outside guess mode), they branch off the main line. The exploration
+  // FEN supersedes the game's FEN for both the board display and engine
+  // analysis. Navigating moves resets it.
+  const exploration = useExploration({ anchorFen: g.currentFen });
+
+  // FEN actually displayed: exploration if active, else the game's FEN.
+  const displayFen = exploration.active
+    ? exploration.state!.currentFen
+    : g.currentFen ?? null;
+
+  // Per-position live engine — analyzes whatever the user is *looking at*,
+  // exploration or game line. That's the whole point of the interactive
+  // mode: try a move, see the eval.
   const engine = useEngine({
-    fen: g.currentFen,
+    fen: displayFen,
     depth: settings.analysisDepth,
     enabled: settings.engineEnabled && settings.engineVariant === 'lite',
   });
@@ -36,6 +54,16 @@ export function AnalyzeView() {
   // Full-game analysis pass — runs on a separate engine worker so it doesn't
   // queue behind the interactive `engine` above.
   const analysis = useGameAnalysis(g.game, settings.analysisDepth, settings.engineVariant);
+
+  // Guess-the-move mode. When active, hides the engine UI, makes the board
+  // interactive for the side to move, and records guesses to Dexie.
+  const guess = useGuessMode({
+    game: g.game,
+    rawPgn: g.rawPgn,
+    ply: g.ply,
+    setPly: g.setPly,
+    evals: analysis.result.evals,
+  });
 
   // Publish the current screen context to the chat host so the floating
   // chat panel knows we're looking at a specific game / position. Reverts
@@ -119,6 +147,13 @@ export function AnalyzeView() {
     [g.lastMove, currentMoveClass],
   );
 
+  // Captured pieces + material balance for the player strips. Recomputes
+  // when the ply changes or an exploration move is played.
+  const captures = useMemo(
+    () => summarizeCaptures(g.game, g.ply, exploration.state?.moves ?? []),
+    [g.game, g.ply, exploration.state],
+  );
+
   // Keyboard shortcuts: ← prev, → next, Home start, End end, f flip
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -191,8 +226,52 @@ export function AnalyzeView() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         {/* Board column */}
         <div className="space-y-3">
-          <div className="mx-auto flex w-full max-w-[720px] items-stretch gap-2">
-            {settings.engineEnabled && (
+          {/* Guess-mode toggle. Sits above the board so it's discoverable
+              and so toggling immediately re-frames everything below. */}
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => (guess.active ? guess.stop() : guess.start())}
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+                guess.active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-ink-200 text-ink-600 hover:bg-ink-100 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800'
+              }`}
+              aria-pressed={guess.active}
+              title="Toggle Guess-the-move mode. Hides engine eval while you pick a move."
+            >
+              {guess.active ? 'Guessing on' : 'Guess the move'}
+            </button>
+            {guess.active && (
+              <span className="text-[11px] text-ink-500 dark:text-ink-400">
+                Engine eval is hidden until you commit a guess or exit.
+              </span>
+            )}
+          </div>
+
+          {/* Top player strip — the side facing away from the user. Whoever
+              has captured the most material gets a +N badge. */}
+          <PlayerStrip
+            name={g.orientation === 'white' ? g.game.headers.Black : g.game.headers.White}
+            side={g.orientation === 'white' ? 'black' : 'white'}
+            captured={g.orientation === 'white' ? captures.blackCaptured : captures.whiteCaptured}
+            advantage={
+              g.orientation === 'white'
+                ? Math.max(0, -captures.materialDelta)
+                : Math.max(0, captures.materialDelta)
+            }
+          />
+
+          {/*
+            Board sizing: cap by both width AND viewport-height so the board
+            stays square-ish across screen shapes. 90vh upper bound matches
+            chess.com / lichess-style "big board" feel; 920px stops it from
+            getting silly on ultra-wide monitors.
+          */}
+          <div className="mx-auto flex w-full max-w-[min(90vh,920px)] items-stretch gap-2">
+            {/* Eval bar is hidden during guessing so the user doesn't see
+                the answer before they pick. Reappears after reveal. */}
+            {settings.engineEnabled && guess.mode !== 'guessing' && (
               <div className="flex w-8 flex-col items-stretch">
                 <EvalBar
                   snapshot={engine.snapshot}
@@ -203,13 +282,43 @@ export function AnalyzeView() {
             )}
             <div className="min-w-0 flex-1">
               <Board
-                fen={g.currentFen ?? g.game.startingFen}
+                fen={displayFen ?? g.game.startingFen}
                 orientation={g.orientation}
-                lastMove={g.lastMove}
-                shapes={classificationShapes}
+                // In exploration the lastMove is the user's just-played
+                // branch move; otherwise the game's last move.
+                lastMove={exploration.active ? exploration.lastMove : g.lastMove}
+                // Hide classification shape while exploring — the eval
+                // applies to the live position, not the game-ply move.
+                shapes={
+                  guess.mode === 'guessing' || exploration.active ? [] : classificationShapes
+                }
+                // Board is interactive when guess-mode is asking for input
+                // OR whenever we're showing a normal (non-guess) view —
+                // dragging starts/continues an exploration line.
+                viewOnly={guess.mode === 'revealed'}
+                movableColor={guess.mode === 'guessing' ? guess.sideToMove : 'both'}
+                onUserMove={(uci) => {
+                  if (guess.mode === 'guessing') {
+                    guess.submit(uci);
+                  } else if (!guess.active) {
+                    exploration.play(uci);
+                  }
+                }}
               />
             </div>
           </div>
+
+          {/* Bottom player strip — the side facing the user. */}
+          <PlayerStrip
+            name={g.orientation === 'white' ? g.game.headers.White : g.game.headers.Black}
+            side={g.orientation}
+            captured={g.orientation === 'white' ? captures.whiteCaptured : captures.blackCaptured}
+            advantage={
+              g.orientation === 'white'
+                ? Math.max(0, captures.materialDelta)
+                : Math.max(0, -captures.materialDelta)
+            }
+          />
 
           <BoardControls
             ply={g.ply}
@@ -221,18 +330,44 @@ export function AnalyzeView() {
             onFlip={g.flip}
           />
 
-          <AnalyzeAllBanner
-            running={analysis.running}
-            progress={analysis.progress}
-            complete={analysis.complete}
-            error={analysis.error}
-            onStart={analysis.start}
-            onCancel={analysis.cancel}
-            engineDisabled={!settings.engineEnabled}
-            depth={settings.analysisDepth}
-          />
+          {exploration.active && !guess.active && (
+            <ExplorationBanner
+              moves={exploration.state!.moves}
+              onTakeBack={exploration.takeBack}
+              onExit={exploration.exit}
+            />
+          )}
 
-          {analysis.progress.done > 0 && (
+          {guess.active && g.game && (
+            <GuessModePanel
+              mode={guess.mode}
+              sideToMove={guess.sideToMove}
+              ply={g.ply}
+              totalPlies={totalPlies}
+              comparison={guess.comparison}
+              gameStats={guess.gameStats}
+              overallStats={guess.overallStats}
+              onNext={guess.next}
+              onSkip={guess.skip}
+              onStop={guess.stop}
+              moveLabel={guessMoveLabel(g.game, g.ply)}
+            />
+          )}
+
+          {!guess.active && (
+            <AnalyzeAllBanner
+              running={analysis.running}
+              progress={analysis.progress}
+              complete={analysis.complete}
+              error={analysis.error}
+              onStart={analysis.start}
+              onCancel={analysis.cancel}
+              engineDisabled={!settings.engineEnabled}
+              depth={settings.analysisDepth}
+            />
+          )}
+
+          {!guess.active && analysis.progress.done > 0 && (
             <EvalGraph
               evals={analysis.result.evals}
               ply={g.ply}
@@ -240,21 +375,27 @@ export function AnalyzeView() {
             />
           )}
 
-          {settings.engineEnabled && (
+          {!guess.active && settings.engineEnabled && (
             <EngineLines
               snapshot={engine.snapshot}
               ready={engine.ready}
               error={engine.error}
               variant={settings.engineVariant}
-              fen={g.currentFen ?? g.game.startingFen}
+              // Use the FEN the engine is *actually* analyzing — during
+              // exploration this differs from g.currentFen, and EngineLines
+              // uses it to replay UCI as SAN. Passing the wrong FEN makes
+              // chess.js reject every move, leaving the preview empty.
+              fen={displayFen ?? g.game.startingFen}
             />
           )}
 
           {/* Per-move commentary card — only meaningful when a move has
               actually been played (ply > 0). The card itself surfaces an
               "Explain move" button; clicking it calls Elle and caches the
-              result so subsequent renders are instant. */}
-          {g.ply > 0 && g.game && (() => {
+              result so subsequent renders are instant. Hidden during guess
+              mode because the commentary would reveal what we're asking
+              the user to deduce. */}
+          {!guess.active && g.ply > 0 && g.game && (() => {
             const move = g.game.moves[g.ply - 1];
             if (!move) return null;
             const fenBefore = g.game.fens[g.ply - 1];
@@ -557,6 +698,55 @@ function summarizeTrajectory(
 function fmt(p: number): string {
   if (Math.abs(p) >= 10) return p > 0 ? '+M' : '-M';
   return `${p >= 0 ? '+' : ''}${p.toFixed(2)}`;
+}
+
+/**
+ * Human-readable move-number label for the move at the given ply.
+ * Examples: "8." for White's 8th move, "8..." for Black's 8th move.
+ * Returns an empty string when no move exists at the ply.
+ */
+function guessMoveLabel(game: import('../lib/pgn').ParsedGame, ply: number): string {
+  if (ply >= game.moves.length) return '';
+  const m = game.moves[ply];
+  return `${m.moveNumber}${m.color === 'w' ? '.' : '...'}`;
+}
+
+interface ExplorationBannerProps {
+  moves: { san: string }[];
+  onTakeBack: () => void;
+  onExit: () => void;
+}
+
+/**
+ * Small banner shown above the analysis cards when the user has played at
+ * least one exploration move. Echoes back the moves they've tried, lets
+ * them undo or exit. The engine eval shown below this banner is for the
+ * exploration position, not the game-line position.
+ */
+function ExplorationBanner({ moves, onTakeBack, onExit }: ExplorationBannerProps) {
+  return (
+    <div className="card flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+      <div className="min-w-0">
+        <div className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+          Exploring
+        </div>
+        <div className="truncate font-mono text-xs">
+          {moves.map((m) => m.san).join(' ')}
+        </div>
+        <div className="text-[11px] text-ink-500 dark:text-ink-400">
+          Engine eval below is for this branched position, not the game line.
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" className="btn-ghost text-xs" onClick={onTakeBack}>
+          Take back
+        </button>
+        <button type="button" className="btn-secondary text-xs" onClick={onExit}>
+          Back to game
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /**

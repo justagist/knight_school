@@ -203,8 +203,20 @@ export function createEngine(): EngineHandle {
     // the request via the state machine: if idle, start now; if searching,
     // send stop and wait for bestmove; if already stopping, just sit in
     // pendingAnalysis and let the next bestmove-handler trigger startNext.
+    //
+    // Each call captures its own `ctx` and only fires state transitions if
+    // pendingAnalysis still points to it. Without this guard, rapid
+    // exploration moves queue multiple .then handlers that race:
+    //   1. handler 1 sees state='idle', calls startNext() and consumes
+    //      pendingAnalysis;
+    //   2. handler 2 sees state='searching', sends 'stop' (cancelling the
+    //      search we *want*);
+    //   3. handler 3 sees state='stopping' and does nothing.
+    // Engine ends up parked with no pending work and the user staring at
+    // a stale eval. This guard makes only the latest call do work.
     readyPromise
       .then(() => {
+        if (pendingAnalysis !== ctx) return;
         if (engineState === 'idle') {
           startNext();
         } else if (engineState === 'searching' && currentAnalysis) {
@@ -216,8 +228,10 @@ export function createEngine(): EngineHandle {
       })
       .catch(() => {
         // readyPromise rejected (boot failed) — fail the pending request.
-        pendingAnalysis?.fail(new Error(lastFatalError ?? 'engine failed to initialize'));
-        pendingAnalysis = null;
+        if (pendingAnalysis === ctx) {
+          pendingAnalysis.fail(new Error(lastFatalError ?? 'engine failed to initialize'));
+          pendingAnalysis = null;
+        }
       });
 
     return ctx.promise;

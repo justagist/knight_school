@@ -43,6 +43,7 @@ export async function clearAllData(): Promise<void> {
       d.chatThreads,
       d.chatMessages,
       d.moveCommentaries,
+      d.guessRecords,
     ],
     async () => {
       await Promise.all([
@@ -53,6 +54,7 @@ export async function clearAllData(): Promise<void> {
         d.chatThreads.clear(),
         d.chatMessages.clear(),
         d.moveCommentaries.clear(),
+        d.guessRecords.clear(),
       ]);
     },
   );

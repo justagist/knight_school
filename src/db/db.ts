@@ -148,6 +148,31 @@ export interface MoveCommentaryRow {
   createdAt: number;
 }
 
+/**
+ * One recorded guess from "Guess the move" mode. Indexed by gameKey so
+ * per-game accuracy reads quickly; aggregate stats sweep the table.
+ */
+export interface GuessRecordRow {
+  /** UUID. Primary key. */
+  id: string;
+  /** Stable PGN hash for the game this guess belongs to. */
+  gameKey: string;
+  /** Ply being guessed (1-based; same as moves[i] where i = ply-1). */
+  ply: number;
+  /** FEN of the position the user was looking at before their guess. */
+  fenBefore: string;
+  guessUci: string;
+  guessSan: string;
+  playedUci: string;
+  playedSan: string;
+  engineBestUci?: string;
+  engineBestSan?: string;
+  matchesPlayed: boolean;
+  matchesEngine: boolean;
+  /** ms epoch. */
+  createdAt: number;
+}
+
 export class KsDatabase extends Dexie {
   positionEvals!: EntityTable<PositionEvalRow, 'fen'>;
   apiKeys!: EntityTable<ApiKeyRow, 'id'>;
@@ -156,6 +181,7 @@ export class KsDatabase extends Dexie {
   chatThreads!: EntityTable<ChatThreadRow, 'id'>;
   chatMessages!: EntityTable<ChatMessageRow, 'id'>;
   moveCommentaries!: EntityTable<MoveCommentaryRow, 'key'>;
+  guessRecords!: EntityTable<GuessRecordRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -178,6 +204,17 @@ export class KsDatabase extends Dexie {
       chatThreads: '&id, contextType, contextId, updatedAt',
       chatMessages: '&id, threadId, createdAt',
       moveCommentaries: '&key, fen, createdAt',
+    });
+    // v4: guess-the-move records.
+    this.version(4).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
     });
   }
 }

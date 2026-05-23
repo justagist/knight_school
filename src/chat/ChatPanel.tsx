@@ -33,6 +33,21 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [chat.messages.length, open]);
 
+  // Esc closes the panel. Skipped when the user is typing in the textarea —
+  // they might want Esc to clear the field in some browsers, and we don't
+  // want to fight that.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return;
+      onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const providerLabel = chat.activeProvider
@@ -58,13 +73,15 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-40 bg-ink-950/30 backdrop-blur-sm md:bg-transparent md:backdrop-blur-0"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      {/*
+        No backdrop on either platform. The chat panel is a bottom sheet on
+        mobile (50vh) and a right drawer on desktop (420px); in both shapes
+        the rest of the page stays fully interactive — the user wants to
+        drag pieces and read replies at the same time. Dismiss via the
+        X button or the Esc key.
+      */}
       <aside
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[80vh] flex-col rounded-t-xl border-t border-ink-200 bg-white shadow-xl
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[50vh] flex-col rounded-t-xl border-t border-ink-200 bg-white shadow-xl
                    dark:border-ink-800 dark:bg-ink-950
                    md:inset-y-0 md:right-0 md:left-auto md:h-full md:w-[420px] md:rounded-none md:border-l md:border-t-0"
         aria-label="Chat with Elle"
