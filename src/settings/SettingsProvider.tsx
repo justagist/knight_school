@@ -10,18 +10,52 @@ import {
 
 export type BoardTheme = 'brown' | 'green';
 
+/**
+ * Engine variants:
+ * - 'lite': stockfish.wasm (SF_classical, ~400 KB, ships with the app).
+ *   Wired up and the only functional variant today.
+ * - 'full': NNUE-based Stockfish (~40 MB, downloads on first use).
+ *
+ * TODO(full-mode): When implementing 'full', the actual switch happens in
+ * three places:
+ *   1) src/engine/engine.ts → createEngine(): pick a different worker URL
+ *      (e.g. /engine/ks-engine-full.js) based on settings.engineVariant.
+ *   2) public/engine/ks-engine-full.js (NEW): mirrors ks-engine.js but
+ *      loads `lila-stockfish-web` (sf16-7 or sf171-79) and calls
+ *      setNnueBuffer() with NNUE blobs fetched from Lichess CDN.
+ *   3) src/engine/nnueStore.ts (NEW): IndexedDB-backed cache for NNUE
+ *      files keyed by filename + hash. First load fetches with progress
+ *      events (XHR/streams) → stores blob → resolves. Subsequent loads
+ *      read from IDB. Surface progress via a new postMessage type so the
+ *      Settings UI can render the download bar described in the spec.
+ * Until then SettingsPage renders 'full' as a disabled "coming soon" card.
+ */
+export type EngineVariant = 'lite' | 'full';
+
 export interface AppSettings {
+  // Appearance
   boardTheme: BoardTheme;
   showCoordinates: boolean;
   highlightLastMove: boolean;
   showLegalMoves: boolean;
+  // Engine
+  engineVariant: EngineVariant;
+  analysisDepth: number;
+  engineEnabled: boolean;
 }
+
+export const ANALYSIS_DEPTH_MIN = 10;
+export const ANALYSIS_DEPTH_MAX = 30;
+export const ANALYSIS_DEPTH_DEFAULT = 18;
 
 const DEFAULT_SETTINGS: AppSettings = {
   boardTheme: 'brown',
   showCoordinates: true,
   highlightLastMove: true,
   showLegalMoves: true,
+  engineVariant: 'lite',
+  analysisDepth: ANALYSIS_DEPTH_DEFAULT,
+  engineEnabled: true,
 };
 
 const STORAGE_KEY = 'ks-settings-v1';

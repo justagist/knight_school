@@ -7,7 +7,7 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', 'dev-dist', 'node_modules', '*.cjs'],
+  ignorePatterns: ['dist', 'dev-dist', 'node_modules', '*.cjs', 'public/engine/stockfish*.js'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',

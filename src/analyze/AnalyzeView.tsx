@@ -2,20 +2,30 @@ import { useEffect } from 'react';
 import { Board } from '../components/Board';
 import { MoveList } from '../components/MoveList';
 import { PgnImport } from '../components/PgnImport';
+import { EvalBar } from '../components/EvalBar';
+import { EngineLines } from '../components/EngineLines';
 import { gameLabel } from '../lib/pgn';
 import { useGame } from './useGame';
+import { useEngine } from '../engine/useEngine';
+import { useSettings } from '../settings/SettingsProvider';
 
 export function AnalyzeView() {
   const g = useGame();
+  const { settings } = useSettings();
+
+  // Engine analyzes the current FEN at the user's chosen depth.
+  const engine = useEngine({
+    fen: g.currentFen,
+    depth: settings.analysisDepth,
+    enabled: settings.engineEnabled && settings.engineVariant === 'lite',
+  });
 
   // Keyboard shortcuts: ← prev, → next, Home start, End end, f flip
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Ignore when typing in a form field
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
-
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key) {
@@ -73,12 +83,23 @@ export function AnalyzeView() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         {/* Board column */}
         <div className="space-y-3">
-          <div className="mx-auto w-full max-w-[680px]">
-            <Board
-              fen={g.currentFen ?? g.game.startingFen}
-              orientation={g.orientation}
-              lastMove={g.lastMove}
-            />
+          <div className="mx-auto flex w-full max-w-[720px] items-stretch gap-2">
+            {settings.engineEnabled && (
+              <div className="flex w-8 flex-col items-stretch">
+                <EvalBar
+                  snapshot={engine.snapshot}
+                  orientation={g.orientation}
+                  analyzing={engine.analyzing}
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <Board
+                fen={g.currentFen ?? g.game.startingFen}
+                orientation={g.orientation}
+                lastMove={g.lastMove}
+              />
+            </div>
           </div>
 
           <BoardControls
@@ -90,6 +111,16 @@ export function AnalyzeView() {
             onEnd={g.goToEnd}
             onFlip={g.flip}
           />
+
+          {settings.engineEnabled && (
+            <EngineLines
+              snapshot={engine.snapshot}
+              ready={engine.ready}
+              error={engine.error}
+              variant={settings.engineVariant}
+              fen={g.currentFen ?? g.game.startingFen}
+            />
+          )}
         </div>
 
         {/* Side panel: move list + load new */}

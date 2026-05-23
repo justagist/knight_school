@@ -10,14 +10,16 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run copy-engine && tsc --noEmit && vite build",
     "preview": "vite preview",
     "serve": "node scripts/serve.js",
     "check": "tsc --noEmit && eslint .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "release": "standard-version"
+    "release": "standard-version",
+    "copy-engine": "node scripts/copy-engine.js",
+    "postinstall": "node scripts/copy-engine.js"
   },
   "dependencies": {
     "@lichess-org/chessground": "^10.1.1",
@@ -27,7 +29,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "stockfish.wasm": "^0.10.0"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",

@@ -1,5 +1,11 @@
 import { useTheme, type ThemeMode } from '../theme/ThemeProvider';
-import { useSettings, type BoardTheme } from '../settings/SettingsProvider';
+import {
+  useSettings,
+  type BoardTheme,
+  type EngineVariant,
+  ANALYSIS_DEPTH_MIN,
+  ANALYSIS_DEPTH_MAX,
+} from '../settings/SettingsProvider';
 
 const MODES: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -10,6 +16,15 @@ const MODES: { value: ThemeMode; label: string }[] = [
 const BOARD_THEMES: { value: BoardTheme; label: string }[] = [
   { value: 'brown', label: 'Brown' },
   { value: 'green', label: 'Green' },
+];
+
+const ENGINE_VARIANTS: { value: EngineVariant; label: string; hint: string }[] = [
+  { value: 'lite', label: 'Lite', hint: '~400 KB · classical Stockfish · ships with the app' },
+  // TODO(full-mode): When NNUE download flow lands, swap the disabled state +
+  // tooltip below to a real on-click handler that triggers nnueStore.ensureLoaded()
+  // and shows a progress bar (bytes received / total). See EngineVariant in
+  // src/settings/SettingsProvider.tsx for the broader integration plan.
+  { value: 'full', label: 'Full', hint: '~40 MB · NNUE Stockfish · downloads on demand · coming soon' },
 ];
 
 export function SettingsPage() {
@@ -60,6 +75,87 @@ export function SettingsPage() {
             checked={settings.showLegalMoves}
             onChange={(v) => update('showLegalMoves', v)}
           />
+        </div>
+      </section>
+
+      <section className="card p-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+          Engine
+        </h2>
+
+        <div className="space-y-4">
+          <Toggle
+            label="Enable engine analysis"
+            checked={settings.engineEnabled}
+            onChange={(v) => update('engineEnabled', v)}
+          />
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm">Engine variant</span>
+              <span className="text-[11px] text-ink-500 dark:text-ink-400">
+                Multi-PV is fixed at 3 lines.
+              </span>
+            </div>
+            <div className="space-y-2">
+              {ENGINE_VARIANTS.map((v) => {
+                const disabled = v.value === 'full';
+                const active = settings.engineVariant === v.value;
+                return (
+                  <button
+                    key={v.value}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => update('engineVariant', v.value)}
+                    title={
+                      disabled
+                        ? 'Full mode arrives in a later update — it needs a one-time ~40 MB NNUE download flow.'
+                        : undefined
+                    }
+                    className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
+                      active
+                        ? 'border-accent bg-accent/10'
+                        : 'border-ink-200 hover:border-ink-300 dark:border-ink-700 dark:hover:border-ink-600'
+                    } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center justify-between text-sm font-medium">
+                      <span>{v.label}</span>
+                      {disabled && (
+                        <span className="rounded bg-ink-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+                          coming soon
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{v.hint}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Analysis depth</span>
+              <span className="font-mono text-xs tabular-nums text-ink-700 dark:text-ink-300">
+                {settings.analysisDepth}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={ANALYSIS_DEPTH_MIN}
+              max={ANALYSIS_DEPTH_MAX}
+              step={1}
+              value={settings.analysisDepth}
+              onChange={(e) => update('analysisDepth', Number.parseInt(e.target.value, 10))}
+              className="mt-1 w-full accent-accent"
+              aria-label="Analysis depth"
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-ink-500 dark:text-ink-400">
+              <span>{ANALYSIS_DEPTH_MIN}</span>
+              <span>higher = stronger but slower</span>
+              <span>{ANALYSIS_DEPTH_MAX}</span>
+            </div>
+          </div>
         </div>
       </section>
 

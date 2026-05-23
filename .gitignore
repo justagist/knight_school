@@ -1,6 +1,12 @@
 node_modules
 dist
 dev-dist
+
+# Engine files are copied from node_modules by scripts/copy-engine.js (postinstall).
+# ks-engine.js is committed (our worker wrapper); Stockfish files are not.
+public/engine/stockfish.js
+public/engine/stockfish.wasm
+public/engine/stockfish.worker.js
 .DS_Store
 *.log
 .vscode/*
