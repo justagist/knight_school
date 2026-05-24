@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { usePlan, rolloverItems } from '../plan/usePlan';
+import { usePlan, rolloverItems, planStartDay } from '../plan/usePlan';
 import {
   DAY_LABELS,
   DAY_LONG,
@@ -9,19 +9,37 @@ import {
   type PlanDay,
   type PlanItem,
 } from '../plan/template';
-import { daysUntil } from '../plan/week';
+import { daysUntil, weekRangeLabel } from '../plan/week';
 
 export function PlanPage() {
   const plan = usePlan();
   const [editingGoal, setEditingGoal] = useState(false);
+  // Which day column is expanded on desktop. Defaults to today but the
+  // user can tap any other day's card to pull it into focus.
+  const [focusedDay, setFocusedDay] = useState<PlanDay>(plan.today);
 
   if (plan.loading) {
     return <div className="card p-4 text-sm text-muted">Loading plan…</div>;
   }
 
-  const totalThisWeek = WEEKLY_PLAN.length;
-  const doneThisWeek = plan.completedIds.size;
-  const rollover = rolloverItems(plan.today, plan.completedIds);
+  const startDay = planStartDay(plan.goal, plan.weekStart);
+  // Items that count toward "this week" are those at or after the plan's
+  // active start day. Setting a goal mid-week shouldn't pretend that
+  // skipped earlier days were ever assigned.
+  const activeItems =
+    startDay === undefined
+      ? []
+      : WEEKLY_PLAN.filter((i) => i.day >= startDay);
+  const totalThisWeek = activeItems.length;
+  const doneThisWeek = activeItems.filter((i) => plan.completedIds.has(i.id)).length;
+  // Rollover is a current-week-only concept — non-current weeks render
+  // their template as-is without pulling items into a "today" column
+  // (no day in those weeks is "today"). The `todayForView` passed down
+  // becomes -1 for non-current weeks so no day matches.
+  const rollover = plan.isCurrentWeek
+    ? rolloverItems(plan.today, plan.completedIds, startDay)
+    : [];
+  const todayForView: PlanDay | -1 = plan.isCurrentWeek ? plan.today : -1;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
@@ -48,17 +66,32 @@ export function PlanPage() {
         />
       )}
 
-      <WeekSummary completed={doneThisWeek} total={totalThisWeek} />
+      <WeekNav
+        weekStart={plan.weekStart}
+        isCurrentWeek={plan.isCurrentWeek}
+        isPastWeek={plan.isPastWeek}
+        isFutureWeek={plan.isFutureWeek}
+        onStep={plan.stepWeek}
+        onJumpToCurrent={plan.jumpToCurrentWeek}
+      />
+
+      <WeekSummary completed={doneThisWeek} total={totalThisWeek} readOnly={!plan.isCurrentWeek} />
 
       <DesktopChecklist
-        today={plan.today}
+        today={todayForView}
+        focused={focusedDay}
+        onFocus={setFocusedDay}
+        startDay={startDay}
+        readOnly={!plan.isCurrentWeek}
         completedIds={plan.completedIds}
         rollover={rollover}
         onToggle={(id) => void plan.toggle(id)}
       />
 
       <MobileChecklist
-        today={plan.today}
+        today={todayForView}
+        startDay={startDay}
+        readOnly={!plan.isCurrentWeek}
         completedIds={plan.completedIds}
         rollover={rollover}
         onToggle={(id) => void plan.toggle(id)}
@@ -83,9 +116,16 @@ function GoalCard({
   const target = goal.targetDate;
   const remaining = target ? daysUntil(target) : null;
   return (
-    <section className="card flex flex-col gap-1 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-base font-medium leading-snug">{goal.goalText}</p>
+    <section className="card flex flex-col gap-2 border-l-4 border-l-accent bg-accent/5 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
+            Your goal
+          </p>
+          <p className="mt-1 text-lg font-semibold leading-snug text-primary">
+            {goal.goalText}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onEdit}
@@ -172,10 +212,18 @@ function GoalEditor({
   );
 }
 
-function WeekSummary({ completed, total }: { completed: number; total: number }) {
+function WeekSummary({
+  completed,
+  total,
+  readOnly,
+}: {
+  completed: number;
+  total: number;
+  readOnly: boolean;
+}) {
   return (
     <section className="card flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-muted">
-      <span>This week</span>
+      <span>{readOnly ? 'Preview' : 'This week'}</span>
       <span className="font-mono tabular-nums text-primary">
         {completed} / {total} items completed
       </span>
@@ -183,34 +231,128 @@ function WeekSummary({ completed, total }: { completed: number; total: number })
   );
 }
 
+function WeekNav({
+  weekStart,
+  isCurrentWeek,
+  isPastWeek,
+  isFutureWeek,
+  onStep,
+  onJumpToCurrent,
+}: {
+  weekStart: string;
+  isCurrentWeek: boolean;
+  isPastWeek: boolean;
+  isFutureWeek: boolean;
+  onStep: (n: number) => void;
+  onJumpToCurrent: () => void;
+}) {
+  const label = weekRangeLabel(weekStart);
+  const tag = isPastWeek ? 'Past' : isFutureWeek ? 'Upcoming' : 'Current';
+  return (
+    <nav className="card flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onStep(-1)}
+          className="btn-ghost h-9 px-2 text-base"
+          aria-label="Previous week"
+          title="Previous week"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={() => onStep(1)}
+          className="btn-ghost h-9 px-2 text-base"
+          aria-label="Next week"
+          title="Next week"
+        >
+          →
+        </button>
+        <div className="min-w-0">
+          <span className="font-medium text-primary">{label}</span>
+          <span
+            className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+              isCurrentWeek
+                ? 'bg-accent/10 text-accent'
+                : 'bg-surface-2 text-muted'
+            }`}
+          >
+            {tag}
+          </span>
+        </div>
+      </div>
+      {!isCurrentWeek && (
+        <button
+          type="button"
+          onClick={onJumpToCurrent}
+          className="btn-secondary text-xs"
+        >
+          Jump to this week
+        </button>
+      )}
+    </nav>
+  );
+}
+
 interface DayProps {
-  today: PlanDay;
+  /** -1 when the viewed week isn't the current week — no day matches. */
+  today: PlanDay | -1;
+  startDay: PlanDay | undefined;
+  readOnly: boolean;
   completedIds: Set<string>;
   rollover: PlanItem[];
   onToggle: (id: string) => void;
 }
 
-function DesktopChecklist({ today, completedIds, rollover, onToggle }: DayProps) {
+interface DesktopDayProps extends DayProps {
+  focused: PlanDay;
+  onFocus: (day: PlanDay) => void;
+}
+
+function DesktopChecklist({
+  today,
+  focused,
+  onFocus,
+  startDay,
+  readOnly,
+  completedIds,
+  rollover,
+  onToggle,
+}: DesktopDayProps) {
+  // Build a CSS grid template where the focused column gets 2fr and the
+  // others share 1fr each. Six rows of `1fr` plus one row of `2fr` add
+  // up to 8 tracks of fr, so the focused column reads about 2× wider.
+  const template = (DAY_LABELS.map((_, i) =>
+    i === focused ? 'minmax(0,2fr)' : 'minmax(0,1fr)',
+  )).join(' ');
   return (
     <section className="hidden md:block">
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid gap-2" style={{ gridTemplateColumns: template }}>
         {(DAY_LABELS.map((_, i) => i as PlanDay)).map((day) => (
           <DayColumn
             key={day}
             day={day}
             isToday={day === today}
             today={today}
+            startDay={startDay}
+            readOnly={readOnly}
+            isFocused={day === focused}
+            onFocus={() => onFocus(day)}
             completedIds={completedIds}
             rollover={day === today ? rollover : []}
             onToggle={onToggle}
           />
         ))}
       </div>
+      <p className="mt-1 text-[11px] text-faint">
+        Tap a day's card to expand it. Today is opened by default.
+      </p>
     </section>
   );
 }
 
-function MobileChecklist({ today, completedIds, rollover, onToggle }: DayProps) {
+function MobileChecklist({ today, startDay, readOnly, completedIds, rollover, onToggle }: DayProps) {
   return (
     <section className="flex flex-col gap-2 md:hidden">
       {(DAY_LABELS.map((_, i) => i as PlanDay)).map((day) => (
@@ -219,6 +361,8 @@ function MobileChecklist({ today, completedIds, rollover, onToggle }: DayProps) 
           day={day}
           isToday={day === today}
           today={today}
+          startDay={startDay}
+          readOnly={readOnly}
           completedIds={completedIds}
           rollover={day === today ? rollover : []}
           onToggle={onToggle}
@@ -231,26 +375,51 @@ function MobileChecklist({ today, completedIds, rollover, onToggle }: DayProps) 
 function DayColumn({
   day,
   isToday,
+  isFocused,
   today,
+  startDay,
+  readOnly,
   completedIds,
   rollover,
   onToggle,
+  onFocus,
 }: {
   day: PlanDay;
   isToday: boolean;
-  today: PlanDay;
+  isFocused: boolean;
+  today: PlanDay | -1;
+  startDay: PlanDay | undefined;
+  readOnly: boolean;
   completedIds: Set<string>;
   rollover: PlanItem[];
   onToggle: (id: string) => void;
+  onFocus: () => void;
 }) {
   const items = itemsForDay(day);
-  const future = day > today;
-  const past = day < today;
+  // When viewing a non-current week, no day is "today" — readOnly is
+  // true and past/future flags are irrelevant for rollover. Items still
+  // render their checked state from the stored checks.
+  const future = today !== -1 && day > today;
+  const past = today !== -1 && day < today;
+  // Days BEFORE the plan's active start day this week are pre-plan —
+  // treat them like future days (visible, not actionable, no rollover).
+  const beforePlan = startDay !== undefined && day < startDay;
   return (
     <div
-      className={`card flex flex-col gap-2 p-2 text-xs ${
-        isToday ? 'border-accent ring-1 ring-accent/40' : ''
-      }`}
+      role="button"
+      tabIndex={0}
+      onClick={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onFocus();
+        }
+      }}
+      className={`card flex cursor-pointer flex-col gap-2 p-2 text-xs transition-shadow ${
+        isFocused ? 'shadow-md' : 'hover:shadow-sm'
+      } ${isToday ? 'border-accent ring-1 ring-accent/40' : ''}`}
+      aria-pressed={isFocused}
+      aria-label={`${DAY_LONG[day]}${isToday ? ', today' : ''}${isFocused ? ', focused' : ''}`}
     >
       <header className="flex items-baseline justify-between gap-1 px-1">
         <span className={`font-semibold ${isToday ? 'text-accent' : ''}`}>
@@ -258,35 +427,47 @@ function DayColumn({
         </span>
         {isToday && <span className="text-[10px] uppercase tracking-wide text-accent">Today</span>}
       </header>
-      <ul className="flex flex-col gap-1">
-        {items.map((item) => {
-          const done = completedIds.has(item.id);
-          // Past-day items still uncompleted have rolled forward to
-          // today's column — hide them here entirely so the same
-          // actionable row never shows twice and the column doesn't
-          // bloat with ghost placeholders.
-          if (past && !done) return null;
-          return (
+      {beforePlan ? (
+        <p className="px-1 pt-1 text-[11px] italic text-faint">
+          Before plan start.
+        </p>
+      ) : (
+        <ul
+          className="flex flex-col gap-1"
+          onClick={(e) => {
+            // Don't focus the column when toggling a checkbox / clicking a
+            // link inside it — those are their own actions.
+            e.stopPropagation();
+          }}
+        >
+          {items.map((item) => {
+            const done = completedIds.has(item.id);
+            // Past-day items still uncompleted have rolled forward to
+            // today's column — hide them here so the actionable copy
+            // doesn't appear twice. Only applies in the current week.
+            if (past && !done) return null;
+            return (
+              <ItemRow
+                key={item.id}
+                item={item}
+                checked={done}
+                disabled={future || readOnly}
+                onToggle={() => onToggle(item.id)}
+              />
+            );
+          })}
+          {rollover.map((item) => (
             <ItemRow
-              key={item.id}
+              key={`rollover-${item.id}`}
               item={item}
-              checked={done}
-              disabled={future}
+              checked={false}
+              disabled={readOnly}
+              fromDay={item.day}
               onToggle={() => onToggle(item.id)}
             />
-          );
-        })}
-        {rollover.map((item) => (
-          <ItemRow
-            key={`rollover-${item.id}`}
-            item={item}
-            checked={false}
-            disabled={false}
-            fromDay={item.day}
-            onToggle={() => onToggle(item.id)}
-          />
-        ))}
-      </ul>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -295,20 +476,25 @@ function DayAccordion({
   day,
   isToday,
   today,
+  startDay,
+  readOnly,
   completedIds,
   rollover,
   onToggle,
 }: {
   day: PlanDay;
   isToday: boolean;
-  today: PlanDay;
+  today: PlanDay | -1;
+  startDay: PlanDay | undefined;
+  readOnly: boolean;
   completedIds: Set<string>;
   rollover: PlanItem[];
   onToggle: (id: string) => void;
 }) {
   const items = itemsForDay(day);
-  const future = day > today;
-  const past = day < today;
+  const future = today !== -1 && day > today;
+  const past = today !== -1 && day < today;
+  const beforePlan = startDay !== undefined && day < startDay;
   const doneCount = items.filter((i) => completedIds.has(i.id)).length;
   return (
     <details
@@ -325,35 +511,41 @@ function DayAccordion({
           )}
         </span>
         <span className="font-mono text-[11px] tabular-nums text-muted">
-          {doneCount}/{items.length}
+          {beforePlan ? '—' : `${doneCount}/${items.length}`}
           {rollover.length > 0 && ` +${rollover.length}`}
         </span>
       </summary>
-      <ul className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs">
-        {items.map((item) => {
-          const done = completedIds.has(item.id);
-          if (past && !done) return null;
-          return (
+      {beforePlan ? (
+        <p className="border-t border-border px-3 py-2 text-[11px] italic text-faint">
+          Before plan start.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs">
+          {items.map((item) => {
+            const done = completedIds.has(item.id);
+            if (past && !done) return null;
+            return (
+              <ItemRow
+                key={item.id}
+                item={item}
+                checked={done}
+                disabled={future || readOnly}
+                onToggle={() => onToggle(item.id)}
+              />
+            );
+          })}
+          {rollover.map((item) => (
             <ItemRow
-              key={item.id}
+              key={`rollover-${item.id}`}
               item={item}
-              checked={done}
-              disabled={future}
+              checked={false}
+              disabled={readOnly}
+              fromDay={item.day}
               onToggle={() => onToggle(item.id)}
             />
-          );
-        })}
-        {rollover.map((item) => (
-          <ItemRow
-            key={`rollover-${item.id}`}
-            item={item}
-            checked={false}
-            disabled={false}
-            fromDay={item.day}
-            onToggle={() => onToggle(item.id)}
-          />
-        ))}
-      </ul>
+          ))}
+        </ul>
+      )}
     </details>
   );
 }

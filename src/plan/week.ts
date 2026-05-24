@@ -19,6 +19,24 @@ export function weekStartIso(date: Date): string {
   return toIsoDate(d);
 }
 
+/** Shift a week-start ISO date by `n` weeks (positive = forward). */
+export function shiftWeek(weekStartLocal: string, n: number): string {
+  const d = new Date(weekStartLocal);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + n * 7);
+  return toIsoDate(d);
+}
+
+/** Display label like "May 18 – May 24" for a Monday-start ISO date. */
+export function weekRangeLabel(weekStartLocal: string): string {
+  const start = new Date(weekStartLocal);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
+}
+
 /** ISO YYYY-MM-DD in local timezone (not UTC). */
 export function toIsoDate(date: Date): string {
   const y = date.getFullYear();
