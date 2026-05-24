@@ -16,7 +16,7 @@ interface StudyImporterProps {
  */
 export function StudyImporter({ onImported }: StudyImporterProps) {
   const [input, setInput] = useState('');
-  const [status, setStatus] = useState<'idle' | 'importing' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'importing' | 'error' | 'warn'>('idle');
   const [message, setMessage] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
@@ -30,12 +30,19 @@ export function StudyImporter({ onImported }: StudyImporterProps) {
     }
     setStatus('importing');
     try {
-      const row = await importStudy(id);
+      const result = await importStudy(id);
       notifyStudiesChanged();
-      setStatus('idle');
       setInput('');
-      setMessage(null);
-      onImported?.(row.id);
+      if (result.skippedChapters.length > 0) {
+        setStatus('warn');
+        setMessage(
+          `Imported, but ${result.skippedChapters.length} chapter(s) couldn't be indexed for mixed/spot drills: ${result.skippedChapters.slice(0, 3).join(', ')}${result.skippedChapters.length > 3 ? '…' : ''}. Per-chapter drills still work.`,
+        );
+      } else {
+        setStatus('idle');
+        setMessage(null);
+      }
+      onImported?.(result.row.id);
     } catch (err) {
       setStatus('error');
       setMessage(err instanceof Error ? err.message : 'Import failed.');
@@ -68,7 +75,13 @@ export function StudyImporter({ onImported }: StudyImporterProps) {
         </button>
       </div>
       {message && (
-        <p className={`text-xs ${status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-ink-500 dark:text-ink-400'}`}>
+        <p className={`text-xs ${
+          status === 'error'
+            ? 'text-red-600 dark:text-red-400'
+            : status === 'warn'
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-ink-500 dark:text-ink-400'
+        }`}>
           {message}
         </p>
       )}

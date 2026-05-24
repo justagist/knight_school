@@ -28,19 +28,47 @@ import { normalizeFenForExplorer } from './explorer';
  * PGN) are skipped — per-chapter drills still work for them.
  */
 export async function indexStudyPositions(study: StudyRow): Promise<void> {
+  const { rows } = buildStudyPositions(study);
+  await db().transaction('rw', db().drillPositions, async () => {
+    await db().drillPositions.where('studyId').equals(study.id).delete();
+    if (rows.length > 0) await db().drillPositions.bulkPut(rows);
+  });
+}
+
+export interface BuildPositionsResult {
+  rows: DrillPositionRow[];
+  /** Titles of chapters chessops couldn't parse — surfaced as a soft
+   *  warning to the user since per-chapter drills still work for these
+   *  but mixed / spot drills will miss those chapters. */
+  skippedChapters: string[];
+}
+
+/**
+ * Build (without writing) the position-pool rows for a study. Pure CPU
+ * work so it can run inside an atomic transaction that also stores the
+ * StudyRow — see importStudy.
+ */
+export function buildStudyPositions(study: StudyRow): BuildPositionsResult {
   const byKey = new Map<string, DrillPositionRow>();
+  const skippedChapters: string[] = [];
 
   for (let cIdx = 0; cIdx < study.chapters.length; cIdx++) {
     const chapter = study.chapters[cIdx];
     const games = safeParsePgn(chapter.pgn);
-    if (games.length === 0) continue;
+    if (games.length === 0) {
+      skippedChapters.push(chapter.title);
+      continue;
+    }
 
     // chessops returns an array; per spec each chapter is one game so
     // we use the first. Multi-game chapters are unusual in Lichess
     // studies and we accept the simplification.
     const game = games[0];
     const posResult = startingPosition(game.headers);
-    if (!posResult.isOk) continue;
+    if (!posResult.isOk) {
+      skippedChapters.push(chapter.title);
+      continue;
+    }
     const startPos = posResult.value;
 
     walkTree(game.moves, startPos, {
@@ -52,11 +80,7 @@ export async function indexStudyPositions(study: StudyRow): Promise<void> {
     });
   }
 
-  const rows = [...byKey.values()];
-  await db().transaction('rw', db().drillPositions, async () => {
-    await db().drillPositions.where('studyId').equals(study.id).delete();
-    if (rows.length > 0) await db().drillPositions.bulkPut(rows);
-  });
+  return { rows: [...byKey.values()], skippedChapters };
 }
 
 interface WalkCtx {

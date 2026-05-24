@@ -1,7 +1,16 @@
 import { getLichessToken } from '../db/lichessAuth';
-import { putStudy, getStudy } from '../db/studies';
-import { indexStudyPositions } from '../db/drillPositions';
+import { getStudy } from '../db/studies';
+import { buildStudyPositions } from '../db/drillPositions';
+import { db } from '../db/db';
 import type { StudyRow } from '../db/db';
+
+export interface ImportResult {
+  row: StudyRow;
+  /** Chapter titles whose PGN chessops couldn't parse — mixed/spot
+   *  drills will miss these even though per-chapter drills work. The
+   *  caller should surface this as a soft warning. */
+  skippedChapters: string[];
+}
 
 /**
  * Parse a Lichess study id out of a URL or raw slug. Accepts:
@@ -109,7 +118,7 @@ export async function fetchStudyPgn(studyId: string): Promise<string> {
 export async function importStudy(
   studyId: string,
   opts?: { curatedKey?: string },
-): Promise<StudyRow> {
+): Promise<ImportResult> {
   const rawPgn = await fetchStudyPgn(studyId);
   const chapters = parsePgnChapters(rawPgn);
   const row: StudyRow = {
@@ -120,16 +129,19 @@ export async function importStudy(
     importedAt: Date.now(),
     curatedKey: opts?.curatedKey,
   };
-  await putStudy(row);
-  // Rebuild the position pool every import so mixed / spot drills always
-  // reflect the latest chapter list. Non-blocking on import failure —
-  // per-chapter drills don't depend on this.
-  try {
-    await indexStudyPositions(row);
-  } catch {
-    // swallow — indexer logs internally; chapter-line drills still work.
-  }
-  return row;
+  // CPU-only build first so an indexer parse failure aborts BEFORE we
+  // touch IndexedDB. Means a study with completely-unparseable PGN
+  // never lands as a half-written row.
+  const { rows: positionRows, skippedChapters } = buildStudyPositions(row);
+  // One transaction so a crash between study put + pool rebuild can't
+  // pair new PGN with stale positions. Either everything lands or
+  // nothing does — re-import is the recovery path.
+  await db().transaction('rw', db().studies, db().drillPositions, async () => {
+    await db().studies.put(row);
+    await db().drillPositions.where('studyId').equals(studyId).delete();
+    if (positionRows.length > 0) await db().drillPositions.bulkPut(positionRows);
+  });
+  return { row, skippedChapters };
 }
 
 /** Has this study been imported already? Helper for catalog list UI. */
