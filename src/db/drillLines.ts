@@ -69,6 +69,7 @@ export async function listDrillLinesForStudy(studyId: string): Promise<DrillLine
 export async function deleteDrillLine(id: string): Promise<void> {
   await db().drillLines.delete(id);
   await db().drillAttempts.where('drillLineId').equals(id).delete();
+  window.dispatchEvent(new Event('ks-drills-changed'));
 }
 
 /** Wipes every drill line for a study — called when the study is removed. */

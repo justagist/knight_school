@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Board } from '../components/Board';
 import { useDrill, type DrillVariant } from './useDrill';
 import { useDrillContext } from './DrillContext';
+import { useChatScreen } from '../chat/ChatContextProvider';
 import type { DrillLineRow } from '../db/db';
 
 interface DrillViewProps {
@@ -29,6 +30,7 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
   const [variant, setVariant] = useState<DrillVariant>(initialVariant);
   const [guessInput, setGuessInput] = useState('');
   const drillCtx = useDrillContext();
+  const chatScreen = useChatScreen();
   const drill = useDrill({ line, variant, onFinished });
 
   // Tell the chat layer that a drill is active for as long as this view is mounted.
@@ -42,6 +44,39 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [line.id]);
+
+  // Publish the drill context to Elle so a mid-drill chat (after the
+  // invalidation warning) lands with the actual board state in the
+  // system prompt. Refreshes every time the ply or invalidated flag
+  // changes.
+  useEffect(() => {
+    const ply = drill.state.ply;
+    const expectedSan = line.sanMoves[ply];
+    const expectedMoves =
+      drill.state.awaitingUser && expectedSan
+        ? [{ san: expectedSan, chapterTitle: line.chapterTitle }]
+        : [];
+    const lastMoveSan = ply > 0 ? line.sanMoves[ply - 1] : undefined;
+    chatScreen.setScreen({
+      kind: 'drill',
+      drill: {
+        studyName: line.studyName,
+        kindLabel: `Chapter drill · ${line.chapterTitle}`,
+        userSide: line.userSide,
+        currentFen: drill.state.fen,
+        lastMoveSan,
+        expectedMoves,
+        leadupSan: line.sanMoves.slice(0, ply),
+        progressLabel: `${ply}/${line.uciMoves.length}`,
+        invalidated: drill.state.invalidated,
+      },
+    });
+    return () => {
+      chatScreen.setScreen({ kind: 'idle' });
+    };
+    // chatScreen.setScreen identity is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drill.state.ply, drill.state.fen, drill.state.invalidated, drill.state.awaitingUser, line.id]);
 
   // When the user retries, reset the chat-warning flag too so the warning
   // shows again on the new attempt (per spec — "one-time per session per
@@ -145,6 +180,15 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
             </form>
           )}
 
+          {drill.state.status === 'feedback' && drill.state.feedbackComment && (
+            <FeedbackCard
+              comment={drill.state.feedbackComment}
+              ply={drill.state.ply}
+              total={line.uciMoves.length}
+              onNext={drill.next}
+            />
+          )}
+
           {drill.state.status === 'wrong' && drill.state.wrong && (
             <WrongCard
               wrong={drill.state.wrong}
@@ -241,11 +285,28 @@ function PromptCard({
       <p className="text-xs text-ink-500 dark:text-ink-400">
         Side to play: {line.userSide}. Play the move the chapter expects.
       </p>
-      {line.comments[ply] && (
-        <p className="border-l-2 border-l-accent pl-2 text-xs italic text-ink-600 dark:text-ink-300">
-          {line.comments[ply]}
-        </p>
-      )}
+    </div>
+  );
+}
+
+function FeedbackCard({
+  comment,
+  ply,
+  total,
+  onNext,
+}: {
+  comment: string;
+  ply: number;
+  total: number;
+  onNext: () => void;
+}) {
+  const isLast = ply >= total;
+  return (
+    <div className="card flex flex-col gap-2 border-l-4 border-l-accent p-3 text-sm">
+      <p className="text-xs italic text-ink-700 dark:text-ink-200">{comment}</p>
+      <button type="button" onClick={onNext} className="btn-primary self-start text-xs">
+        {isLast ? 'Finish' : 'Next move →'}
+      </button>
     </div>
   );
 }

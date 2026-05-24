@@ -10,7 +10,7 @@ import { importStudy, isStudyImported } from '../lessons/lichessStudy';
 import { notifyStudiesChanged } from '../lessons/useStudies';
 import { DrillView } from '../drill/DrillView';
 import { MixedDrillView } from '../drill/MixedDrillView';
-import { ensureDrillLine, getDrillLine, listDrillLines } from '../db/drillLines';
+import { deleteDrillLine, ensureDrillLine, getDrillLine, listDrillLines } from '../db/drillLines';
 import { indexStudyPositions, listPositionsForStudy } from '../db/drillPositions';
 import {
   addDrillSession,
@@ -206,7 +206,19 @@ export function OpeningsPage() {
       next.delete('dsession');
       return next;
     });
-  }, [setParams]);
+    void refreshDrillLines();
+  }, [refreshDrillLines, setParams]);
+
+  // Re-pull the queue any time we return to the library view (URL no
+  // longer points at a drill / study). Covers in-app exits AND the
+  // browser back button, neither of which is guaranteed to fire a
+  // ks-drills-changed event (e.g. on invalidated attempts that don't
+  // persist).
+  const inLibraryView = !drillId && !mixedStudyId && !studyId;
+  useEffect(() => {
+    if (!inLibraryView) return;
+    void refreshDrillLines();
+  }, [inLibraryView, refreshDrillLines]);
 
   const updateSearch = (value: string) => {
     setSearchText(value);
@@ -255,11 +267,12 @@ export function OpeningsPage() {
         mode={dmode}
         length={dlen}
         onExit={exitMixedDrill}
-        onFinished={(result) => {
-          // When this session was launched from a saved DrillSession,
-          // roll the outcome back into that row so the queue's accuracy
-          // + "lastDrilledAt" reflect the latest attempt.
-          if (dsession) void recordSessionAttempt(dsession, result);
+        onFinished={(result, invalidated) => {
+          // Roll the outcome into the saved DrillSession row so the
+          // queue reflects the latest attempt. Skip when invalidated —
+          // chat use marks a run as practice-only, and counting it
+          // would distort the queue's accuracy %.
+          if (dsession && !invalidated) void recordSessionAttempt(dsession, result);
         }}
         onDrillSubset={(chapters) => {
           // Re-run the drill scoped to the weak chapters. Reset the
@@ -460,6 +473,7 @@ export function OpeningsPage() {
             })
           }
           onRemoveSession={(id) => void deleteDrillSession(id)}
+          onRemoveLine={(id) => void deleteDrillLine(id)}
         />
       )}
 
@@ -511,12 +525,14 @@ function PracticeQueue({
   onStartLine,
   onStartSession,
   onRemoveSession,
+  onRemoveLine,
 }: {
   lines: DrillLineRow[];
   sessions: DrillSessionRow[];
   onStartLine: (line: DrillLineRow) => void;
   onStartSession: (session: DrillSessionRow) => void;
   onRemoveSession: (sessionId: string) => void;
+  onRemoveLine: (lineId: string) => void;
 }) {
   const sortedLines = sortByDrillPriority(lines);
   const topLines = sortedLines.slice(0, 5);
@@ -587,7 +603,7 @@ function PracticeQueue({
               <button
                 type="button"
                 onClick={() => onRemoveSession(s.id)}
-                className="shrink-0 px-1.5 text-[11px] text-muted hover:text-blunder"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm text-muted hover:bg-blunder/10 hover:text-blunder"
                 title="Remove from queue"
                 aria-label="Remove from queue"
               >
@@ -632,7 +648,15 @@ function PracticeQueue({
               >
                 Drill
               </button>
-              <span aria-hidden /> {/* spacer so columns align with session rows */}
+              <button
+                type="button"
+                onClick={() => onRemoveLine(l.id)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm text-muted hover:bg-blunder/10 hover:text-blunder"
+                title="Remove from queue"
+                aria-label="Remove from queue"
+              >
+                ✕
+              </button>
             </li>
           );
         })}

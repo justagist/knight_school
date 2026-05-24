@@ -129,10 +129,51 @@ export interface LessonContext {
   engineSummary?: string;
 }
 
+/**
+ * Drill mode context — populated by DrillView (per-chapter) and
+ * MixedDrillView (mixed / spot). Elle uses this so a user who invalidates
+ * the drill to ask a quick question can get an answer that's actually
+ * grounded in the position they're staring at, instead of generic talk.
+ */
+export interface DrillContext {
+  /** Display name of the parent study. */
+  studyName: string;
+  /** Drill flavour shown to the user — "Chapter drill", "Mixed drill", "Spot drill". */
+  kindLabel: string;
+  /** The side the user is training. */
+  userSide: 'white' | 'black';
+  /** Current board FEN. */
+  currentFen: string;
+  /** SAN of the move that produced the current position (if any). */
+  lastMoveSan?: string;
+  /**
+   * Expected user-side moves from the current position across the drill
+   * scope. Empty when it's the opponent's turn or when the pool has no
+   * entry for this position. Each entry pairs SAN with the chapter title
+   * it came from so Elle can answer "what should I play?" with provenance.
+   */
+  expectedMoves: Array<{ san: string; chapterTitle: string }>;
+  /** Per-chapter SAN moves that led INTO the current position from the
+   *  chapter start. Only populated for per-chapter drills (one chapter line).
+   *  For mixed sessions the engine teleports across chapters so a single
+   *  lead-up doesn't exist. */
+  leadupSan?: string[];
+  /** Running progress (e.g. `4/25` for a length-capped drill). */
+  progressLabel: string;
+  /**
+   * True when the user opened chat mid-drill and confirmed the
+   * invalidation. Surfaces in the system prompt so Elle can answer freely
+   * without nudging the user to abandon the drill.
+   */
+  invalidated: boolean;
+}
+
 export interface ScreenContext {
-  kind: 'game' | 'idle' | 'lesson';
+  kind: 'game' | 'idle' | 'lesson' | 'drill';
   /** Lesson-specific payload, present only when kind === 'lesson'. */
   lesson?: LessonContext;
+  /** Drill-specific payload, present only when kind === 'drill'. */
+  drill?: DrillContext;
   /** Game label, e.g. "Morphy vs Duke — 1858". */
   gameLabel?: string;
   /** Result tag, e.g. "1-0". */
@@ -190,6 +231,8 @@ export function buildSystemPrompt(ctx: ScreenContext): string {
   if (ctx.kind === 'idle') return ELLE_BASE_PROMPT;
 
   if (ctx.kind === 'lesson') return buildLessonPrompt(ctx);
+
+  if (ctx.kind === 'drill') return buildDrillPrompt(ctx);
 
   const lines: string[] = [];
   lines.push('--- Current screen ---');
@@ -293,6 +336,61 @@ function formatPawns(p: number): string {
  * + current ply) so the user can ask hypotheticals like "what if I played X
  * instead of Y here?" and Elle has every move and note to reason from.
  */
+/**
+ * Drill-mode prompt. Built when DrillView / MixedDrillView publish a
+ * `kind: 'drill'` screen context. The point: a user who opens chat
+ * mid-drill (which invalidates the run — they were warned) is doing so
+ * because they have a real question about the position. Elle needs the
+ * board state + the expected moves so the answer is grounded, not
+ * generic.
+ */
+function buildDrillPrompt(ctx: ScreenContext): string {
+  const d = ctx.drill;
+  if (!d) return ELLE_BASE_PROMPT;
+  const lines: string[] = [];
+  lines.push('--- Drill ---');
+  lines.push(
+    `${d.kindLabel} from "${d.studyName}". User is training as ${d.userSide}.`,
+  );
+  lines.push(`Progress: ${d.progressLabel}.`);
+  if (d.invalidated) {
+    lines.push(
+      'The user opened chat mid-drill and confirmed that this attempt is invalidated — stats are not being recorded. They\'re here because they want to talk about the position, not abandon the drill. Answer their question directly; do not nag them to finish the drill first.',
+    );
+  }
+  lines.push(`Current FEN: ${d.currentFen}`);
+  if (d.lastMoveSan) {
+    lines.push(
+      `Last move on the board: ${d.lastMoveSan}. When the user says "this move", they mean this one.`,
+    );
+  } else {
+    lines.push('No move has been played yet at the current position.');
+  }
+  if (d.expectedMoves.length > 0) {
+    const byMove = new Map<string, string[]>();
+    for (const m of d.expectedMoves) {
+      const list = byMove.get(m.san) ?? [];
+      list.push(m.chapterTitle);
+      byMove.set(m.san, list);
+    }
+    const rendered = [...byMove.entries()]
+      .map(([san, chapters]) => `  ${san} (${chapters.join(', ')})`)
+      .join('\n');
+    lines.push(`Expected user-side moves from this position (drill scope):\n${rendered}`);
+  } else {
+    lines.push(
+      'No expected user-side move at this position in the drill scope — either it\'s the opponent\'s turn or the user has wandered off the chapter line.',
+    );
+  }
+  if (d.leadupSan && d.leadupSan.length > 0) {
+    lines.push(`Lead-up moves from the chapter start: ${d.leadupSan.join(' ')}.`);
+  }
+  lines.push(
+    'Guidance: answer the user\'s question about this exact position. If they ask "what move should I play here", surface the expected move(s) above and explain WHY they\'re the chapter\'s choice. If they ask about an alternative, evaluate it on its merits.',
+  );
+  return `${ELLE_BASE_PROMPT}\n\n${lines.join('\n')}`;
+}
+
 function buildLessonPrompt(ctx: ScreenContext): string {
   const l = ctx.lesson;
   if (!l) return ELLE_BASE_PROMPT;

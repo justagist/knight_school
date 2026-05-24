@@ -35,6 +35,10 @@ export interface MixedDrillState {
   /** How many user moves the user has played, regardless of correctness.
    *  Used by spot mode for "4/7 correct" tallies in the breadcrumb. */
   userMovesAttempted: number;
+  /** True when the user opened chat mid-drill and acknowledged the
+   *  invalidation warning. Surfaces in the chat ScreenContext so Elle
+   *  knows the user is here for a question, not to keep scoring. */
+  invalidated: boolean;
   /** Per-chapter pass count, keyed by chapter index. Filled as we go. */
   perChapterPasses: Map<number, number>;
   /** Per-chapter attempt count (passes + fails). */
@@ -71,7 +75,7 @@ interface UseMixedDrillArgs {
   mode: MixedDrillMode;
   /** 0 = unlimited. */
   length: number;
-  onFinished?: (result: 'pass' | 'fail') => void;
+  onFinished?: (result: 'pass' | 'fail', invalidated: boolean) => void;
 }
 
 const OPPONENT_MOVE_DELAY_MS = 450;
@@ -105,6 +109,9 @@ export function useMixedDrill({
   /** Advance the drill after a spot-mode feedback card. No-op in free
    *  mode (free transitions automatically between user turns). */
   next: () => void;
+  /** Mark the current attempt as invalidated — called by the chat
+   *  warning modal when the user opens chat mid-drill. */
+  invalidate: () => void;
   retry: () => void;
   abort: () => void;
   /** All entries in the pool that are spot-position candidates (used by the
@@ -174,6 +181,13 @@ export function useMixedDrill({
   const attemptIdRef = useRef<string>(uuid());
   const startedAtRef = useRef<number>(Date.now());
   const persistedRef = useRef(false);
+  // Mirror state into a ref so the persist callback (memoised once) can
+  // read the latest `invalidated` flag without rebuilding on every state
+  // change.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  });
 
   // Reset when the inputs change (a new drill session).
   useEffect(() => {
@@ -195,13 +209,13 @@ export function useMixedDrill({
         endedAt: Date.now(),
         result,
         variant: 'board',
-        invalidated: false,
+        invalidated: stateRef.current.invalidated,
         // The session-level mode is free|spot; map to the persistence-
         // level tag ('mixed' covers free, 'spot' stays its own bucket)
         // so the planner can pick later.
         mode: mode === 'spot' ? 'spot' : 'mixed',
       });
-      onFinished?.(result);
+      onFinished?.(result, stateRef.current.invalidated);
     },
     [mode, onFinished],
   );
@@ -237,7 +251,8 @@ export function useMixedDrill({
       // user keeps drilling toward the target.
       const next = pickStartingFen(startingFens, state.fen);
       if (next) {
-        setState((s) => ({ ...s, fen: next, awaitingUser: sideToMove(next) === sideChar(userSide), lastMove: undefined }));
+        const padded = ensureFullFen(next);
+        setState((s) => ({ ...s, fen: padded, awaitingUser: sideToMove(padded) === sideChar(userSide), lastMove: undefined }));
       } else {
         setState((s) => ({ ...s, status: 'complete' }));
         persist('pass');
@@ -279,12 +294,53 @@ export function useMixedDrill({
     }
   }, [mode, state.status, state.userMovesMade, state.target, persist]);
 
+  // Line-exhaustion guard. If the user is about to move from a position
+  // that has no indexed user-side moves in scope, the chapter ran out
+  // here — silently teleport to a fresh chapter start instead of letting
+  // submitMove mark the user's next move as wrong-with-empty-expected
+  // (which produces the "You played X. Expected:" blank-list bug).
+  useEffect(() => {
+    if (mode !== 'free') return;
+    if (state.status !== 'playing') return;
+    if (!state.awaitingUser) return;
+    const row = byFen.get(normalizeFenForExplorer(state.fen));
+    const exp = aggregateExpected(row, chapterScope, sideChar(userSide));
+    if (exp.length > 0) return;
+    const next = pickStartingFen(startingFens, state.fen);
+    if (next && next !== state.fen) {
+      const padded = ensureFullFen(next);
+      setState((s) => ({
+        ...s,
+        fen: padded,
+        awaitingUser: sideToMove(padded) === sideChar(userSide),
+        lastMove: undefined,
+      }));
+    } else {
+      setState((s) => ({ ...s, status: 'complete' }));
+      persist('pass');
+    }
+  }, [
+    mode,
+    state.status,
+    state.awaitingUser,
+    state.fen,
+    byFen,
+    chapterScope,
+    userSide,
+    startingFens,
+    persist,
+  ]);
+
   const submitMove = useCallback(
     (input: string) => {
       if (state.status !== 'playing') return;
       if (!state.awaitingUser) return;
       const row = byFen.get(normalizeFenForExplorer(state.fen));
       const expected: ExpectedMove[] = aggregateExpected(row, chapterScope, sideChar(userSide));
+      // Race with the line-exhaustion guard above — if the user clicked
+      // faster than the teleport effect, ignore the click rather than
+      // marking a legal move wrong against an empty expected set.
+      if (expected.length === 0) return;
       // Resolve user's input to UCI for comparison.
       const chess = new Chess(state.fen);
       let move: ReturnType<typeof chess.move> | null = null;
@@ -358,6 +414,10 @@ export function useMixedDrill({
     [state, byFen, chapterScope, userSide, mode, spotPositions, persist],
   );
 
+  const invalidate = useCallback(() => {
+    setState((s) => ({ ...s, invalidated: true }));
+  }, []);
+
   const next = useCallback(() => {
     // Advance to the next spot position after the feedback card is shown.
     // Free mode doesn't use this — its 'wrong' status terminates the drill.
@@ -372,11 +432,12 @@ export function useMixedDrill({
       if (!nextSpot) {
         return { ...s, status: 'complete', feedback: undefined };
       }
+      const padded = ensureFullFen(nextSpot.fen);
       return {
         ...s,
         status: 'playing',
-        fen: nextSpot.fen,
-        awaitingUser: true,
+        fen: padded,
+        awaitingUser: sideToMove(padded) === sideChar(userSide),
         feedback: undefined,
         lastMove: undefined,
       };
@@ -402,13 +463,13 @@ export function useMixedDrill({
       endedAt: Date.now(),
       result: 'fail',
       variant: 'board',
-      invalidated: false,
+      invalidated: stateRef.current.invalidated,
       mode: mode === 'spot' ? 'spot' : 'mixed',
     });
     setState((s) => ({ ...s, status: 'aborted' }));
   }, [mode]);
 
-  return { state, submitMove, next, retry, abort, spotCount: spotPositions.length };
+  return { state, submitMove, next, invalidate, retry, abort, spotCount: spotPositions.length };
 }
 
 function initialState(args: {
@@ -433,9 +494,9 @@ function initialState(args: {
   let fen =
     'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   if (mode === 'spot' && spotPositions && spotPositions.length > 0) {
-    fen = spotPositions[Math.floor(Math.random() * spotPositions.length)].fen;
+    fen = ensureFullFen(spotPositions[Math.floor(Math.random() * spotPositions.length)].fen);
   } else if (startingFens.length > 0) {
-    fen = startingFens[Math.floor(Math.random() * startingFens.length)].fen;
+    fen = ensureFullFen(startingFens[Math.floor(Math.random() * startingFens.length)].fen);
   }
   return {
     status: 'playing',
@@ -443,6 +504,7 @@ function initialState(args: {
     awaitingUser: sideToMove(fen) === sideChar(userSide),
     userMovesMade: 0,
     userMovesAttempted: 0,
+    invalidated: false,
     perChapterPasses: new Map(),
     perChapterAttempts: new Map(),
     failures: [],
@@ -552,4 +614,20 @@ function sideChar(side: DrillSide): 'w' | 'b' {
 
 function sideToMove(fen: string): 'w' | 'b' {
   return fen.split(' ')[1] === 'b' ? 'b' : 'w';
+}
+
+/**
+ * The position indexer keys positions by a 4-field FEN (drops halfmove +
+ * fullmove counters). chess.js requires the full 6-field FEN to construct
+ * a Chess instance — without it, legalDests() throws and the board appears
+ * dead. Pad missing fields with sensible defaults so any FEN coming out of
+ * the pool is safe to hand back to chess.js.
+ */
+function ensureFullFen(fen: string): string {
+  const parts = fen.split(' ');
+  if (parts.length >= 6) return fen;
+  while (parts.length < 4) parts.push('-');
+  if (parts.length < 5) parts.push('0');
+  if (parts.length < 6) parts.push('1');
+  return parts.join(' ');
 }

@@ -95,7 +95,9 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
       ? ['Explain this position', 'What are the plans here?', 'Show me a critical idea']
       : screen.kind === 'lesson'
         ? ['Summarise this chapter', 'What if I played a different move here?', 'Quiz me on the main idea']
-        : generalSuggestions;
+        : screen.kind === 'drill'
+          ? ['What\'s the expected move here?', 'Why is that the chapter\'s choice?', 'What if I played something else?']
+          : generalSuggestions;
 
   return (
     <>
@@ -292,6 +294,10 @@ function buildBreadcrumb(screen: ScreenContext): string {
   if (screen.kind === 'lesson') {
     if (screen.lesson) return `${screen.lesson.studyName} · ${screen.lesson.chapterTitle}`;
     return 'Lesson';
+  }
+  if (screen.kind === 'drill') {
+    if (screen.drill) return `${screen.drill.kindLabel} · ${screen.drill.studyName}`;
+    return 'Drill';
   }
   return 'General';
 }

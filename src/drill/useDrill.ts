@@ -8,7 +8,7 @@ import {
   recordDrillAttempt,
 } from '../db/drillLines';
 
-export type DrillStatus = 'playing' | 'wrong' | 'complete' | 'aborted';
+export type DrillStatus = 'playing' | 'feedback' | 'wrong' | 'complete' | 'aborted';
 export type DrillVariant = 'board' | 'guess';
 
 export interface DrillWrongDetails {
@@ -29,6 +29,9 @@ export interface DrillState {
   awaitingUser: boolean;
   /** Filled when status === 'wrong'. */
   wrong?: DrillWrongDetails;
+  /** Filled when status === 'feedback' — chapter author's note shown
+   *  after a correct user move. User taps "Next" to advance. */
+  feedbackComment?: string;
   /** True when chat was used during this attempt — does not count toward stats. */
   invalidated: boolean;
   variant: DrillVariant;
@@ -47,6 +50,8 @@ export interface UseDrillReturn {
   submitMove: (input: string) => void;
   /** Mark this attempt as invalidated (chat used). */
   invalidate: () => void;
+  /** Dismiss the feedback card and resume play. No-op outside 'feedback'. */
+  next: () => void;
   /** Restart the drill from ply 0. */
   retry: () => void;
   /** Abort early — recorded as failure with no failurePly. */
@@ -78,6 +83,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
   const [ply, setPly] = useState(0);
   const [status, setStatus] = useState<DrillStatus>('playing');
   const [wrong, setWrong] = useState<DrillWrongDetails | undefined>(undefined);
+  const [feedbackComment, setFeedbackComment] = useState<string | undefined>(undefined);
   const [invalidated, setInvalidated] = useState(false);
   const [lastMove, setLastMove] = useState<[string, string] | undefined>(undefined);
 
@@ -95,6 +101,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
     setPly(0);
     setStatus('playing');
     setWrong(undefined);
+    setFeedbackComment(undefined);
     setInvalidated(false);
     setLastMove(undefined);
   }, [line.id]);
@@ -187,8 +194,17 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
       const expectedUci = line.uciMoves[ply];
       const expectedSan = line.sanMoves[ply];
       if (playedUci.toLowerCase() === expectedUci.toLowerCase()) {
+        const newPly = ply + 1;
         setLastMove([move.from, move.to]);
-        setPly((p) => p + 1);
+        setPly(newPly);
+        // Pause on the author's note for this move (if any) — gives the
+        // user a beat to read the explanation before the opponent
+        // teleports in. comments are indexed by post-move ply.
+        const comment = line.comments[newPly];
+        if (comment) {
+          setFeedbackComment(comment);
+          setStatus('feedback');
+        }
         return;
       }
       const w: DrillWrongDetails = {
@@ -207,6 +223,11 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
 
   const invalidate = useCallback(() => setInvalidated(true), []);
 
+  const next = useCallback(() => {
+    setStatus((s) => (s === 'feedback' ? 'playing' : s));
+    setFeedbackComment(undefined);
+  }, []);
+
   const retry = useCallback(() => {
     // Start a fresh attempt — new id, reset state.
     attemptIdRef.current = uuid();
@@ -215,6 +236,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
     setPly(0);
     setStatus('playing');
     setWrong(undefined);
+    setFeedbackComment(undefined);
     setInvalidated(false);
     setLastMove(undefined);
   }, []);
@@ -239,9 +261,10 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
   }, [line.id, variant, invalidated]);
 
   return {
-    state: { status, ply, fen, awaitingUser, wrong, invalidated, variant },
+    state: { status, ply, fen, awaitingUser, wrong, feedbackComment, invalidated, variant },
     submitMove,
     invalidate,
+    next,
     retry,
     abort,
     lastMove,

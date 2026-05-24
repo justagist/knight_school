@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react';
 import { Board } from '../components/Board';
 import { useMixedDrill, type DrillSide, type MixedDrillMode } from './useMixedDrill';
 import { useDrillContext } from './DrillContext';
+import { useChatScreen } from '../chat/ChatContextProvider';
+import { normalizeFenForExplorer } from '../db/explorer';
 import type { StudyRow, DrillPositionRow } from '../db/db';
 
 interface MixedDrillViewProps {
@@ -12,7 +14,7 @@ interface MixedDrillViewProps {
   mode: MixedDrillMode;
   length: number;
   onExit: () => void;
-  onFinished?: (result: 'pass' | 'fail') => void;
+  onFinished?: (result: 'pass' | 'fail', invalidated: boolean) => void;
   /**
    * "Drill weak spots" — re-issue the URL with a narrower chapter scope
    * matching the chapters the user passed under 70% accuracy. Parent
@@ -51,6 +53,7 @@ export function MixedDrillView({
 }: MixedDrillViewProps) {
   const chapterScope = useMemo(() => new Set(chapterIndices), [chapterIndices]);
   const drillCtx = useDrillContext();
+  const chatScreen = useChatScreen();
   const drill = useMixedDrill({
     study,
     positions,
@@ -62,15 +65,73 @@ export function MixedDrillView({
   });
 
   // Tell chat that a drill is active so the chat-invalidation warning fires
-  // if the user opens chat mid-drill (same plumbing as DrillView).
+  // if the user opens chat mid-drill (same plumbing as DrillView). Register
+  // the invalidator so the "Continue and invalidate" confirmation actually
+  // flips state.invalidated → the ScreenContext below carries it to Elle.
   useEffect(() => {
     drillCtx.setActive(true);
     drillCtx.resetWarning();
+    drillCtx.registerInvalidator(drill.invalidate);
     return () => {
       drillCtx.setActive(false);
+      drillCtx.unregisterInvalidator();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study.id, mode]);
+
+  // Position-pool lookup by normalised fen — keeps the chat context's
+  // "expected moves" view consistent with the engine's matching logic.
+  const byFen = useMemo(() => {
+    const m = new Map<string, DrillPositionRow>();
+    for (const p of positions) m.set(p.fen, p);
+    return m;
+  }, [positions]);
+
+  // Publish drill context to Elle for invalidated-chat questions. Updates
+  // whenever the current position changes.
+  useEffect(() => {
+    const row = byFen.get(normalizeFenForExplorer(drill.state.fen));
+    const sideChar = userSide === 'white' ? 'w' : 'b';
+    const expectedDedup = new Map<string, { san: string; chapterTitle: string }>();
+    for (const o of row?.occurrences ?? []) {
+      if (!chapterScope.has(o.chapterIndex) || o.sideToMove !== sideChar) continue;
+      if (!expectedDedup.has(o.san)) {
+        expectedDedup.set(o.san, { san: o.san, chapterTitle: o.chapterTitle });
+      }
+    }
+    const kindLabel = mode === 'spot' ? 'Spot drill' : 'Mixed drill';
+    chatScreen.setScreen({
+      kind: 'drill',
+      drill: {
+        studyName: study.name,
+        kindLabel,
+        userSide,
+        currentFen: drill.state.fen,
+        lastMoveSan: drill.state.feedback?.playedSan,
+        expectedMoves: [...expectedDedup.values()],
+        // Mixed sessions teleport across chapters — no single chapter
+        // lead-up to surface.
+        leadupSan: undefined,
+        progressLabel:
+          length > 0
+            ? `${drill.state.userMovesMade}/${length}`
+            : `${drill.state.userMovesMade} so far`,
+        invalidated: drill.state.invalidated,
+      },
+    });
+    return () => {
+      chatScreen.setScreen({ kind: 'idle' });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    drill.state.fen,
+    drill.state.userMovesMade,
+    drill.state.invalidated,
+    study.id,
+    mode,
+    userSide,
+    length,
+  ]);
 
   // Bail-out empty states.
   const totalUsable = positions.filter((p) =>
@@ -132,6 +193,13 @@ export function MixedDrillView({
           </p>
         </div>
       </div>
+
+      {drill.state.invalidated && (
+        <div className="card border-l-4 border-l-inaccuracy bg-inaccuracy/10 px-3 py-2 text-xs text-primary">
+          This attempt is invalidated (chat was used) — stats are not being
+          recorded. You can keep going for practice value.
+        </div>
+      )}
 
       {/* Board + side panel */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
