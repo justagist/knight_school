@@ -12,14 +12,22 @@ interface EngineLinesProps {
   variant: EngineVariant;
   /** Used to convert UCI moves to SAN for display. */
   fen: string;
+  /** Opening name to display above the engine output (e.g. "Italian Game:
+   *  Classical Variation"). When undefined the header is hidden. */
+  openingName?: string;
 }
 
-export function EngineLines({ snapshot, ready, error, variant, fen }: EngineLinesProps) {
+export function EngineLines({ snapshot, ready, error, variant, fen, openingName }: EngineLinesProps) {
   const lines = snapshot?.lines ?? [];
   const turn = snapshot?.turn ?? 'w';
 
   return (
     <div className="card overflow-hidden">
+      {openingName && (
+        <div className="border-b border-border bg-surface-2/60 px-3 py-1.5 text-[11px] font-medium text-primary">
+          {openingName}
+        </div>
+      )}
       {error && (
         <div className="border-b border-blunder/30 bg-blunder/10 px-3 py-2 text-xs text-blunder">
           <div className="font-semibold">Engine error</div>
@@ -34,21 +42,29 @@ export function EngineLines({ snapshot, ready, error, variant, fen }: EngineLine
         </div>
       )}
 
-      <ol className="divide-y divide-ink-200 dark:divide-ink-800">
-        {lines.map((line, idx) => (
-          <PvRow
-            key={line.pvIndex}
-            line={line}
-            startingFen={fen}
-            sideToMove={turn}
-            kind={idx === 0 ? 'best' : 'alt'}
-          />
-        ))}
+      <ol className="divide-y divide-border">
+        {lines.map((line, idx) => {
+          // "Computing" state on the Best row — three pulsing dots while
+          // the new top-line is still settling (depth not yet meaningful).
+          // Avoids the user seeing the previous position's eval pretend to
+          // be the answer for the new position.
+          const computing = idx === 0 && line.depth < 6 && !snapshot?.finished;
+          return (
+            <PvRow
+              key={line.pvIndex}
+              line={line}
+              startingFen={fen}
+              sideToMove={turn}
+              kind={idx === 0 ? 'best' : 'alt'}
+              computing={computing}
+            />
+          );
+        })}
       </ol>
 
       {/* Engine identity is now a muted footer per spec so the panel header
           isn't dominated by "Stockfish · Lite · d18". */}
-      <div className="flex items-center justify-between border-t border-ink-200 bg-ink-50/60 px-3 py-1.5 text-[10px] uppercase tracking-wide text-ink-500 dark:border-ink-800 dark:bg-ink-900/60 dark:text-ink-400">
+      <div className="flex items-center justify-between border-t border-border bg-surface-2/60 px-3 py-1.5 text-[10px] uppercase tracking-wide text-muted">
         <span>{variant === 'lite' ? 'Stockfish · Lite' : 'Stockfish · Full'}</span>
         <EngineStatusBadge ready={ready} error={error} variant={variant} snapshot={snapshot} />
       </div>
@@ -61,11 +77,16 @@ interface PvRowProps {
   startingFen: string;
   sideToMove: 'w' | 'b';
   kind: 'best' | 'alt';
+  /** Show pulsing dots in place of the eval while the top line is settling. */
+  computing?: boolean;
 }
 
-const MAX_SAN_PREVIEW = 8;
+// 10 plies = 5 full moves per side. Enough to convey "where the line is
+// going" without overflowing on narrow viewports. Truncated by the panel
+// container's `overflow: hidden` when there isn't enough room.
+const MAX_SAN_PREVIEW = 10;
 
-function PvRow({ line, startingFen, sideToMove, kind }: PvRowProps) {
+function PvRow({ line, startingFen, sideToMove, kind, computing }: PvRowProps) {
   const san = useMemo(
     () => uciMovesToSan(line.uciMoves, startingFen, MAX_SAN_PREVIEW),
     [line.uciMoves, startingFen],
@@ -90,15 +111,33 @@ function PvRow({ line, startingFen, sideToMove, kind }: PvRowProps) {
         kind === 'alt' ? 'opacity-70' : ''
       }`}
     >
-      <span className={`text-[10px] font-semibold uppercase tracking-wide ${kind === 'best' ? 'text-accent' : 'text-ink-500 dark:text-ink-400'}`}>
+      <span className={`text-[10px] font-semibold uppercase tracking-wide ${kind === 'best' ? 'text-accent' : 'text-muted'}`}>
         {kind === 'best' ? 'Best' : 'Alt'}
       </span>
-      <span className={`font-mono text-sm font-semibold tabular-nums ${evalColor}`}>{score}</span>
-      <span className="truncate font-mono text-[12px] text-ink-700 dark:text-ink-300" title={san.full}>
+      {computing ? (
+        <span className="inline-flex items-center gap-1" aria-label="Computing">
+          <Dot delay={0} />
+          <Dot delay={150} />
+          <Dot delay={300} />
+        </span>
+      ) : (
+        <span className={`font-mono text-sm font-semibold tabular-nums ${evalColor}`}>{score}</span>
+      )}
+      <span className="truncate font-mono text-[12px] text-primary" title={san.full}>
         {san.preview}
         {san.truncated ? ' …' : ''}
       </span>
     </li>
+  );
+}
+
+function Dot({ delay }: { delay: number }) {
+  return (
+    <span
+      className="block h-1.5 w-1.5 animate-pulse rounded-full bg-muted"
+      style={{ animationDelay: `${delay}ms` }}
+      aria-hidden
+    />
   );
 }
 
@@ -119,7 +158,7 @@ interface EngineStatusBadgeProps {
   snapshot: EvalSnapshot | null;
 }
 
-function EngineStatusBadge({ ready, error, variant, snapshot }: EngineStatusBadgeProps) {
+function EngineStatusBadge({ ready, error, snapshot }: EngineStatusBadgeProps) {
   const label = error
     ? 'error'
     : !ready
@@ -130,8 +169,8 @@ function EngineStatusBadge({ ready, error, variant, snapshot }: EngineStatusBadg
           ? `d${snapshot.depth}…`
           : 'idle';
   return (
-    <span className="text-[10px] uppercase tracking-wide text-ink-500 dark:text-ink-400">
-      {variant === 'lite' ? 'Stockfish · Lite' : 'Stockfish · Full'} · {label}
+    <span className="text-[10px] uppercase tracking-wide text-muted">
+      {label}
     </span>
   );
 }

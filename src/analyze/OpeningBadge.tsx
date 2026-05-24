@@ -3,13 +3,13 @@ import type { ExplorerEntryRow } from '../db/db';
 import type { EcoEntry } from '../data/eco';
 
 /**
- * Build a deep-link into the Openings tab that pre-fills the search bar
- * with the given opening name. The Openings page then shows whichever
- * curated studies match (substring against title / blurb / aliases) plus
- * an external "Search on Lichess" link as the fallback.
+ * Build a deep-link into the Study tab that pre-fills the search bar with
+ * the given opening name. The Study page then shows whichever curated
+ * studies match (substring against title / blurb / aliases) plus an
+ * external "Search on Lichess" link as the fallback.
  */
 function openingsLink(name: string): string {
-  return `/openings?search=${encodeURIComponent(name)}`;
+  return `/study?search=${encodeURIComponent(name)}`;
 }
 
 interface OpeningBadgeProps {
@@ -54,7 +54,7 @@ export function OpeningBadge({ current, atStartingPosition }: OpeningBadgeProps)
                 <Link
                   to={openingsLink(c.openingName)}
                   className="hover:text-accent hover:underline"
-                  title={`Open ${c.openingName} in the Openings tab`}
+                  title={`Open ${c.openingName} in the Study tab`}
                 >
                   {c.openingName}
                 </Link>
@@ -147,7 +147,7 @@ function renderBody({
         <Link
           to={openingsLink(resolvedName)}
           className="min-w-0 truncate text-sm font-medium hover:text-accent hover:underline"
-          title="Open in the Openings tab"
+          title="Open in the Study tab"
         >
           {resolvedName}
         </Link>
@@ -183,7 +183,7 @@ function renderBody({
         <Link
           to={openingsLink(lastKnownName)}
           className="font-medium text-primary hover:text-accent hover:underline"
-          title="Open in the Openings tab"
+          title="Open in the Study tab"
         >
           {lastKnownName}
         </Link>

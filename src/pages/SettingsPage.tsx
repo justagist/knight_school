@@ -46,7 +46,9 @@ export function SettingsPage() {
   const buildDate = __BUILD_DATE__ ? new Date(__BUILD_DATE__).toLocaleString() : 'dev';
 
   return (
-    <div className="space-y-3">
+    // Constrain settings to ~960px on desktop so the section cards don't
+    // sprawl across a 1900px viewport. Mobile width stays full.
+    <div className="mx-auto max-w-[960px] space-y-3">
       <div>
         <h1 className="text-xl font-semibold">Settings</h1>
         <p className="text-sm text-muted">
@@ -126,12 +128,15 @@ export function SettingsPage() {
                       active
                         ? 'border-accent bg-accent-soft'
                         : 'border-border hover:border-accent/60'
-                    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                    } ${disabled ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
                   >
                     <div className="flex items-center justify-between text-sm font-medium">
                       <span>{v.label}</span>
                       {disabled && (
-                        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                        // Filled badge per spec — reads clearly as
+                        // "unavailable yet" instead of the old outlined pill
+                        // that blended into the card background.
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-surface-1">
                           coming soon
                         </span>
                       )}

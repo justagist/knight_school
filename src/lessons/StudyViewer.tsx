@@ -241,52 +241,6 @@ export function StudyViewer({
         </div>
       )}
 
-      {onStartDrill && parsed && parsed.moves.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {drillPickerOpen ? (
-            <>
-              <span className="text-xs text-ink-600 dark:text-ink-300">Practise as:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setDrillPickerOpen(false);
-                  onStartDrill(chapterIdx, 'white');
-                }}
-                className="btn-primary text-xs"
-              >
-                White
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDrillPickerOpen(false);
-                  onStartDrill(chapterIdx, 'black');
-                }}
-                className="btn-primary text-xs"
-              >
-                Black
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrillPickerOpen(false)}
-                className="btn-secondary text-xs"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setDrillPickerOpen(true)}
-              className="btn-secondary text-xs"
-              title="Quiz yourself on this chapter — app plays the opponent moves, you play your side."
-            >
-              ▶ Drill this chapter
-            </button>
-          )}
-        </div>
-      )}
-
       {parseError && (
         <div className="card border-red-300 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:text-red-300">
           {parseError}
@@ -300,22 +254,32 @@ export function StudyViewer({
         drops to the bottom — users tap it less often than the prev/next
         buttons during a lesson.
 
-        Desktop order: board column on the left (with comment under it),
-        move list + buttons on the right side panel — same as before.
-
-        Implementation: the board column comes first in DOM (mobile sees
-        comment-above-board because the column itself flips comment to
-        order-first on mobile). The sidebar's MoveList gets `order-last`
-        on mobile, and the keyboard hint gets pushed past it. Desktop
-        clears those orders via `lg:order-none`.
+        Desktop order: board column on the left (no comment — comment moves
+        to the sidebar BELOW the buttons so the board's vertical position
+        doesn't shift when the comment text grows/shrinks per ply). Right
+        sidebar order: move list → move buttons → chapter buttons → comment
+        → hint.
       */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
         <div className="mx-auto flex w-full max-w-[min(80vh,_640px)] flex-col gap-2">
           {parsed && (
             <LessonComment
               text={parsed.comments[ply]}
-              // Comment above the board on mobile, below on desktop.
-              className="order-first lg:order-none"
+              // Above the board on mobile (top of column) and hidden on
+              // desktop — the desktop copy lives in the sidebar so per-
+              // ply text-length changes don't push the board up and down.
+              className="order-first lg:hidden"
+            />
+          )}
+          {/* Mobile drill trigger — sits right after the comment so the
+              "what to do next" CTA lands with the lesson context. Desktop
+              copy lives in the sidebar after its own comment block. */}
+          {onStartDrill && parsed && parsed.moves.length > 0 && (
+            <DrillTrigger
+              pickerOpen={drillPickerOpen}
+              onTogglePicker={setDrillPickerOpen}
+              onStart={(side) => onStartDrill(chapterIdx, side)}
+              className="order-1 lg:hidden"
             />
           )}
           {parsed ? (
@@ -412,7 +376,23 @@ export function StudyViewer({
               <div className="card p-2 lg:order-1">
                 <MoveList moves={parsed.moves} ply={ply} onSelectPly={setPly} />
               </div>
-              <p className="text-[11px] text-muted lg:order-4">
+              {/* Desktop-only comment slot. Sits below the chapter nav so
+                  changes in author-note length never move the board. */}
+              <LessonComment
+                text={parsed.comments[ply]}
+                className="hidden lg:order-4 lg:block"
+              />
+              {/* Desktop drill trigger — directly below the comment so the
+                  "next step" CTA pairs with the lesson context. */}
+              {onStartDrill && parsed.moves.length > 0 && (
+                <DrillTrigger
+                  pickerOpen={drillPickerOpen}
+                  onTogglePicker={setDrillPickerOpen}
+                  onStart={(side) => onStartDrill(chapterIdx, side)}
+                  className="hidden lg:order-5 lg:flex"
+                />
+              )}
+              <p className="text-[11px] text-muted lg:order-6">
                 Arrow keys navigate moves. Home / End jump to chapter ends.
               </p>
             </>
@@ -456,6 +436,68 @@ function inferOrientation(parsed: ParsedGame | null, title: string): 'white' | '
  * showing them under the board lets users read along while stepping through
  * moves. Hidden when the current ply has no commentary.
  */
+interface DrillTriggerProps {
+  pickerOpen: boolean;
+  onTogglePicker: (open: boolean) => void;
+  onStart: (side: 'white' | 'black') => void;
+  className?: string;
+}
+
+/**
+ * Two-state drill launcher — collapsed shows `▶ Drill this chapter`;
+ * expanded shows the side picker (White / Black / Cancel). Rendered in two
+ * places (under the mobile comment, under the desktop sidebar comment)
+ * with shared state hoisted into the parent so toggling either picker
+ * affects both copies.
+ */
+function DrillTrigger({ pickerOpen, onTogglePicker, onStart, className }: DrillTriggerProps) {
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${className ?? ''}`}>
+      {pickerOpen ? (
+        <>
+          <span className="text-xs text-muted">Practise as:</span>
+          <button
+            type="button"
+            onClick={() => {
+              onTogglePicker(false);
+              onStart('white');
+            }}
+            className="btn-primary text-xs"
+          >
+            White
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTogglePicker(false);
+              onStart('black');
+            }}
+            className="btn-primary text-xs"
+          >
+            Black
+          </button>
+          <button
+            type="button"
+            onClick={() => onTogglePicker(false)}
+            className="btn-secondary text-xs"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onTogglePicker(true)}
+          className="btn-secondary text-xs"
+          title="Quiz yourself on this chapter — app plays the opponent moves, you play your side."
+        >
+          ▶ Drill this chapter
+        </button>
+      )}
+    </div>
+  );
+}
+
 function LessonComment({
   text,
   className,

@@ -24,7 +24,7 @@ import { GuessModePanel } from '../guess/GuessModePanel';
 import { useExploration } from './useExploration';
 import { summarizeCaptures } from './captures';
 import { summarizeEngine } from '../llm/engineSummary';
-import { MobileAnalysisTabs } from './MobileAnalysisTabs';
+import { AnalysisTabs } from './MobileAnalysisTabs';
 import { humanizeEngineError } from '../engine/humanizeError';
 import { PlayerStrip } from './PlayerStrip';
 import { OpeningBadge, OpeningHeader } from './OpeningBadge';
@@ -317,7 +317,11 @@ export function AnalyzeView() {
       {/* Status row — one short line telling the user where they are. */}
       <StatusRow ply={g.ply} totalPlies={totalPlies} sideToMove={sideToMove} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+      {/* Desktop = 60/40 split: board column on the left, tabbed analysis
+          panel on the right. Right column min 320px so the move list
+          doesn't compress on smaller laptops; max 480px so the board can
+          stay prominent on ultra-wide displays. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
         {/* Board column */}
         <div className="space-y-3">
           {/* Guess-mode toggle. Sits above the board so it's discoverable
@@ -363,7 +367,10 @@ export function AnalyzeView() {
             chess.com / lichess-style "big board" feel; 920px stops it from
             getting silly on ultra-wide monitors.
           */}
-          <div className="mx-auto flex w-full max-w-[min(90vh,920px)] items-stretch gap-1">
+          {/* Cap the board at ~640px on desktop so the right-column tabs
+              get usable width. On mobile the min(90vh, …) bound keeps it
+              filling the viewport like before. */}
+          <div className="mx-auto flex w-full max-w-[min(90vh,640px)] items-stretch gap-1">
             {/* Eval bar flush to the board (gap-1 instead of gap-2). Hidden
                 during guessing so the user doesn't see the answer before
                 they pick — reappears after reveal. */}
@@ -468,76 +475,53 @@ export function AnalyzeView() {
             <OpeningBadge current={currentExplorerRow} atStartingPosition={g.ply === 0} />
           )}
 
-          {/* Mobile-only tabbed secondary content. Replaces the stack of
-              cards below the board (eval graph + engine lines) and the
-              right-side move list panel that desktop keeps. */}
+          {/* Mobile-only tabbed secondary content. On desktop the right
+              column hosts an identical tabs panel — this one stays mobile-
+              only via lg:hidden so we don't render the same tabs twice. */}
           {!guess.active && (
-            <MobileAnalysisTabs
-              badges={{ moves: String(totalPlies) }}
-              panels={{
-                moves: (
-                  <MoveList
-                    moves={g.game.moves}
-                    ply={g.ply}
-                    onSelectPly={g.setPly}
-                    classifications={analysis.result.classifications}
-                  />
-                ),
-                engine: settings.engineEnabled ? (
-                  <div className="p-2">
-                    <EngineLines
-                      snapshot={engine.snapshot}
-                      ready={engine.ready}
-                      error={engine.error}
-                      variant={settings.engineVariant}
-                      fen={displayFen ?? g.game.startingFen}
+            <div className="lg:hidden">
+              <AnalysisTabs
+                badges={{ moves: String(totalPlies) }}
+                panels={{
+                  moves: (
+                    <MoveList
+                      moves={g.game.moves}
+                      ply={g.ply}
+                      onSelectPly={g.setPly}
+                      classifications={analysis.result.classifications}
                     />
-                  </div>
-                ) : (
-                  <div className="grid place-items-center p-6 text-xs text-ink-500 dark:text-ink-400">
-                    Engine analysis is disabled in Settings.
-                  </div>
-                ),
-                graph: (
-                  <GraphPanel
-                    evals={analysis.result.evals}
-                    ply={g.ply}
-                    onSelectPly={g.setPly}
-                    totalPlies={totalPlies}
-                    onStartAnalysis={analysis.start}
-                    analysisRunning={analysis.running}
-                    progress={analysis.progress}
-                  />
-                ),
-              }}
-            />
+                  ),
+                  engine: settings.engineEnabled ? (
+                    <div className="p-2">
+                      <EngineLines
+                        snapshot={engine.snapshot}
+                        ready={engine.ready}
+                        error={engine.error}
+                        variant={settings.engineVariant}
+                        fen={displayFen ?? g.game.startingFen}
+                        openingName={currentExplorerRow?.openingName ?? currentEco?.name}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid place-items-center p-6 text-xs text-muted">
+                      Engine analysis is disabled in Settings.
+                    </div>
+                  ),
+                  graph: (
+                    <GraphPanel
+                      evals={analysis.result.evals}
+                      ply={g.ply}
+                      onSelectPly={g.setPly}
+                      totalPlies={totalPlies}
+                      onStartAnalysis={analysis.start}
+                      analysisRunning={analysis.running}
+                      progress={analysis.progress}
+                    />
+                  ),
+                }}
+              />
+            </div>
           )}
-
-          {/* Desktop-only below-board stack — eval graph + engine lines. On
-              mobile these live inside MobileAnalysisTabs above. */}
-          <div className="hidden space-y-3 lg:block">
-            {!guess.active && analysis.progress.done > 0 && (
-              <EvalGraph
-                evals={analysis.result.evals}
-                ply={g.ply}
-                onSelectPly={g.setPly}
-              />
-            )}
-
-            {!guess.active && settings.engineEnabled && (
-              <EngineLines
-                snapshot={engine.snapshot}
-                ready={engine.ready}
-                error={engine.error}
-                variant={settings.engineVariant}
-                // Use the FEN the engine is *actually* analyzing — during
-                // exploration this differs from g.currentFen, and EngineLines
-                // uses it to replay UCI as SAN. Passing the wrong FEN makes
-                // chess.js reject every move, leaving the preview empty.
-                fen={displayFen ?? g.game.startingFen}
-              />
-            )}
-          </div>
 
           {/* Per-move commentary card — only meaningful when a move has
               actually been played (ply > 0). The card itself surfaces an
@@ -566,39 +550,73 @@ export function AnalyzeView() {
           })()}
         </div>
 
-        {/* Side panel: move list + load new. Desktop only — mobile uses the
-            MobileAnalysisTabs above. */}
-        <aside className="card hidden min-h-[300px] flex-col overflow-hidden lg:flex">
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b-2 border-ink-200 bg-ink-50 px-3 py-2 dark:border-ink-800 dark:bg-ink-900">
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-              Moves ({totalPlies})
-            </span>
-            {g.rawPgn && (
-              <CopyButton
-                text={() => g.rawPgn ?? ''}
-                label="Copy PGN"
-                copiedLabel="Copied"
-                title="Copy this game's PGN to clipboard"
-              />
-            )}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <MoveList
-              moves={g.game.moves}
-              ply={g.ply}
-              onSelectPly={g.setPly}
-              classifications={analysis.result.classifications}
+        {/* Desktop side panel — same tabs as mobile (Moves/Engine/Graph/Chat)
+            but takes the full vertical space of the right column. Hidden on
+            mobile where the equivalent panel stacks below the board. */}
+        {!guess.active && (
+          <aside className="hidden lg:flex lg:max-h-[calc(100vh-180px)] lg:flex-col">
+            {/* Compact ply indicator pinned above the tabs — replaces the
+                old "Ply N / M" footer that used to live in the side card. */}
+            <div className="mb-2 flex items-center justify-between gap-2 px-1 text-xs text-muted">
+              <span>
+                Ply <span className="font-mono text-primary">{g.ply}</span> /{' '}
+                <span className="font-mono">{totalPlies}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                {g.rawPgn && (
+                  <CopyButton
+                    text={() => g.rawPgn ?? ''}
+                    label="Copy PGN"
+                    copiedLabel="Copied"
+                    title="Copy this game's PGN to clipboard"
+                  />
+                )}
+                <button className="btn-ghost text-xs" onClick={g.clear} title="Load a different game">
+                  Load another
+                </button>
+              </div>
+            </div>
+            <AnalysisTabs
+              className="flex-1 min-h-[400px]"
+              badges={{ moves: String(totalPlies) }}
+              panels={{
+                moves: (
+                  <MoveList
+                    moves={g.game.moves}
+                    ply={g.ply}
+                    onSelectPly={g.setPly}
+                    classifications={analysis.result.classifications}
+                  />
+                ),
+                engine: settings.engineEnabled ? (
+                  <EngineLines
+                    snapshot={engine.snapshot}
+                    ready={engine.ready}
+                    error={engine.error}
+                    variant={settings.engineVariant}
+                    fen={displayFen ?? g.game.startingFen}
+                    openingName={currentExplorerRow?.openingName ?? currentEco?.name}
+                  />
+                ) : (
+                  <div className="grid place-items-center p-6 text-xs text-muted">
+                    Engine analysis is disabled in Settings.
+                  </div>
+                ),
+                graph: (
+                  <GraphPanel
+                    evals={analysis.result.evals}
+                    ply={g.ply}
+                    onSelectPly={g.setPly}
+                    totalPlies={totalPlies}
+                    onStartAnalysis={analysis.start}
+                    analysisRunning={analysis.running}
+                    progress={analysis.progress}
+                  />
+                ),
+              }}
             />
-          </div>
-          <div className="flex items-center justify-between border-t border-ink-200 px-3 py-2 text-xs dark:border-ink-800">
-            <span className="text-ink-500 dark:text-ink-400">
-              Ply {g.ply} / {totalPlies}
-            </span>
-            <button className="btn-ghost text-xs" onClick={g.clear}>
-              Load another
-            </button>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
@@ -888,6 +906,41 @@ interface BoardControlsProps {
   onFlip: () => void;
 }
 
+// Hoisted out of BoardControls so React sees a stable component type
+// across re-renders. When this lived inside BoardControls, every parent
+// re-render (constant on desktop while Stockfish is analysing) created a
+// brand-new function reference, which React treated as a different
+// component — unmounting and remounting all six buttons each render.
+// Click events fired on stale DOM never reached the handler. On mobile
+// the symptom was hidden because the engine fails to start (no SAB on
+// plain HTTP / LAN IP) so AnalyzeView re-rendered far less frequently.
+function NavBtn({
+  onClick,
+  disabled,
+  title,
+  ariaLabel,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={ariaLabel}
+      className="flex h-12 w-12 items-center justify-center rounded-md text-base text-primary transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
+  );
+}
+
 function BoardControls({
   ply,
   totalPlies,
@@ -897,42 +950,25 @@ function BoardControls({
   onEnd,
   onFlip,
 }: BoardControlsProps) {
-  // 48×48dp minimum tap target — matches the Android material guideline
-  // and iOS HIG (44pt). Buttons grouped tightly with subtle dividers between
-  // start/prev | next/end | flip so the row reads as one control surface
-  // even though it has 5 actions.
-  const Btn = (props: {
-    onClick: () => void;
-    disabled?: boolean;
-    title: string;
-    'aria-label': string;
-    children: React.ReactNode;
-  }) => (
-    <button
-      type="button"
-      className="flex h-12 w-12 items-center justify-center rounded-md text-base text-ink-700 transition-colors hover:bg-ink-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-ink-200 dark:hover:bg-ink-700"
-      {...props}
-    />
-  );
   return (
     <div className="card flex items-center justify-center gap-1 px-2 py-1">
-      <Btn onClick={onStart} disabled={ply === 0} title="Start (Home)" aria-label="Go to start">
+      <NavBtn onClick={onStart} disabled={ply === 0} title="Start (Home)" ariaLabel="Go to start">
         ⏮
-      </Btn>
-      <Btn onClick={onPrev} disabled={ply === 0} title="Previous (←)" aria-label="Previous move">
+      </NavBtn>
+      <NavBtn onClick={onPrev} disabled={ply === 0} title="Previous (←)" ariaLabel="Previous move">
         ◀
-      </Btn>
-      <span className="h-6 w-px bg-ink-200 dark:bg-ink-700" aria-hidden="true" />
-      <Btn onClick={onNext} disabled={ply >= totalPlies} title="Next (→)" aria-label="Next move">
+      </NavBtn>
+      <span className="h-6 w-px bg-border" aria-hidden="true" />
+      <NavBtn onClick={onNext} disabled={ply >= totalPlies} title="Next (→)" ariaLabel="Next move">
         ▶
-      </Btn>
-      <Btn onClick={onEnd} disabled={ply >= totalPlies} title="End (End)" aria-label="Go to end">
+      </NavBtn>
+      <NavBtn onClick={onEnd} disabled={ply >= totalPlies} title="End (End)" ariaLabel="Go to end">
         ⏭
-      </Btn>
-      <span className="h-6 w-px bg-ink-200 dark:bg-ink-700" aria-hidden="true" />
-      <Btn onClick={onFlip} title="Flip (f)" aria-label="Flip board">
+      </NavBtn>
+      <span className="h-6 w-px bg-border" aria-hidden="true" />
+      <NavBtn onClick={onFlip} title="Flip (f)" ariaLabel="Flip board">
         ⇅
-      </Btn>
+      </NavBtn>
     </div>
   );
 }

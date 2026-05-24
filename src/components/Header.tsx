@@ -2,8 +2,9 @@ import { Link, NavLink } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeProvider';
 
 const NAV = [
-  { to: '/', label: 'Analyze' },
-  { to: '/openings', label: 'Openings' },
+  { to: '/', label: 'Home', end: true },
+  { to: '/analyze', label: 'Analyze' },
+  { to: '/study', label: 'Study' },
   { to: '/plan', label: 'Plan' },
   { to: '/settings', label: 'Settings' },
 ];
@@ -36,10 +37,15 @@ function ThemeToggle() {
             aria-checked={active}
             onClick={() => setMode(o.value)}
             title={o.label}
+            // Inactive options use primary text at 60% opacity so both the
+            // glyph and the label read at the same contrast level — the
+            // old `text-muted` made the icons nearly invisible in light
+            // mode against the bg-surface-2 container.
+            style={active ? undefined : { color: 'color-mix(in srgb, var(--text-primary) 60%, transparent)' }}
             className={`inline-flex items-center gap-1 rounded px-2 py-1 transition-colors ${
               active
-                ? 'bg-accent text-white'
-                : 'text-muted hover:text-primary'
+                ? 'bg-accent-soft text-accent'
+                : 'hover:text-primary'
             }`}
           >
             <span aria-hidden="true">{o.glyph}</span>
@@ -85,8 +91,14 @@ export function Header() {
         </Link>
 
         {/* Top tabs — desktop only. On mobile a BottomTabBar replaces this
-            so primary nav is always visible without horizontal scrolling. */}
-        <nav className="ml-2 hidden flex-1 overflow-x-auto md:block" aria-label="Primary (desktop)">
+            so primary nav is always visible without horizontal scrolling.
+            `mx-auto` centres the nav within the bounded header container so
+            the row doesn't read as brand-tight-nav-empty-space-toggle on
+            wide displays. */}
+        <nav
+          className="mx-auto hidden md:block"
+          aria-label="Primary (desktop)"
+        >
           <ul className="flex items-center gap-1">
             {NAV.map((item) => (
               <li key={item.to}>

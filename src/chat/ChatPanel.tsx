@@ -84,13 +84,18 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const breadcrumb = buildBreadcrumb(screen);
 
   // Empty-state suggestion chips — context-aware so the user gets actionable
-  // prompts without having to invent one cold.
+  // prompts without having to invent one cold. The "Latest chess news" chip
+  // is only useful when the provider supports web search; swap it out for a
+  // grounded-in-training prompt when search isn't available.
+  const generalSuggestions = showWebSearchToggle
+    ? ['Latest chess news', 'Explain a famous opening', 'Help me improve']
+    : ['Help me understand a position', 'Explain a famous opening', 'Quiz me on openings'];
   const suggestions: string[] =
     screen.kind === 'game'
       ? ['Explain this position', 'What are the plans here?', 'Show me a critical idea']
       : screen.kind === 'lesson'
         ? ['Summarise this chapter', 'What if I played a different move here?', 'Quiz me on the main idea']
-        : ['Latest chess news', 'Explain a famous opening', 'Help me improve'];
+        : generalSuggestions;
 
   return (
     <>
@@ -114,7 +119,23 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Elle</div>
             <div className="truncate text-[11px] text-muted">{breadcrumb}</div>
-            {!showWebSearchToggle && (
+            {/* Web-search badge wording per spec:
+                  - no provider configured: "Web search disabled · No provider"
+                  - provider configured but no web-search support: "… · Groq"
+                  - provider supports search: muted "🔍 Search enabled" pill */}
+            {!chat.activeProvider ? (
+              <button
+                type="button"
+                className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted hover:text-primary"
+                title="No LLM provider configured. Tap to set one up."
+                onClick={() => {
+                  window.location.assign('/settings');
+                }}
+              >
+                <span aria-hidden>🔍</span>
+                Web search disabled · No provider
+              </button>
+            ) : !showWebSearchToggle ? (
               <button
                 type="button"
                 className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted hover:text-primary"
@@ -126,6 +147,14 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 <span aria-hidden>🔍</span>
                 Web search disabled · {providerLabel}
               </button>
+            ) : (
+              <span
+                className="mt-1 inline-flex items-center gap-1 rounded-md bg-best/15 px-1.5 py-0.5 text-[10px] text-best"
+                title={`${providerLabel} supports web search — toggle it per message below.`}
+              >
+                <span aria-hidden>🔍</span>
+                Search available
+              </span>
             )}
           </div>
           <div className="flex items-center gap-0.5">

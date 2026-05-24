@@ -12,6 +12,8 @@ import { DrillView } from '../drill/DrillView';
 import { ensureDrillLine, getDrillLine, listDrillLines } from '../db/drillLines';
 import { nextDrillLine, priorityLabel, sortByDrillPriority } from '../drill/scheduler';
 import type { DrillLineRow } from '../db/db';
+import { useLichessAuth } from '../hooks/useLichessAuth';
+import { Link } from 'react-router-dom';
 
 const HAS_CURATED = CURATED_STUDIES.length > 0;
 
@@ -32,6 +34,7 @@ const HAS_CURATED = CURATED_STUDIES.length > 0;
 export function OpeningsPage() {
   const [params, setParams] = useSearchParams();
   const { studies, loading, remove } = useStudies();
+  const lichess = useLichessAuth();
 
   const studyId = params.get('study');
   const curatedKey = params.get('curated');
@@ -205,7 +208,7 @@ export function OpeningsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Openings</h1>
+        <h1 className="text-xl font-semibold">Study with Elle</h1>
         <p className="text-sm text-ink-500 dark:text-ink-400">
           Search the starter catalog or paste a Lichess study URL to import.
         </p>
@@ -249,8 +252,27 @@ export function OpeningsPage() {
         </a>
       </div>
 
+      {/* No-token cross-link to Settings. Lichess Explorer + private-study
+          import unlock once the user pastes a personal token. Surfaced
+          here so the user finds it without digging through Settings. */}
+      {!lichess.loading && !lichess.hasToken && (
+        <div className="card flex items-center gap-3 border-l-4 border-l-secondary px-3 py-2 text-xs text-muted">
+          <span aria-hidden className="text-secondary">ℹ</span>
+          <span className="flex-1">
+            Add a Lichess token for richer opening data (master-game stats, popular
+            continuations, private study import).
+          </span>
+          <Link
+            to="/settings#lichess"
+            className="shrink-0 font-medium text-secondary hover:underline"
+          >
+            Settings →
+          </Link>
+        </div>
+      )}
+
       {nothingMatched && (
-        <div className="card border-dashed px-3 py-3 text-xs text-ink-600 dark:text-ink-300">
+        <div className="card border-dashed px-3 py-3 text-xs text-muted">
           No matches in your library or the starter catalog for “{searchText}”.
           {' '}
           <a

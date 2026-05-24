@@ -128,10 +128,10 @@ function MoveCell({ move, isActive, onClick, activeRef, placeholder, klass }: Mo
       ref={isActive ? activeRef : null}
       type="button"
       onClick={onClick}
-      className={`flex h-11 items-center gap-1 rounded border-l-[3px] px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
+      className={`flex h-11 cursor-pointer items-center gap-1 rounded border-l-[3px] px-2 py-0.5 text-left font-mono text-[13px] transition-colors ${
         isActive
-          ? 'border-l-accent bg-accent/10 font-bold text-ink-900 dark:text-ink-100'
-          : 'border-l-transparent hover:bg-ink-200 dark:hover:bg-ink-700'
+          ? 'border-l-accent bg-accent-soft font-bold text-primary'
+          : 'border-l-transparent text-primary hover:bg-surface-2'
       }`}
       aria-current={isActive ? 'true' : undefined}
       title={style ? style.label : undefined}

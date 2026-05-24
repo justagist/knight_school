@@ -1,17 +1,19 @@
 import { useState, type ReactNode } from 'react';
 import { useChatHost } from '../chat/ChatHost';
 
-export type MobileTabKey = 'moves' | 'engine' | 'graph' | 'chat';
+export type AnalysisTabKey = 'moves' | 'engine' | 'graph' | 'chat';
 
-interface MobileAnalysisTabsProps {
+interface AnalysisTabsProps {
   /** Tab content map. Each entry rendered only when its tab is active. */
-  panels: Partial<Record<MobileTabKey, ReactNode>>;
+  panels: Partial<Record<AnalysisTabKey, ReactNode>>;
   /** Optional label suffixes / counts shown next to the tab name. */
-  badges?: Partial<Record<MobileTabKey, string>>;
-  initialTab?: MobileTabKey;
+  badges?: Partial<Record<AnalysisTabKey, string>>;
+  initialTab?: AnalysisTabKey;
+  /** Extra classes for the section wrapper (lets the caller size the column). */
+  className?: string;
 }
 
-const TAB_ORDER: { key: MobileTabKey; label: string }[] = [
+const TAB_ORDER: { key: AnalysisTabKey; label: string }[] = [
   { key: 'moves', label: 'Moves' },
   { key: 'engine', label: 'Engine' },
   { key: 'graph', label: 'Graph' },
@@ -19,31 +21,32 @@ const TAB_ORDER: { key: MobileTabKey; label: string }[] = [
 ];
 
 /**
- * Mobile-only tab switcher for the Analyze view's secondary content. Below
- * `lg`, the screen collapses to: header → board → controls → CTA → these
- * tabs. The tabs replace the desktop side panel + the long stack of cards
- * below the board.
+ * Tab switcher for the Analyze view's secondary content. Used on every
+ * viewport — mobile stacks it below the board, desktop places it as the
+ * right column. Replaces the old "long stack of cards below the board"
+ * pattern.
  *
  * The Chat tab is a thin trigger that opens the global chat panel via the
- * ChatHost — the full inline chat content lands in the chat overhaul
- * (section 3). Section 2 keeps the tab switcher self-contained.
+ * ChatHost. Full inline chat content lands later — for now we still surface
+ * the tab so the layout maps 1:1 with the spec.
  */
-export function MobileAnalysisTabs({
+export function AnalysisTabs({
   panels,
   badges,
   initialTab = 'moves',
-}: MobileAnalysisTabsProps) {
-  const [tab, setTab] = useState<MobileTabKey>(initialTab);
+  className = '',
+}: AnalysisTabsProps) {
+  const [tab, setTab] = useState<AnalysisTabKey>(initialTab);
   const chatHost = useChatHost();
 
   const visibleTabs = TAB_ORDER.filter((t) => t.key === 'chat' || panels[t.key] !== undefined);
 
   return (
-    <section className="card overflow-hidden lg:hidden">
+    <section className={`card flex flex-col overflow-hidden ${className}`}>
       <div
         role="tablist"
         aria-label="Analysis tabs"
-        className="flex border-b border-ink-200 bg-ink-50/60 dark:border-ink-800 dark:bg-ink-900/60"
+        className="flex shrink-0 border-b border-border bg-surface-2/60"
       >
         {visibleTabs.map((t) => {
           const active = tab === t.key;
@@ -55,9 +58,6 @@ export function MobileAnalysisTabs({
               aria-selected={active}
               onClick={() => {
                 if (t.key === 'chat') {
-                  // Chat tab routes to the chat panel — inline content lands
-                  // in the chat overhaul. For now we still surface the tab
-                  // so the layout maps 1:1 with the spec.
                   chatHost.setOpen(true);
                   return;
                 }
@@ -65,13 +65,13 @@ export function MobileAnalysisTabs({
               }}
               className={`flex h-11 flex-1 items-center justify-center gap-1 px-2 text-xs font-medium transition-colors ${
                 active
-                  ? 'border-b-2 border-accent text-accent'
-                  : 'text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-ink-100'
+                  ? 'border-b-2 border-accent font-semibold text-accent'
+                  : 'text-muted hover:bg-surface-2 hover:text-primary'
               }`}
             >
               <span>{t.label}</span>
               {badges?.[t.key] && (
-                <span className="rounded bg-ink-200 px-1 py-0.5 text-[10px] font-mono tabular-nums text-ink-600 dark:bg-ink-800 dark:text-ink-300">
+                <span className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[10px] tabular-nums text-muted">
                   {badges[t.key]}
                 </span>
               )}
@@ -79,9 +79,12 @@ export function MobileAnalysisTabs({
           );
         })}
       </div>
-      <div role="tabpanel" className="min-h-[280px]">
+      <div role="tabpanel" className="min-h-[280px] flex-1 overflow-y-auto">
         {tab !== 'chat' && panels[tab]}
       </div>
     </section>
   );
 }
+
+// Backwards-compatible export name — old callers used `MobileAnalysisTabs`.
+export { AnalysisTabs as MobileAnalysisTabs };

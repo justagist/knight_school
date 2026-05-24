@@ -49,11 +49,20 @@ export function SettingsAccordion({
           </span>
         </div>
       </button>
-      {open && (
-        <div id={bodyId} className="border-t border-border p-4">
-          {children}
+      {/* `grid-rows` open/close trick — animates max-content height to 0
+          via the 0fr → 1fr grid track, without measuring child heights in
+          JS. 200ms ease-in-out per spec. */}
+      <div
+        id={bodyId}
+        className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-in-out ${
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+        aria-hidden={!open}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border p-4">{children}</div>
         </div>
-      )}
+      </div>
     </section>
   );
 }

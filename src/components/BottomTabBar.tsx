@@ -29,14 +29,20 @@ export function BottomTabBar() {
   const tabs: TabDef[] = [
     {
       to: '/',
-      label: 'Analyze',
+      label: 'Home',
       end: true,
+      outline: <HomeIcon filled={false} />,
+      filled: <HomeIcon filled />,
+    },
+    {
+      to: '/analyze',
+      label: 'Analyze',
       outline: <BoardIcon filled={false} />,
       filled: <BoardIcon filled />,
     },
     {
-      to: '/openings',
-      label: 'Openings',
+      to: '/study',
+      label: 'Study',
       outline: <BookIcon filled={false} />,
       filled: <BookIcon filled />,
     },
@@ -57,11 +63,11 @@ export function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 left-0 right-0 z-30 border-t border-ink-200 bg-ink-50/95 backdrop-blur md:hidden dark:border-ink-800 dark:bg-ink-950/95"
+      className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-surface-1/95 backdrop-blur md:hidden"
       // Account for the home-indicator on iOS so labels aren't covered.
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {tabs.map((t) => (
           <li key={t.to}>
             <NavLink
@@ -92,6 +98,24 @@ export function BottomTabBar() {
 /* --- Icons. Single SVG sized at 22×22 with stroke or fill controlled by
        the `filled` prop. Outline icons use stroke-only paths; filled
        variants use the same path with fill. --- */
+
+function HomeIcon({ filled }: { filled: boolean }) {
+  // Classic house silhouette — sized + stroked to match the other tab icons.
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 10.5 12 3.5l8.5 7v9a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6h-4a1.5 1.5 0 0 1-1.5-1.5z" />
+    </svg>
+  );
+}
 
 function BoardIcon({ filled }: { filled: boolean }) {
   // A simplified 3x3 chess board grid — recognisable at small sizes.
