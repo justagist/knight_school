@@ -37,7 +37,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'robots.txt'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,wasm,nnue,mp3,ogg,json}'],
         maximumFileSizeToCacheInBytes: 50 * 1024 * 1024,
@@ -77,16 +77,22 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: '/icon-192.svg',
+            src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable',
           },
           {
             src: '/icon-512.svg',
             sizes: '512x512',
             type: 'image/svg+xml',
-            purpose: 'any maskable',
+            purpose: 'any',
           },
         ],
       },

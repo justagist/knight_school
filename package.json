@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "release": "standard-version",
     "copy-engine": "node scripts/copy-engine.js",
+    "build-icons": "node scripts/build-icons.mjs",
     "postinstall": "node scripts/copy-engine.js"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
     "eslint-plugin-react-refresh": "^0.4.11",
     "postcss": "^8.4.45",
     "prettier": "^3.3.3",
+    "sharp": "^0.34.5",
     "standard-version": "^9.5.0",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.5.4",
