@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js';
 import { db, type DrillAttemptRow, type DrillLineRow, type StudyRow } from './db';
 import { parsePgn } from '../lib/pgn';
+import { moveToUci } from '../lib/moveToUci';
 
 /** Stable composite id for a (study, chapter, side) drill line. */
 export function drillLineId(
@@ -29,7 +30,7 @@ export async function ensureDrillLine(
   const existing = await db().drillLines.get(id);
 
   const parsed = parsePgn(chapter.pgn);
-  const uciMoves = parsed.moves.map((m) => `${m.from}${m.to}`);
+  const uciMoves = parsed.moves.map(moveToUci);
 
   const row: DrillLineRow = {
     id,

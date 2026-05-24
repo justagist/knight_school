@@ -7,6 +7,7 @@ import { EngineLines } from '../components/EngineLines';
 import { EvalGraph } from '../components/EvalGraph';
 import { CopyButton } from '../components/CopyButton';
 import { gameLabel } from '../lib/pgn';
+import { moveToUci } from '../lib/moveToUci';
 import { useGame } from './useGame';
 import { useEngine } from '../engine/useEngine';
 import { useGameAnalysis } from '../analysis/useGameAnalysis';
@@ -88,7 +89,7 @@ export function AnalyzeView() {
       ? {
           label: `${playedMove.moveNumber}${playedMove.color === 'w' ? '.' : '...'}`,
           san: playedMove.san,
-          uci: `${playedMove.from}${playedMove.to}`,
+          uci: moveToUci(playedMove),
           color: playedMove.color,
           moveNumber: playedMove.moveNumber,
           classification: analysis.result.classifications[g.ply - 1] ?? undefined,
@@ -537,7 +538,7 @@ export function AnalyzeView() {
               <MoveCommentary
                 visible
                 fenBefore={fenBefore}
-                uciMove={`${move.from}${move.to}`}
+                uciMove={moveToUci(move)}
                 sanMove={move.san}
                 evalBefore={analysis.result.evals[g.ply - 1] ?? undefined}
                 evalAfter={analysis.result.evals[g.ply] ?? undefined}

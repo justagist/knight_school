@@ -9,6 +9,7 @@ import { getLichessToken } from '../db/lichessAuth';
 import { classifyFromCachedRows, type MoveClass } from './classify';
 import { terminalEvalRow } from './terminal';
 import type { ParsedGame } from '../lib/pgn';
+import { moveToUci } from '../lib/moveToUci';
 import type { PositionEvalRow, ExplorerEntryRow } from '../db/db';
 
 /**
@@ -357,7 +358,7 @@ export function useGameAnalysis(
       const before = evals[idx];
       const after = evals[idx + 1];
       if (!before || !after) return null;
-      const playedUci = `${mv.from}${mv.to}`;
+      const playedUci = moveToUci(mv);
       const explorerBefore = explorerByFen[normalizeFenForExplorer(game.fens[idx])];
       return classifyFromCachedRows(before, after, playedUci, idx, explorerBefore);
     });

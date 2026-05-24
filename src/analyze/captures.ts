@@ -59,7 +59,7 @@ export function summarizeCaptures(
   for (let i = 0; i < ply && i < game.moves.length; i++) {
     const m = game.moves[i];
     try {
-      const result = chess.move({ from: m.from, to: m.to });
+      const result = chess.move({ from: m.from, to: m.to, promotion: m.promotion });
       if (result?.captured) record(result.color, result.captured);
     } catch {
       // chess.js rejected — shouldn't happen for replay of a parsed game.

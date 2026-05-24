@@ -11,6 +11,8 @@ export interface ParsedMove {
   from: string;
   /** To square in algebraic notation, e.g. "f3" */
   to: string;
+  /** Promotion piece letter ('q' | 'r' | 'b' | 'n'), if applicable. */
+  promotion?: string;
   /** FEN of the position AFTER this move was played */
   fenAfter: string;
 }
@@ -150,6 +152,7 @@ export function parsePgn(pgn: string): ParsedGame {
       san: m.san,
       from: m.from,
       to: m.to,
+      promotion: m.promotion,
       fenAfter,
     });
     fens.push(fenAfter);

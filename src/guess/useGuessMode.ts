@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import { addGuess, getGameStats, getOverallStats, type GuessStats } from '../db/guess';
 import { pgnHash } from '../db/chat';
 import type { ParsedGame } from '../lib/pgn';
+import { moveToUci } from '../lib/moveToUci';
 import type { PositionEvalRow } from '../db/db';
 
 export type GuessMode = 'off' | 'guessing' | 'revealed';
@@ -99,7 +100,7 @@ export function useGuessMode(args: UseGuessModeArgs): UseGuessModeReturn {
   const expectedMove = useMemo(() => {
     if (!game || ply >= game.moves.length) return null;
     const m = game.moves[ply];
-    return { san: m.san, uci: `${m.from}${m.to}` };
+    return { san: m.san, uci: moveToUci(m) };
   }, [game, ply]);
 
   // Reset transient state when the game or ply changes externally.
@@ -170,7 +171,7 @@ export function useGuessMode(args: UseGuessModeArgs): UseGuessModeReturn {
       }
 
       const playedMove = game.moves[ply];
-      const playedUci = `${playedMove.from}${playedMove.to}`;
+      const playedUci = moveToUci(playedMove);
       const engineBestUci = evals[ply]?.bestUci;
       let engineBestSan: string | undefined;
       if (engineBestUci) {
