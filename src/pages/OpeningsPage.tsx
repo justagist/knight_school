@@ -395,7 +395,7 @@ export function OpeningsPage() {
         <a
           href={lichessSearchUrl}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="btn-secondary text-xs"
           title={
             queryActive
@@ -435,7 +435,7 @@ export function OpeningsPage() {
           <a
             href={lichessSearchUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="text-accent hover:underline"
           >
             Search Lichess for “{searchText}” ↗

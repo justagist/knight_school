@@ -218,7 +218,7 @@ export function StudyViewer({
             <a
               href={`https://lichess.org/study/${study.id}`}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="hover:underline"
             >
               lichess.org/study/{study.id}

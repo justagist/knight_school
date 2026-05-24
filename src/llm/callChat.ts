@@ -104,10 +104,12 @@ export async function callChat(args: CallChatArgs): Promise<CallChatOutcome> {
   }
 
   // All retryable errors. Surface the most recent one with context so the
-  // user knows the entire pool was rate-limited (not just one key).
+  // user knows the entire pool was rate-limited (not just one key). The
+  // aggregate is itself NOT retryable — there is nothing further to fall
+  // back to. A caller looping on `retryable` would loop forever.
   const last = attempted[attempted.length - 1];
   throw new LLMError(
     `All ${candidates.length} ${provider.displayName} key(s) rate-limited. Last error: ${last?.error ?? 'unknown'}`,
-    { retryable: true, status: 429 },
+    { retryable: false, status: 429 },
   );
 }

@@ -10,7 +10,7 @@ import {
   listMessages,
   pgnHash,
 } from '../db/chat';
-import { getLlmGlobal } from '../db/apiKeys';
+import { getLlmGlobal, subscribeLlmChanges } from '../db/apiKeys';
 import type { ChatMessageRow, ChatThreadRow, LlmProviderId } from '../db/db';
 
 export interface SendOptions {
@@ -81,16 +81,24 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
   }, [screen.kind, screen.gameLabel, rawPgn]);
 
   // Track current active provider so the panel header can display it.
+  // Refresh on the explicit `ks-llm-changed` event rather than on every
+  // keystroke / send — the previous [messages, sending] deps re-read
+  // Dexie on every input change.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const read = async () => {
       const g = await getLlmGlobal();
       if (!cancelled) setActiveProvider(g?.activeProvider ?? null);
-    })();
+    };
+    void read();
+    const unsubscribe = subscribeLlmChanges(() => {
+      void read();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [messages, sending]); // refresh whenever something changed (cheap, single row)
+  }, []);
 
   const send = useCallback(
     async (text: string, options?: SendOptions) => {

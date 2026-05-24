@@ -113,7 +113,7 @@ function CatalogCard({ entry, imported, onOpen }: CardProps) {
           <a
             href={`https://lichess.org/study/${entry.studyId}`}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="hover:underline"
           >

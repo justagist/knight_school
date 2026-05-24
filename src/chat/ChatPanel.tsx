@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ChatMessageRow } from '../db/db';
 import { useChatScreen } from './ChatContextProvider';
 import { useChat } from './useChat';
@@ -28,6 +29,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const { screen } = useChatScreen();
   const chat = useChat({ screen, rawPgn });
   const online = useOnline();
+  const navigate = useNavigate();
   const [draft, setDraft] = useState('');
   // Web search is opt-in per message. Resets to off after each send so users
   // can't accidentally web-search every future message; they have to flip
@@ -132,7 +134,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted hover:text-primary"
                 title="No LLM provider configured. Tap to set one up."
                 onClick={() => {
-                  window.location.assign('/settings');
+                  navigate('/settings');
                 }}
               >
                 <span aria-hidden>🔍</span>
@@ -144,7 +146,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted hover:text-primary"
                 title="The current provider doesn't expose a web-search tool. Tap to open Settings and switch providers."
                 onClick={() => {
-                  window.location.assign('/settings');
+                  navigate('/settings');
                 }}
               >
                 <span aria-hidden>🔍</span>
@@ -367,7 +369,7 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
                     href={c.url}
                     className="text-secondary hover:underline"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     {c.title || c.url}
                   </a>

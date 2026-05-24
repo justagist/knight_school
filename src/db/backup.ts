@@ -49,6 +49,12 @@ export async function importFromBlob(blob: Blob): Promise<void> {
     overwriteValues: true,
     clearTablesBeforeImport: true,
   });
+  // Re-imported data wholesale — every event-driven view needs to re-pull.
+  // Without these the library / queue / plan render the post-clear empty
+  // state until the user reloads, which looks like a failed import.
+  window.dispatchEvent(new Event('ks-studies-changed'));
+  window.dispatchEvent(new Event('ks-drills-changed'));
+  window.dispatchEvent(new Event('ks-plan-changed'));
 }
 
 /** Used by the future "ABOUT" surface in case we want to display this. */

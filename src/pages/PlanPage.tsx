@@ -578,7 +578,7 @@ function ItemRow({
     <a
       href={item.linkExternal}
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       className="block truncate text-secondary hover:underline"
       title={item.label}
     >

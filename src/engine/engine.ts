@@ -84,6 +84,12 @@ export function createEngine(): EngineHandle {
     if (m.type === 'ready') {
       readyResolved = true;
       readyResolve?.();
+      // Boot succeeded — drop the boot watchdog so the no-op timer
+      // doesn't sit pending for 20s.
+      if (watchdogId !== null) {
+        clearTimeout(watchdogId);
+        watchdogId = null;
+      }
       return;
     }
     if (m.type === 'error') {
@@ -122,7 +128,10 @@ export function createEngine(): EngineHandle {
   worker.postMessage({ type: 'init' });
 
   // Watchdog: if ready hasn't fired in 20s, assume init is stuck and surface that.
-  const watchdogId = setTimeout(() => {
+  // Cleared on `ready` so a successful boot doesn't leave the timer
+  // pending for the rest of the page lifetime.
+  let watchdogId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+    watchdogId = null;
     if (!readyResolved) {
       readyResolved = true;
       const msg = lastFatalError ?? 'engine did not initialize within 20s (no error reported)';
@@ -251,7 +260,10 @@ export function createEngine(): EngineHandle {
 
   function destroy() {
     if (!worker) return;
-    clearTimeout(watchdogId);
+    if (watchdogId !== null) {
+      clearTimeout(watchdogId);
+      watchdogId = null;
+    }
     // If destroy fires before init, resolve the readyPromise so the .catch
     // attached by useEngine doesn't surface a misleading "did not initialize"
     // error from a now-orphaned engine instance.

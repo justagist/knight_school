@@ -18,7 +18,7 @@ export function Footer() {
             className="underline-offset-2 hover:text-primary hover:underline"
             href="https://github.com/justagist/knight_school"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             source
           </a>

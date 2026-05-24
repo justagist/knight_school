@@ -91,7 +91,7 @@ export function LlmSection() {
             className="underline-offset-2 hover:underline"
             href={info.apiKeyUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             Get a key →
           </a>

@@ -11,6 +11,19 @@ import {
   updateSessionKey,
 } from '../llm/sessionKeyStore';
 
+/** Fired when any LLM-key / provider-config mutation lands so views can
+ *  refresh without per-keystroke polling. */
+export const LLM_CHANGED_EVENT = 'ks-llm-changed';
+
+function notifyLlmChanged(): void {
+  window.dispatchEvent(new Event(LLM_CHANGED_EVENT));
+}
+
+export function subscribeLlmChanges(listener: () => void): () => void {
+  window.addEventListener(LLM_CHANGED_EVENT, listener);
+  return () => window.removeEventListener(LLM_CHANGED_EVENT, listener);
+}
+
 export interface NewApiKey {
   provider: LlmProviderId;
   label: string;
@@ -50,6 +63,7 @@ export async function addApiKey(input: NewApiKey): Promise<ApiKeyRow> {
         fallbackEnabled: persistent?.fallbackEnabled ?? true,
       });
     }
+    notifyLlmChanged();
     return row;
   }
   await db().transaction('rw', db().apiKeys, db().providerConfig, async () => {
@@ -65,6 +79,7 @@ export async function addApiKey(input: NewApiKey): Promise<ApiKeyRow> {
       await db().providerConfig.put({ ...cfg, activeKeyId: row.id });
     }
   });
+  notifyLlmChanged();
   return row;
 }
 
@@ -72,8 +87,12 @@ export async function updateApiKey(
   id: string,
   patch: Partial<Pick<ApiKeyRow, 'label' | 'apiKey' | 'model'>>,
 ): Promise<void> {
-  if (updateSessionKey(id, patch)) return;
+  if (updateSessionKey(id, patch)) {
+    notifyLlmChanged();
+    return;
+  }
   await db().apiKeys.update(id, patch);
+  notifyLlmChanged();
 }
 
 /**
@@ -81,7 +100,10 @@ export async function updateApiKey(
  * (UI surfaces the "no key configured" state — user can pick another).
  */
 export async function deleteApiKey(id: string): Promise<void> {
-  if (deleteSessionKey(id)) return;
+  if (deleteSessionKey(id)) {
+    notifyLlmChanged();
+    return;
+  }
   await db().transaction('rw', db().apiKeys, db().providerConfig, async () => {
     const row = await db().apiKeys.get(id);
     if (!row) return;
@@ -94,6 +116,7 @@ export async function deleteApiKey(id: string): Promise<void> {
       await db().providerConfig.put({ ...cfg, activeKeyId: nextActive });
     }
   });
+  notifyLlmChanged();
 }
 
 export async function setActiveKey(
@@ -109,6 +132,7 @@ export async function setActiveKey(
       activeKeyId: keyId,
       fallbackEnabled: persistent?.fallbackEnabled ?? true,
     });
+    notifyLlmChanged();
     return;
   }
   const cfg = (await db().providerConfig.get(provider)) ?? {
@@ -122,6 +146,7 @@ export async function setActiveKey(
   if (session) {
     setSessionProviderConfig({ ...session, activeKeyId: null });
   }
+  notifyLlmChanged();
 }
 
 export async function setFallbackEnabled(
@@ -134,10 +159,12 @@ export async function setFallbackEnabled(
     fallbackEnabled: true,
   };
   await db().providerConfig.put({ ...cfg, fallbackEnabled: enabled });
+  notifyLlmChanged();
 }
 
 export async function setActiveProvider(provider: LlmProviderId | null): Promise<void> {
   await db().llmGlobal.put({ id: 'singleton', activeProvider: provider });
+  notifyLlmChanged();
 }
 
 export async function getAllApiKeys(): Promise<ApiKeyRow[]> {
@@ -209,7 +236,9 @@ export async function recordKeyTest(
   const session = getSessionKey(id);
   if (session) {
     putSessionKey({ ...session, ...patch });
+    notifyLlmChanged();
     return;
   }
   await db().apiKeys.update(id, patch);
+  notifyLlmChanged();
 }

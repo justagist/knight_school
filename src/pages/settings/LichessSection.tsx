@@ -56,7 +56,7 @@ export function LichessSection() {
           className="underline-offset-2 hover:underline"
           href="https://lichess.org/account/oauth/token/create"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
         >
           Create a personal access token →
         </a>{' '}
