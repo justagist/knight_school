@@ -130,30 +130,79 @@ We tried it. The first version of the classifier used CP-loss thresholds (≥300
 ## Local dev setup
 
 ```sh
-npm install
-npm run dev       # http://localhost:5173 with COOP/COEP headers preset
+# Node 20 or newer is required (package.json `engines.node`). An .nvmrc
+# pins to 22 — if you use nvm, `nvm use` picks it up. On Node 18 the
+# postinstall step + the chessops imports will fail with cryptic
+# top-level-await / native-fetch errors.
+nvm use            # picks up .nvmrc
+npm install        # postinstall copies Stockfish into public/engine/
+npm run dev        # http://localhost:5173 with COOP/COEP headers preset
 ```
+
+### Smoke test (after a fresh clone)
+
+```sh
+git clone https://github.com/justagist/knight_school /tmp/ks-smoke
+cd /tmp/ks-smoke
+nvm use
+npm install            # ~2s; ~750 packages; postinstall logs three
+                       # `[copy-engine] …` lines
+npm run build          # ✓ built in ~3s; PWA precache 22 entries
+npm run serve          # serves dist/ on :8080 with COOP/COEP/CORP/
+                       # X-Content-Type-Options. Open in a browser
+                       # with DevTools Network tab and confirm
+                       # `Cross-Origin-Opener-Policy: same-origin` on
+                       # the index.html response — required for
+                       # multi-threaded Stockfish.
+```
+
+`npm run dev` and `npm run serve` set the COOP/COEP/CORP headers
+Stockfish needs. They do **not** set the strict CSP from
+`public/_headers` — that's Cloudflare-Pages-only. If you need to
+test CSP locally, run `npx wrangler pages dev dist/` instead of
+`npm run serve`.
 
 ## Project structure
 
-```
+```text
 knight_school/
-├── public/              # static assets, _headers, _redirects, PWA icons
-├── scripts/serve.js     # local static server with COOP/COEP for testing dist/
+├── public/              # static assets, _headers, _redirects, PWA icons,
+│                        #   /engine/* Stockfish workers, /theme-init.js
+├── scripts/
+│   ├── serve.js         # local static server with COOP/COEP for dist/
+│   ├── build-icons.mjs  # raster icon-512.svg → 180/192/512 PNGs
+│   ├── build-eco.mjs    # rebuilds src/data/eco.json from lichess-org/chess-openings
+│   ├── check-flex.mjs   # audit Tailwind flex/grid utilities without a display class
+│   └── copy-engine.js   # postinstall: copies Stockfish from node_modules
 ├── src/
 │   ├── App.tsx
 │   ├── main.tsx
-│   ├── components/      # shared UI (Header, Footer, UpdatePrompt, ...)
-│   ├── pages/           # one component per route
-│   ├── theme/           # ThemeProvider (light/dark/system)
-│   └── styles/          # global Tailwind entry + tokens
+│   ├── analyze/         # AnalyzeView + game state + classification overlay
+│   ├── analysis/        # full-game analysis pipeline + classifier
+│   ├── chat/            # ChatHost, ChatPanel, useChat, ChatContextProvider
+│   ├── components/      # shared UI (Board, Header, BottomTabBar, EvalBar, OfflineBanner, ...)
+│   ├── data/            # bundled ECO opening database
+│   ├── db/              # Dexie schema + per-table CRUD facades
+│   ├── drill/           # per-chapter + mixed/spot drill state machines
+│   ├── engine/          # Stockfish handle + UCI state machine
+│   ├── explorer/        # Lichess Masters DB client
+│   ├── guess/           # guess-the-move state + persistence
+│   ├── lessons/         # Lichess Study import + viewer
+│   ├── lib/             # shared helpers (pgn, moveToUci, safeUrl, uuid)
+│   ├── llm/             # provider adapters + chat call + session key store
+│   ├── pages/           # one component per route + per-section settings panels
+│   ├── plan/            # Step 9 goals + weekly template + week helpers
+│   ├── settings/        # SettingsProvider + theme tokens
+│   ├── sounds/          # move/capture/check/game-end audio
+│   ├── styles/          # global Tailwind entry + board.css
+│   └── theme/           # ThemeProvider (light/dark/system)
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
-└── tsconfig.json
+├── tsconfig.json
+├── SPEC.md              # canonical product + architecture spec
+└── DEVELOPMENT.md
 ```
-
-More directories arrive as later build steps land (`engine/`, `analysis/`, `llm/`, `db/`, `openings/`, `plan/`, `chat/`).
 
 ## Build / test / release workflow
 
