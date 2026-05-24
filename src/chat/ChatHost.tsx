@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { ChatPanel } from './ChatPanel';
 import { FloatingChatButton } from './FloatingChatButton';
 import { ChatContextProvider } from './ChatContextProvider';
@@ -35,34 +35,39 @@ export function ChatHost({ children }: { children: ReactNode }) {
   const [warningVisible, setWarningVisible] = useState(false);
   const drill = useDrillContext();
 
-  const requestOpen = (next: boolean) => {
-    if (!next) {
-      setOpen(false);
-      return;
-    }
-    // Trying to open chat. If a drill is active and the user hasn't yet
-    // acknowledged the warning for this attempt, show the modal.
-    if (drill.active && !drill.warningAcknowledged) {
-      setWarningVisible(true);
-      return;
-    }
-    setOpen(true);
-  };
+  const requestOpen = useCallback(
+    (next: boolean) => {
+      if (!next) {
+        setOpen(false);
+        return;
+      }
+      // Trying to open chat. If a drill is active and the user hasn't yet
+      // acknowledged the warning for this attempt, show the modal.
+      if (drill.active && !drill.warningAcknowledged) {
+        setWarningVisible(true);
+        return;
+      }
+      setOpen(true);
+    },
+    [drill.active, drill.warningAcknowledged],
+  );
 
-  const confirmAndOpen = () => {
+  const confirmAndOpen = useCallback(() => {
     drill.acknowledgeAndInvalidate();
     setWarningVisible(false);
     setOpen(true);
-  };
+  }, [drill]);
 
-  const cancelWarning = () => setWarningVisible(false);
+  const cancelWarning = useCallback(() => setWarningVisible(false), []);
 
+  // Drill-state inputs are reflected via requestOpen's deps so the
+  // exported `setOpen` always reads the latest invalidation state.
+  // Previously the memo only tracked `open`, leaving consumers with a
+  // stale closure that skipped the invalidation warning after the
+  // drill flipped active.
   const value = useMemo<ChatHostValue>(
     () => ({ open, setOpen: requestOpen, setRawPgn }),
-    // requestOpen is intentionally rebuilt each render — it closes over
-    // current drill state, which we want fresh on every click.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open],
+    [open, requestOpen],
   );
 
   return (
