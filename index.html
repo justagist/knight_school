@@ -15,17 +15,9 @@
     <title>KnightSchool — Chess made easy.</title>
     <meta name="description" content="KnightSchool: learn chess with engine analysis, opening drills, and Elle, your AI chess assistant. Everything runs in your browser." />
 
-    <!-- Prevent FOUC on theme: set html.dark before paint -->
-    <script>
-      (function () {
-        try {
-          var stored = localStorage.getItem('ks-theme');
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var dark = stored === 'dark' || (stored !== 'light' && prefersDark);
-          if (dark) document.documentElement.classList.add('dark');
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Prevent FOUC on theme: set html.dark before paint. External so a
+         strict CSP without 'unsafe-inline' in script-src still allows it. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body class="bg-ink-50 text-ink-900 dark:bg-ink-950 dark:text-ink-100">
     <div id="root"></div>
