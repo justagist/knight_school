@@ -25,9 +25,11 @@ export interface MixedDrillState {
    *                screen and the user must tap "Next spot" to continue.
    * - `wrong`    — free-mode end-of-drill failure card.
    * - `complete` — drill finished (target reached or pool exhausted).
-   * - `aborted`  — user exited mid-drill.
+   *
+   * Exiting mid-drill is intentionally not recorded as an attempt — the
+   * caller just unmounts. No 'aborted' terminal state.
    */
-  status: 'playing' | 'feedback' | 'wrong' | 'complete' | 'aborted';
+  status: 'playing' | 'feedback' | 'wrong' | 'complete';
   fen: string;
   awaitingUser: boolean;
   /** How many user moves the user has played correctly. */
@@ -113,7 +115,6 @@ export function useMixedDrill({
    *  warning modal when the user opens chat mid-drill. */
   invalidate: () => void;
   retry: () => void;
-  abort: () => void;
   /** All entries in the pool that are spot-position candidates (used by the
    *  modal's "no spots available" empty state). */
   spotCount: number;
@@ -451,25 +452,7 @@ export function useMixedDrill({
     setState(initialState({ startingFens, target: length, userSide, spotPositions, mode }));
   }, [startingFens, length, userSide, spotPositions, mode]);
 
-  const abort = useCallback(() => {
-    if (persistedRef.current) {
-      setState((s) => ({ ...s, status: 'aborted' }));
-      return;
-    }
-    persistedRef.current = true;
-    void recordDrillAttempt({
-      id: attemptIdRef.current,
-      startedAt: startedAtRef.current,
-      endedAt: Date.now(),
-      result: 'fail',
-      variant: 'board',
-      invalidated: stateRef.current.invalidated,
-      mode: mode === 'spot' ? 'spot' : 'mixed',
-    });
-    setState((s) => ({ ...s, status: 'aborted' }));
-  }, [mode]);
-
-  return { state, submitMove, next, invalidate, retry, abort, spotCount: spotPositions.length };
+  return { state, submitMove, next, invalidate, retry, spotCount: spotPositions.length };
 }
 
 function initialState(args: {

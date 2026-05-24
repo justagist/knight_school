@@ -8,7 +8,7 @@ import {
   recordDrillAttempt,
 } from '../db/drillLines';
 
-export type DrillStatus = 'playing' | 'feedback' | 'wrong' | 'complete' | 'aborted';
+export type DrillStatus = 'playing' | 'feedback' | 'wrong' | 'complete';
 export type DrillVariant = 'board' | 'guess';
 
 export interface DrillWrongDetails {
@@ -54,8 +54,6 @@ export interface UseDrillReturn {
   next: () => void;
   /** Restart the drill from ply 0. */
   retry: () => void;
-  /** Abort early — recorded as failure with no failurePly. */
-  abort: () => void;
   /** Last move played by user or app (for board highlight). */
   lastMove?: [string, string];
 }
@@ -241,32 +239,12 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
     setLastMove(undefined);
   }, []);
 
-  const abort = useCallback(() => {
-    if (persistedRef.current) {
-      setStatus('aborted');
-      return;
-    }
-    persistedRef.current = true;
-    void recordDrillAttempt({
-      id: attemptIdRef.current,
-      drillLineId: line.id,
-      startedAt: startedAtRef.current,
-      endedAt: Date.now(),
-      result: 'fail',
-      variant,
-      invalidated,
-      mode: 'chapter',
-    });
-    setStatus('aborted');
-  }, [line.id, variant, invalidated]);
-
   return {
     state: { status, ply, fen, awaitingUser, wrong, feedbackComment, invalidated, variant },
     submitMove,
     invalidate,
     next,
     retry,
-    abort,
     lastMove,
   };
 }
