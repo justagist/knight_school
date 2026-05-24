@@ -262,11 +262,10 @@ function DayColumn({
         {items.map((item) => {
           const done = completedIds.has(item.id);
           // Past-day items still uncompleted have rolled forward to
-          // today's column — render a placeholder here so the user
-          // doesn't see the same actionable row twice on screen.
-          if (past && !done) {
-            return <MovedRow key={item.id} item={item} />;
-          }
+          // today's column — hide them here entirely so the same
+          // actionable row never shows twice and the column doesn't
+          // bloat with ghost placeholders.
+          if (past && !done) return null;
           return (
             <ItemRow
               key={item.id}
@@ -333,9 +332,7 @@ function DayAccordion({
       <ul className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs">
         {items.map((item) => {
           const done = completedIds.has(item.id);
-          if (past && !done) {
-            return <MovedRow key={item.id} item={item} />;
-          }
+          if (past && !done) return null;
           return (
             <ItemRow
               key={item.id}
@@ -361,23 +358,6 @@ function DayAccordion({
   );
 }
 
-/**
- * Placeholder rendered in a past day's slot when that day's item is
- * still incomplete — the actionable copy now lives in today's
- * column via the rollover prop. Avoids showing the same item twice.
- */
-function MovedRow({ item }: { item: PlanItem }) {
-  return (
-    <li className="flex min-h-[2.75rem] items-center gap-2 rounded text-muted">
-      <span aria-hidden className="inline-block h-11 w-11 shrink-0" />
-      <span className="flex-1 truncate italic">{item.label}</span>
-      <span className="shrink-0 pr-2 text-[10px] uppercase tracking-wide text-faint">
-        moved to today
-      </span>
-    </li>
-  );
-}
-
 function ItemRow({
   item,
   checked,
@@ -391,31 +371,32 @@ function ItemRow({
   fromDay?: PlanDay;
   onToggle: () => void;
 }) {
-  const link = item.linkTo ? (
+  const labelText = item.linkExternal ? `${item.label} ↗` : item.label;
+  const labelEl = item.linkTo ? (
     <Link
       to={item.linkTo}
-      className="flex-1 truncate text-secondary hover:underline"
+      className="block truncate text-secondary hover:underline"
       title={item.label}
     >
-      {item.label}
+      {labelText}
     </Link>
   ) : item.linkExternal ? (
     <a
       href={item.linkExternal}
       target="_blank"
       rel="noreferrer"
-      className="flex-1 truncate text-secondary hover:underline"
+      className="block truncate text-secondary hover:underline"
       title={item.label}
     >
-      {item.label} ↗
+      {labelText}
     </a>
   ) : (
-    <span className="flex-1 truncate">{item.label}</span>
+    <span className="block truncate">{labelText}</span>
   );
 
   return (
     <li
-      className={`flex min-h-[2.75rem] items-center gap-2 rounded ${
+      className={`flex min-h-[2.75rem] items-start gap-1 rounded ${
         checked ? 'text-muted line-through' : ''
       } ${disabled ? 'opacity-50' : ''}`}
     >
@@ -435,12 +416,18 @@ function ItemRow({
           aria-label={item.label}
         />
       </label>
-      {link}
-      {fromDay !== undefined && (
-        <span className="shrink-0 pr-2 text-[10px] uppercase tracking-wide text-muted">
-          from {DAY_LABELS[fromDay]}
-        </span>
-      )}
+      {/* Stack label + optional "from <Day>" caption vertically so the
+          label gets the full remaining width. In a 7-column desktop
+          layout each cell is only ~140px; inline annotations truncated
+          the label down to single characters. */}
+      <div className="min-w-0 flex-1 py-2">
+        {labelEl}
+        {fromDay !== undefined && (
+          <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-muted">
+            from {DAY_LABELS[fromDay]}
+          </span>
+        )}
+      </div>
     </li>
   );
 }

@@ -32,29 +32,36 @@ export interface PlanItem {
 
 export const PUZZLE_URL = 'https://lichess.org/training';
 
-const PUZZLE_LABEL = 'Do 20 puzzles on Lichess';
+// Labels stay short so they fit inside a single 7-column-grid cell on
+// desktop (~140px wide). The card title carries the "this week"
+// framing — items don't need to repeat it.
+const PUZZLE_LABEL = '20 puzzles';
+const DRILL_LABEL = 'Drill a line';
+const ANALYZE_LABEL = 'Analyze a game';
+const LESSON_LABEL = 'Study chapter';
+const GUESS_LABEL = 'Guess-the-move';
 
 export const WEEKLY_PLAN: PlanItem[] = [
   // Monday
-  { id: 'drill-1', label: 'Drill an opening line', linkTo: '/openings', day: 0, kind: 'drill' },
+  { id: 'drill-1', label: DRILL_LABEL, linkTo: '/openings', day: 0, kind: 'drill' },
   { id: 'puzzle-mon', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 0, kind: 'puzzle' },
   // Tuesday
-  { id: 'analyze-1', label: 'Analyze a game', linkTo: '/analyze', day: 1, kind: 'analyze' },
+  { id: 'analyze-1', label: ANALYZE_LABEL, linkTo: '/analyze', day: 1, kind: 'analyze' },
   { id: 'puzzle-tue', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 1, kind: 'puzzle' },
   // Wednesday
-  { id: 'drill-2', label: 'Drill an opening line', linkTo: '/openings', day: 2, kind: 'drill' },
+  { id: 'drill-2', label: DRILL_LABEL, linkTo: '/openings', day: 2, kind: 'drill' },
   { id: 'puzzle-wed', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 2, kind: 'puzzle' },
   // Thursday
-  { id: 'analyze-2', label: 'Analyze a game', linkTo: '/analyze', day: 3, kind: 'analyze' },
+  { id: 'analyze-2', label: ANALYZE_LABEL, linkTo: '/analyze', day: 3, kind: 'analyze' },
   { id: 'puzzle-thu', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 3, kind: 'puzzle' },
   // Friday
-  { id: 'drill-3', label: 'Drill an opening line', linkTo: '/openings', day: 4, kind: 'drill' },
+  { id: 'drill-3', label: DRILL_LABEL, linkTo: '/openings', day: 4, kind: 'drill' },
   { id: 'puzzle-fri', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 4, kind: 'puzzle' },
   // Saturday
-  { id: 'lesson-1', label: 'Read a study chapter', linkTo: '/openings', day: 5, kind: 'lesson' },
+  { id: 'lesson-1', label: LESSON_LABEL, linkTo: '/openings', day: 5, kind: 'lesson' },
   { id: 'puzzle-sat', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 5, kind: 'puzzle' },
   // Sunday
-  { id: 'guess-1', label: 'Guess-the-move review', linkTo: '/analyze?guess=1', day: 6, kind: 'guess' },
+  { id: 'guess-1', label: GUESS_LABEL, linkTo: '/analyze?guess=1', day: 6, kind: 'guess' },
   { id: 'puzzle-sun', label: PUZZLE_LABEL, linkExternal: PUZZLE_URL, day: 6, kind: 'puzzle' },
 ];
 
