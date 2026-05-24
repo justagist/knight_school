@@ -68,15 +68,25 @@ export async function listDrillLinesForStudy(studyId: string): Promise<DrillLine
 }
 
 export async function deleteDrillLine(id: string): Promise<void> {
-  await db().drillLines.delete(id);
-  await db().drillAttempts.where('drillLineId').equals(id).delete();
+  // Single rw transaction so a crash between the two deletes can't
+  // leave attempts pointing at a row that no longer exists.
+  await db().transaction('rw', db().drillLines, db().drillAttempts, async () => {
+    await db().drillLines.delete(id);
+    await db().drillAttempts.where('drillLineId').equals(id).delete();
+  });
   window.dispatchEvent(new Event('ks-drills-changed'));
 }
 
 /** Wipes every drill line for a study — called when the study is removed. */
 export async function deleteDrillLinesForStudy(studyId: string): Promise<void> {
-  const rows = await db().drillLines.where('studyId').equals(studyId).toArray();
-  for (const r of rows) await deleteDrillLine(r.id);
+  await db().transaction('rw', db().drillLines, db().drillAttempts, async () => {
+    const lines = await db().drillLines.where('studyId').equals(studyId).toArray();
+    const ids = lines.map((l) => l.id);
+    if (ids.length === 0) return;
+    await db().drillLines.where('studyId').equals(studyId).delete();
+    await db().drillAttempts.where('drillLineId').anyOf(ids).delete();
+  });
+  window.dispatchEvent(new Event('ks-drills-changed'));
 }
 
 /**

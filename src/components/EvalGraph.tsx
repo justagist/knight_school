@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -19,6 +19,31 @@ interface EvalGraphProps {
 }
 
 /**
+ * recharts puts the stroke / fill we pass directly onto SVG attributes,
+ * which don't resolve CSS `var()`. Read the resolved values out of the
+ * documentElement once on mount + on theme changes so the graph stays
+ * in sync with the Slate & Amber tokens.
+ */
+function useThemeColors() {
+  const [colors, setColors] = useState({ accent: '#d97706', muted: '#94a3b8' });
+  useEffect(() => {
+    const read = () => {
+      const cs = getComputedStyle(document.documentElement);
+      const accent = cs.getPropertyValue('--accent').trim() || '#d97706';
+      const muted = cs.getPropertyValue('--text-muted').trim() || '#94a3b8';
+      setColors({ accent, muted });
+    };
+    read();
+    // ThemeProvider toggles the `dark` class on <html>, which swaps the
+    // variable values — watch the class attribute to re-resolve.
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  return colors;
+}
+
+/**
  * Vertical eval bar — visualises the full game's evaluation curve, white above
  * the midline, black below. Click any point to jump the board to that ply.
  *
@@ -26,6 +51,7 @@ interface EvalGraphProps {
  * centipawn-equivalent, clamped to ±10. Mate is plotted at the cap.
  */
 export function EvalGraph({ evals, ply, onSelectPly }: EvalGraphProps) {
+  const { accent, muted } = useThemeColors();
   const data = useMemo(() => {
     return evals.map((row, i) => ({
       ply: i,
@@ -64,8 +90,8 @@ export function EvalGraph({ evals, ply, onSelectPly }: EvalGraphProps) {
           >
             <defs>
               <linearGradient id="evalUp" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#d97706" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#d97706" stopOpacity={0.05} />
+                <stop offset="0%" stopColor={accent} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <XAxis
@@ -78,15 +104,15 @@ export function EvalGraph({ evals, ply, onSelectPly }: EvalGraphProps) {
               domain={[-10, 10]}
               hide
             />
-            <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
+            <ReferenceLine y={0} stroke={muted} strokeDasharray="2 2" />
             <ReferenceLine
               x={ply}
-              stroke="#d97706"
+              stroke={accent}
               strokeWidth={1.5}
               isFront
             />
             <Tooltip
-              cursor={{ stroke: '#d97706', strokeOpacity: 0.4 }}
+              cursor={{ stroke: accent, strokeOpacity: 0.4 }}
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
                 const p = payload[0].payload as { ply: number; eval: number | null; depth: number };
@@ -104,7 +130,7 @@ export function EvalGraph({ evals, ply, onSelectPly }: EvalGraphProps) {
             <Area
               type="monotone"
               dataKey="eval"
-              stroke="#d97706"
+              stroke={accent}
               strokeWidth={1.5}
               fill="url(#evalUp)"
               connectNulls

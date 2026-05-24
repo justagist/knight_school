@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { BottomTabBar } from './components/BottomTabBar';
@@ -10,12 +11,16 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { ChatHost, useChatHost } from './chat/ChatHost';
 import { DrillProvider } from './drill/DrillContext';
-import { HomePage } from './pages/HomePage';
-import { AnalyzePage } from './pages/AnalyzePage';
-import { OpeningsPage } from './pages/OpeningsPage';
-import { PlanPage } from './pages/PlanPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+// Each route is split into its own chunk so the main bundle doesn't
+// drag recharts (Analyze), dexie-export-import (Settings → Storage),
+// or the ECO database (Openings/Analyze) into the initial paint for
+// users landing on Home.
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const AnalyzePage = lazy(() => import('./pages/AnalyzePage').then((m) => ({ default: m.AnalyzePage })));
+const OpeningsPage = lazy(() => import('./pages/OpeningsPage').then((m) => ({ default: m.OpeningsPage })));
+const PlanPage = lazy(() => import('./pages/PlanPage').then((m) => ({ default: m.PlanPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 import './styles/board.css';
 
 export default function App() {
@@ -52,18 +57,26 @@ function AppShell() {
         }`}
       >
         <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/analyze" element={<AnalyzePage />} />
-            <Route path="/study" element={<OpeningsPage />} />
-            {/* Backward-compat: the route used to be /openings. Preserve any
-                query params (e.g. ?search=Caro-Kann from Analyze deep-links)
-                so old bookmarks + in-flight Analyze links keep working. */}
-            <Route path="/openings" element={<Navigate to="/study" replace />} />
-            <Route path="/plan" element={<PlanPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+          <Suspense
+            fallback={
+              <div className="card grid place-items-center py-16 text-sm text-muted">
+                Loading…
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/analyze" element={<AnalyzePage />} />
+              <Route path="/study" element={<OpeningsPage />} />
+              {/* Backward-compat: the route used to be /openings. Preserve any
+                  query params (e.g. ?search=Caro-Kann from Analyze deep-links)
+                  so old bookmarks + in-flight Analyze links keep working. */}
+              <Route path="/openings" element={<Navigate to="/study" replace />} />
+              <Route path="/plan" element={<PlanPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
       </main>
       <Footer />

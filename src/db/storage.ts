@@ -46,6 +46,13 @@ export async function clearAllData(): Promise<void> {
       d.guessRecords,
       d.explorerEntries,
       d.lichessAuth,
+      d.studies,
+      d.drillLines,
+      d.drillAttempts,
+      d.drillPositions,
+      d.drillSessions,
+      d.planGoals,
+      d.planChecks,
     ],
     async () => {
       await Promise.all([
@@ -59,9 +66,21 @@ export async function clearAllData(): Promise<void> {
         d.guessRecords.clear(),
         d.explorerEntries.clear(),
         d.lichessAuth.clear(),
+        d.studies.clear(),
+        d.drillLines.clear(),
+        d.drillAttempts.clear(),
+        d.drillPositions.clear(),
+        d.drillSessions.clear(),
+        d.planGoals.clear(),
+        d.planChecks.clear(),
       ]);
     },
   );
+  // Tell the rest of the app the world just changed so OpeningsPage,
+  // PlanPage, and the chat host re-pull instead of rendering stale data.
+  window.dispatchEvent(new Event('ks-studies-changed'));
+  window.dispatchEvent(new Event('ks-drills-changed'));
+  window.dispatchEvent(new Event('ks-plan-changed'));
 }
 
 /** Format bytes as a short MB / GB string for the storage indicator. */

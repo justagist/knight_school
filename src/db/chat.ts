@@ -1,11 +1,5 @@
 import { db, type ChatMessageRow, type ChatThreadRow, type MoveCommentaryRow } from './db';
-
-function uuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { uuid } from '../lib/uuid';
 
 /**
  * The general/idle chat thread has a fixed id so it persists across reloads
@@ -14,47 +8,54 @@ function uuid(): string {
 export const GENERAL_THREAD_ID = 'thread-general';
 
 /**
- * Get-or-create the general thread. Idempotent — multiple callers race-safe.
+ * Get-or-create the general thread. Idempotent under concurrent callers —
+ * the read + insert happen in one rw transaction so two opens that race
+ * can't write two rows for the same id.
  */
 export async function ensureGeneralThread(): Promise<ChatThreadRow> {
-  const existing = await db().chatThreads.get(GENERAL_THREAD_ID);
-  if (existing) return existing;
-  const now = Date.now();
-  const row: ChatThreadRow = {
-    id: GENERAL_THREAD_ID,
-    contextType: 'general',
-    title: 'Chat with Elle',
-    createdAt: now,
-    updatedAt: now,
-  };
-  await db().chatThreads.put(row);
-  return row;
+  return db().transaction('rw', db().chatThreads, async () => {
+    const existing = await db().chatThreads.get(GENERAL_THREAD_ID);
+    if (existing) return existing;
+    const now = Date.now();
+    const row: ChatThreadRow = {
+      id: GENERAL_THREAD_ID,
+      contextType: 'general',
+      title: 'Chat with Elle',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db().chatThreads.put(row);
+    return row;
+  });
 }
 
 /**
  * Get-or-create the game thread for a given game-key (PGN hash). Title
  * defaults to the supplied label (usually the game-label from gameLabel()).
+ * Same race-safety contract as ensureGeneralThread.
  */
 export async function ensureGameThread(
   contextId: string,
   title: string,
 ): Promise<ChatThreadRow> {
-  const existing = await db().chatThreads
-    .where('contextId')
-    .equals(contextId)
-    .first();
-  if (existing) return existing;
-  const now = Date.now();
-  const row: ChatThreadRow = {
-    id: `thread-game-${contextId}`,
-    contextType: 'game',
-    contextId,
-    title,
-    createdAt: now,
-    updatedAt: now,
-  };
-  await db().chatThreads.put(row);
-  return row;
+  return db().transaction('rw', db().chatThreads, async () => {
+    const existing = await db().chatThreads
+      .where('contextId')
+      .equals(contextId)
+      .first();
+    if (existing) return existing;
+    const now = Date.now();
+    const row: ChatThreadRow = {
+      id: `thread-game-${contextId}`,
+      contextType: 'game',
+      contextId,
+      title,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db().chatThreads.put(row);
+    return row;
+  });
 }
 
 export async function listMessages(threadId: string): Promise<ChatMessageRow[]> {

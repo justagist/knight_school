@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { StudyRow } from '../db/db';
-import { deleteStudy, listStudies } from '../db/studies';
-import { deleteDrillLinesForStudy } from '../db/drillLines';
-import { deletePositionsForStudy } from '../db/drillPositions';
-import { deleteSessionsForStudy } from '../db/drillSessions';
+import { listStudies, removeStudyCascade } from '../db/studies';
 
 /**
  * Reactive view of the studies table. Listens for the
@@ -31,15 +28,10 @@ export function useStudies() {
   }, [refresh]);
 
   const remove = useCallback(async (id: string) => {
-    // Cascade — drop the drill lines built from this study's chapters too,
-    // otherwise the Practice queue keeps surfacing orphaned entries. Also
-    // drop the position-pool index used by mixed / spot drills.
-    await deleteDrillLinesForStudy(id);
-    await deletePositionsForStudy(id);
-    await deleteSessionsForStudy(id);
-    await deleteStudy(id);
-    notifyStudiesChanged();
-    window.dispatchEvent(new Event('ks-drills-changed'));
+    // Drop the study + every dependent row (drill lines, attempts,
+    // position pool, saved sessions) atomically. The cascade is in the
+    // db layer so a crash mid-flow can't leave orphan rows.
+    await removeStudyCascade(id);
   }, []);
 
   return { studies, loading, refresh, remove };
