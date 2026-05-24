@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { BottomTabBar } from './components/BottomTabBar';
 import { Footer } from './components/Footer';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { OfflineBanner } from './components/OfflineBanner';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -68,6 +69,7 @@ function AppShell() {
       <Footer />
       <BottomTabBar />
       <UpdatePrompt />
+      <OfflineBanner />
       <KeyboardShortcutsModal />
     </div>
   );

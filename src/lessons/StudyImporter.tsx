@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { extractStudyId, importStudy } from './lichessStudy';
 import { notifyStudiesChanged } from './useStudies';
+import { useOnline } from '../hooks/useOnline';
 
 interface StudyImporterProps {
   /** Fires after a successful import so the page can switch to the viewer. */
@@ -18,6 +19,7 @@ export function StudyImporter({ onImported }: StudyImporterProps) {
   const [input, setInput] = useState('');
   const [status, setStatus] = useState<'idle' | 'importing' | 'error' | 'warn'>('idle');
   const [message, setMessage] = useState<string | null>(null);
+  const online = useOnline();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +71,8 @@ export function StudyImporter({ onImported }: StudyImporterProps) {
         <button
           type="submit"
           className="btn-primary px-3 text-sm"
-          disabled={importing || !input.trim()}
+          disabled={importing || !input.trim() || !online}
+          title={!online ? 'Network not available — reconnect to import.' : undefined}
         >
           {importing ? 'Importing…' : 'Import'}
         </button>

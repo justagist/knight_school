@@ -67,7 +67,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const canSend = online && !!chat.activeProvider && !chat.sending && draft.trim().length > 0;
   const inputDisabledReason =
     !online
-      ? 'You are offline — chat is unavailable until you reconnect.'
+      ? 'Network not available — chat is paused until you reconnect.'
       : !chat.activeProvider
         ? 'No LLM provider configured. Add a key in Settings → Elle (LLM).'
         : undefined;
