@@ -368,6 +368,44 @@ export interface DrillPositionRow {
   }>;
 }
 
+/**
+ * The user's current learning goal — Step 9. Free-text only; the parser
+ * pulls an optional target date from natural language but nothing else
+ * is structured. Editing replaces the row (old is archived for history).
+ */
+export interface PlanGoalRow {
+  /** UUID. Primary key. */
+  id: string;
+  /** Free-text goal as the user typed it. */
+  goalText: string;
+  /** ms epoch. */
+  createdAt: number;
+  /** ISO date (YYYY-MM-DD) for the target — parsed from goalText when
+   *  obvious ("3 months" → today + 90d). undefined when no signal. */
+  targetDate?: string;
+  /** True when the user replaced this goal with a new one. The active
+   *  goal is the newest row with `archived === false`. */
+  archived: boolean;
+}
+
+/**
+ * One checked-off plan item for a specific week. Multiple identical
+ * itemIds are NOT recorded — the unique key `[weekStart+itemId]` is the
+ * de-dupe contract. The checklist resets on Monday by virtue of the
+ * weekStart partition: a new Monday means a new query key, so the prior
+ * week's checks stay in the table (audit history) but stop showing.
+ */
+export interface PlanCheckRow {
+  /** UUID. Primary key. */
+  id: string;
+  /** ISO date of the Monday that owns this check (local time). */
+  weekStart: string;
+  /** Template item id (`drill-1`, `puzzle-mon`, …). */
+  itemId: string;
+  /** ms epoch when the user ticked it off. */
+  completedAt: number;
+}
+
 export interface GuessRecordRow {
   /** UUID. Primary key. */
   id: string;
@@ -405,6 +443,8 @@ export class KsDatabase extends Dexie {
   drillAttempts!: EntityTable<DrillAttemptRow, 'id'>;
   drillPositions!: EntityTable<DrillPositionRow, 'id'>;
   drillSessions!: EntityTable<DrillSessionRow, 'id'>;
+  planGoals!: EntityTable<PlanGoalRow, 'id'>;
+  planChecks!: EntityTable<PlanCheckRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -515,6 +555,11 @@ export class KsDatabase extends Dexie {
       drillAttempts: '&id, drillLineId, startedAt, mode',
       drillPositions: '&id, studyId',
     });
+    // v11: Step 9 plan tables — single active goal (older rows archived
+    // for history) and per-week checklist completions. Index on
+    // [weekStart+itemId] enforces "one row per (week, item)" via the
+    // application layer; Dexie's compound index makes the lookup O(log n).
+    // (v10 stays below since it's the prior tip.)
     // v10: saved drill sessions so the user can stash a mixed / spot
     // configuration into the Practice queue without starting it yet.
     this.version(10).stores({
@@ -533,6 +578,25 @@ export class KsDatabase extends Dexie {
       drillAttempts: '&id, drillLineId, startedAt, mode',
       drillPositions: '&id, studyId',
       drillSessions: '&id, studyId, lastDrilledAt, createdAt',
+    });
+    this.version(11).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt, mode',
+      drillPositions: '&id, studyId',
+      drillSessions: '&id, studyId, lastDrilledAt, createdAt',
+      planGoals: '&id, createdAt, archived',
+      planChecks: '&id, [weekStart+itemId], weekStart, completedAt',
     });
   }
 }
