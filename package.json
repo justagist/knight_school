@@ -13,7 +13,7 @@
     "build": "npm run copy-engine && tsc --noEmit && vite build",
     "preview": "vite preview",
     "serve": "node scripts/serve.js",
-    "check": "tsc --noEmit && eslint .",
+    "check": "tsc --noEmit && eslint . && node scripts/check-flex.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@lichess-org/chessground": "^10.1.1",
     "chess.js": "^1.0.0-beta.8",
+    "chessops": "^0.15.0",
     "dexie": "^4.0.8",
     "dexie-export-import": "^4.1.4",
     "react": "^18.3.1",

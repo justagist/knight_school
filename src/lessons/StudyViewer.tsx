@@ -11,6 +11,7 @@ import { useSettings } from '../settings/SettingsProvider';
 import { useChatScreen } from '../chat/ChatContextProvider';
 import { useChatHost } from '../chat/ChatHost';
 import { summarizeEngine } from '../llm/engineSummary';
+import { DrillSetupModal, type DrillSetupResult } from '../drill/DrillSetupModal';
 
 interface StudyViewerProps {
   study: StudyRow;
@@ -25,9 +26,15 @@ interface StudyViewerProps {
   /**
    * Start drilling the current chapter as the given side. The page wires
    * this to ensure-line + navigate to `?drill=<id>` so the parent
-   * OpeningsPage can render DrillView.
+   * OpeningsPage can render DrillView. Used for `scope: chapter` results
+   * from the setup modal.
    */
   onStartDrill?: (chapterIndex: number, side: 'white' | 'black') => void;
+  /**
+   * Start a mixed / spot drill across multiple chapters. Parent routes to
+   * the mixed-drill view via the encoded session params.
+   */
+  onStartMixedDrill?: (config: DrillSetupResult) => void;
 }
 
 /**
@@ -42,6 +49,7 @@ export function StudyViewer({
   onBack,
   onRefreshed,
   onStartDrill,
+  onStartMixedDrill,
 }: StudyViewerProps) {
   const chapterCount = study.chapters.length;
   const safeInitial = clampIndex(initialChapter, chapterCount);
@@ -49,7 +57,15 @@ export function StudyViewer({
   const [ply, setPly] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [drillPickerOpen, setDrillPickerOpen] = useState(false);
+  /**
+   * Drill setup state.
+   *   - kind 'chapter': modal opens with chapter-scope defaults (the
+   *     per-chapter "Drill this chapter" button).
+   *   - kind 'study':   modal opens with mixed-scope defaults (the
+   *     study-level "Drill" button in the header).
+   *   - null:           modal hidden.
+   */
+  const [drillSetup, setDrillSetup] = useState<null | 'chapter' | 'study'>(null);
   const { settings } = useSettings();
   const chatScreen = useChatScreen();
   const chatHost = useChatHost();
@@ -204,6 +220,19 @@ export function StudyViewer({
             imported {formatRelative(study.importedAt)}
           </p>
         </div>
+        {/* Study-level drill — opens the setup modal with mixed defaults
+            (every chapter, 25 positions, free mode). Hidden when the parent
+            doesn't wire up the mixed-drill callback. */}
+        {onStartMixedDrill && (
+          <button
+            type="button"
+            onClick={() => setDrillSetup('study')}
+            className="btn-primary text-sm"
+            title="Quiz yourself across the whole study — sampled positions, mixed chapters."
+          >
+            ▶ Drill
+          </button>
+        )}
         <button
           type="button"
           onClick={refresh}
@@ -272,15 +301,18 @@ export function StudyViewer({
             />
           )}
           {/* Mobile drill trigger — sits right after the comment so the
-              "what to do next" CTA lands with the lesson context. Desktop
-              copy lives in the sidebar after its own comment block. */}
+              "what to do next" CTA lands with the lesson context. Opens
+              the setup modal with chapter-scope defaults. Desktop copy
+              lives in the sidebar after its own comment block. */}
           {onStartDrill && parsed && parsed.moves.length > 0 && (
-            <DrillTrigger
-              pickerOpen={drillPickerOpen}
-              onTogglePicker={setDrillPickerOpen}
-              onStart={(side) => onStartDrill(chapterIdx, side)}
-              className="order-1 lg:hidden"
-            />
+            <button
+              type="button"
+              onClick={() => setDrillSetup('chapter')}
+              className="btn-secondary order-1 text-xs lg:hidden"
+              title="Quiz yourself on this chapter — app plays the opponent, you play your side."
+            >
+              ▶ Drill this chapter
+            </button>
           )}
           {parsed ? (
             <div className="flex items-stretch gap-2">
@@ -385,12 +417,14 @@ export function StudyViewer({
               {/* Desktop drill trigger — directly below the comment so the
                   "next step" CTA pairs with the lesson context. */}
               {onStartDrill && parsed.moves.length > 0 && (
-                <DrillTrigger
-                  pickerOpen={drillPickerOpen}
-                  onTogglePicker={setDrillPickerOpen}
-                  onStart={(side) => onStartDrill(chapterIdx, side)}
-                  className="hidden lg:order-5 lg:flex"
-                />
+                <button
+                  type="button"
+                  onClick={() => setDrillSetup('chapter')}
+                  className="btn-secondary hidden text-xs lg:order-5 lg:block"
+                  title="Quiz yourself on this chapter — app plays the opponent, you play your side."
+                >
+                  ▶ Drill this chapter
+                </button>
               )}
               <p className="text-[11px] text-muted lg:order-6">
                 Arrow keys navigate moves. Home / End jump to chapter ends.
@@ -399,6 +433,35 @@ export function StudyViewer({
           )}
         </div>
       </div>
+
+      <DrillSetupModal
+        study={study}
+        open={drillSetup !== null}
+        onClose={() => setDrillSetup(null)}
+        initial={{
+          // Per-chapter button → chapter scope, length=all (matches the
+          // pre-modal behaviour). Study-level button → mixed scope, 25
+          // positions (spec defaults).
+          scope: drillSetup === 'study' ? 'mixed' : 'chapter',
+          mode: 'free',
+          side: 'white',
+          length: drillSetup === 'study' ? 25 : 0,
+          chapterIndices:
+            drillSetup === 'study'
+              ? study.chapters.map((_, i) => i)
+              : [chapterIdx],
+        }}
+        onStart={(cfg) => {
+          setDrillSetup(null);
+          if (cfg.scope === 'chapter' && onStartDrill && cfg.chapterIndices.length === 1) {
+            onStartDrill(cfg.chapterIndices[0], cfg.side);
+            return;
+          }
+          if (onStartMixedDrill) {
+            onStartMixedDrill(cfg);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -436,68 +499,6 @@ function inferOrientation(parsed: ParsedGame | null, title: string): 'white' | '
  * showing them under the board lets users read along while stepping through
  * moves. Hidden when the current ply has no commentary.
  */
-interface DrillTriggerProps {
-  pickerOpen: boolean;
-  onTogglePicker: (open: boolean) => void;
-  onStart: (side: 'white' | 'black') => void;
-  className?: string;
-}
-
-/**
- * Two-state drill launcher — collapsed shows `▶ Drill this chapter`;
- * expanded shows the side picker (White / Black / Cancel). Rendered in two
- * places (under the mobile comment, under the desktop sidebar comment)
- * with shared state hoisted into the parent so toggling either picker
- * affects both copies.
- */
-function DrillTrigger({ pickerOpen, onTogglePicker, onStart, className }: DrillTriggerProps) {
-  return (
-    <div className={`flex flex-wrap items-center gap-2 ${className ?? ''}`}>
-      {pickerOpen ? (
-        <>
-          <span className="text-xs text-muted">Practise as:</span>
-          <button
-            type="button"
-            onClick={() => {
-              onTogglePicker(false);
-              onStart('white');
-            }}
-            className="btn-primary text-xs"
-          >
-            White
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onTogglePicker(false);
-              onStart('black');
-            }}
-            className="btn-primary text-xs"
-          >
-            Black
-          </button>
-          <button
-            type="button"
-            onClick={() => onTogglePicker(false)}
-            className="btn-secondary text-xs"
-          >
-            Cancel
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onTogglePicker(true)}
-          className="btn-secondary text-xs"
-          title="Quiz yourself on this chapter — app plays the opponent moves, you play your side."
-        >
-          ▶ Drill this chapter
-        </button>
-      )}
-    </div>
-  );
-}
-
 function LessonComment({
   text,
   className,

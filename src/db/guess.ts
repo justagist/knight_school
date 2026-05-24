@@ -1,11 +1,5 @@
 import { db, type GuessRecordRow } from './db';
-
-function uuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { uuid } from '../lib/uuid';
 
 export type NewGuess = Omit<GuessRecordRow, 'id' | 'createdAt'> & { createdAt?: number };
 

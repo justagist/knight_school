@@ -1,5 +1,6 @@
 import { getLichessToken } from '../db/lichessAuth';
 import { putStudy, getStudy } from '../db/studies';
+import { indexStudyPositions } from '../db/drillPositions';
 import type { StudyRow } from '../db/db';
 
 /**
@@ -120,6 +121,14 @@ export async function importStudy(
     curatedKey: opts?.curatedKey,
   };
   await putStudy(row);
+  // Rebuild the position pool every import so mixed / spot drills always
+  // reflect the latest chapter list. Non-blocking on import failure —
+  // per-chapter drills don't depend on this.
+  try {
+    await indexStudyPositions(row);
+  } catch {
+    // swallow — indexer logs internally; chapter-line drills still work.
+  }
   return row;
 }
 

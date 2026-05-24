@@ -282,8 +282,9 @@ export interface DrillLineRow {
 export interface DrillAttemptRow {
   /** UUID. Primary key. */
   id: string;
-  /** Foreign key to DrillLineRow.id. */
-  drillLineId: string;
+  /** Foreign key to DrillLineRow.id. Undefined when the attempt was a
+   *  mixed / spot drill (no single chapter line owns it). */
+  drillLineId?: string;
   /** When attempt started (ms epoch). */
   startedAt: number;
   /** When attempt finished (pass / fail / abandoned). */
@@ -298,6 +299,40 @@ export interface DrillAttemptRow {
   variant: 'board' | 'guess';
   /** True when chat was used during the attempt — does not count toward stats. */
   invalidated: boolean;
+  /** Drill scope this attempt ran under — lets the planner prefer mixed
+   *  drills as the user improves. Defaults to 'chapter' for legacy rows. */
+  mode?: 'chapter' | 'mixed' | 'spot';
+}
+
+/**
+ * Position pool entry for mixed / spot drills. One row per unique FEN
+ * (normalised to position-only via {@link normalizeFenForExplorer}) per
+ * study. Built once on study import and updated on re-import.
+ *
+ * Same FEN can appear in multiple chapters and at different plies — every
+ * occurrence is recorded with its chapter index, the move played from
+ * here, and the side-to-move at this FEN. The drill engine filters
+ * occurrences by the chosen chapter scope and user side at run time.
+ */
+export interface DrillPositionRow {
+  /** Composite key: `${studyId}::${fen}`. Primary. */
+  id: string;
+  studyId: string;
+  /** Normalised FEN (first 4 fields only — no halfmove / fullmove). */
+  fen: string;
+  occurrences: Array<{
+    chapterIndex: number;
+    chapterTitle: string;
+    /** SAN of the move played FROM this position. */
+    san: string;
+    /** UCI of the same move. */
+    uci: string;
+    /** Side to move at this FEN — `userSide === sideToMove` ⇒ user's turn. */
+    sideToMove: 'w' | 'b';
+    /** Position ply in this chapter (0 = chapter start). Used by spot-drill
+     *  to play the lead-up moves automatically. */
+    ply: number;
+  }>;
 }
 
 export interface GuessRecordRow {
@@ -335,6 +370,7 @@ export class KsDatabase extends Dexie {
   studies!: EntityTable<StudyRow, 'id'>;
   drillLines!: EntityTable<DrillLineRow, 'id'>;
   drillAttempts!: EntityTable<DrillAttemptRow, 'id'>;
+  drillPositions!: EntityTable<DrillPositionRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -424,6 +460,26 @@ export class KsDatabase extends Dexie {
       studies: '&id, importedAt, curatedKey',
       drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
       drillAttempts: '&id, drillLineId, startedAt',
+    });
+    // v9: position pool for mixed / spot drills + drillAttempts gains a
+    // `mode` tag so the planner can prefer mixed drills as the user
+    // improves. drillLineId becomes nullable on attempts (mixed sessions
+    // don't belong to a single chapter line).
+    this.version(9).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt, mode',
+      drillPositions: '&id, studyId',
     });
   }
 }

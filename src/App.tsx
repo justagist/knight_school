@@ -4,6 +4,7 @@ import { BottomTabBar } from './components/BottomTabBar';
 import { Footer } from './components/Footer';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { ChatHost, useChatHost } from './chat/ChatHost';
@@ -49,18 +50,20 @@ function AppShell() {
           chat.open ? 'md:pr-[420px]' : ''
         }`}
       >
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/analyze" element={<AnalyzePage />} />
-          <Route path="/study" element={<OpeningsPage />} />
-          {/* Backward-compat: the route used to be /openings. Preserve any
-              query params (e.g. ?search=Caro-Kann from Analyze deep-links)
-              so old bookmarks + in-flight Analyze links keep working. */}
-          <Route path="/openings" element={<Navigate to="/study" replace />} />
-          <Route path="/plan" element={<PlanPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/analyze" element={<AnalyzePage />} />
+            <Route path="/study" element={<OpeningsPage />} />
+            {/* Backward-compat: the route used to be /openings. Preserve any
+                query params (e.g. ?search=Caro-Kann from Analyze deep-links)
+                so old bookmarks + in-flight Analyze links keep working. */}
+            <Route path="/openings" element={<Navigate to="/study" replace />} />
+            <Route path="/plan" element={<PlanPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
       <Footer />
       <BottomTabBar />

@@ -92,6 +92,20 @@ The token is stored alongside your other data in IndexedDB. Exporting your backu
 
 > Lichess introduced auth on the Opening Explorer endpoint in 2026. The hybrid (bundled ECO + optional token) keeps the app fully usable for users who haven't created one.
 
+## Drill modes
+
+Three flavours of drill on the Study tab. They share one position index built per study on import, so a drill set up at study level still respects per-chapter cumulative stats.
+
+- **Per-chapter (chapter)** — pick one chapter, play through its main line move by move. App plays the opponent's moves from the chapter; you play your side. A wrong move ends the run with the expected SAN + the chapter's author note. Use this when learning a specific line cold. Default when you tap `▶ Drill this chapter` from inside a chapter.
+- **Mixed (free)** — pick All chapters / Pick chapters, free-drill mode, a length (10 / 25 / 50 / All). The engine drops you into a random chapter's starting position; you play your side, the engine plays the opponent's moves at random from the pool (weighted by occurrence count). When a line runs out, the engine teleports to a new chapter start so the drill keeps accumulating moves toward the target length. A wrong move ends the run. Use this when testing whether a repertoire stays in your head across multiple openings.
+
+  The pool walks **every node** in every chapter's move tree — main line *and* variations — so the drill exercises the alternative responses the study author bothered to annotate, not just the headline line.
+- **Spot drill** — same setup but `mode: spot`. The engine surfaces *critical* positions — FENs where, across the selected chapter scope, exactly one user-side move exists and the position is at least 3 plies deep. You play one move per spot; the engine advances to the next regardless of pass / fail. Use this when revising — you focus on the moves that actually require theory recall, not the obvious opening replies.
+
+The setup modal is the same for all three. The "Drill" button at the top of the Study page opens it with mixed-mode defaults; the per-chapter `▶ Drill this chapter` button opens it with chapter-mode defaults. Either way, you can re-scope before clicking *Start drill*.
+
+After a mixed / spot drill: the results card shows accuracy + per-chapter breakdown + a failure list with review links. A `Drill weak spots` CTA appears when at least one chapter scored below 70% and pre-selects those chapters for the next run.
+
 ## Deployment
 
 Push to `main` → Cloudflare Pages auto-builds and deploys.

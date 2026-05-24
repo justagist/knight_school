@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { StudyRow } from '../db/db';
 import { deleteStudy, listStudies } from '../db/studies';
 import { deleteDrillLinesForStudy } from '../db/drillLines';
+import { deletePositionsForStudy } from '../db/drillPositions';
 
 /**
  * Reactive view of the studies table. Listens for the
@@ -30,8 +31,10 @@ export function useStudies() {
 
   const remove = useCallback(async (id: string) => {
     // Cascade — drop the drill lines built from this study's chapters too,
-    // otherwise the Practice queue keeps surfacing orphaned entries.
+    // otherwise the Practice queue keeps surfacing orphaned entries. Also
+    // drop the position-pool index used by mixed / spot drills.
     await deleteDrillLinesForStudy(id);
+    await deletePositionsForStudy(id);
     await deleteStudy(id);
     notifyStudiesChanged();
     window.dispatchEvent(new Event('ks-drills-changed'));

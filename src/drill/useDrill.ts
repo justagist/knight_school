@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess } from 'chess.js';
+import { uuid } from '../lib/uuid';
 import type { DrillLineRow } from '../db/db';
 import {
   fenAtPly,
@@ -81,14 +82,14 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
   const [lastMove, setLastMove] = useState<[string, string] | undefined>(undefined);
 
   // Stable attempt id so all recorded attempts under this hook share one id.
-  const attemptIdRef = useRef<string>(crypto.randomUUID());
+  const attemptIdRef = useRef<string>(uuid());
   const startedAtRef = useRef<number>(Date.now());
   const persistedRef = useRef(false);
 
   // Reset internal state when the line itself changes (Practice queue moves
   // to the next line, or user switches chapters).
   useEffect(() => {
-    attemptIdRef.current = crypto.randomUUID();
+    attemptIdRef.current = uuid();
     startedAtRef.current = Date.now();
     persistedRef.current = false;
     setPly(0);
@@ -117,6 +118,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
         expectedSan: failure?.expectedSan,
         variant,
         invalidated,
+        mode: 'chapter',
       });
       onFinished?.(result);
     },
@@ -207,7 +209,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
 
   const retry = useCallback(() => {
     // Start a fresh attempt — new id, reset state.
-    attemptIdRef.current = crypto.randomUUID();
+    attemptIdRef.current = uuid();
     startedAtRef.current = Date.now();
     persistedRef.current = false;
     setPly(0);
@@ -231,6 +233,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
       result: 'fail',
       variant,
       invalidated,
+      mode: 'chapter',
     });
     setStatus('aborted');
   }, [line.id, variant, invalidated]);

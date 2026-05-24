@@ -84,7 +84,10 @@ export async function deleteDrillLinesForStudy(studyId: string): Promise<void> {
  */
 export async function recordDrillAttempt(attempt: DrillAttemptRow): Promise<void> {
   await db().drillAttempts.put(attempt);
-  if (!attempt.invalidated && attempt.result) {
+  // Mixed / spot attempts don't have a drillLineId — they aggregate across
+  // chapters. Their stats land in the attempts table only; per-line stats
+  // stay untouched.
+  if (!attempt.invalidated && attempt.result && attempt.drillLineId) {
     const line = await db().drillLines.get(attempt.drillLineId);
     if (line) {
       await db().drillLines.put({

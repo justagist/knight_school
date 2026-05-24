@@ -158,15 +158,11 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
             )}
           </div>
           <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              title={expanded ? 'Half height' : 'Expand'}
-              aria-label={expanded ? 'Collapse chat' : 'Expand chat'}
-              className="hidden h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-primary md:hidden"
-            >
-              {expanded ? '▼' : '▲'}
-            </button>
+            {/* The mobile expand/collapse affordance lives on the drag
+                handle at the top of the sheet (just above this header).
+                A second ▼/▲ button used to live here but rendered with
+                `hidden md:hidden` (i.e. always hidden) — removed rather
+                than fixed, since the drag handle covers the same job. */}
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-primary"

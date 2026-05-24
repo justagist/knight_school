@@ -1,13 +1,5 @@
 import { db, type ApiKeyRow, type LlmProviderId, type ProviderConfigRow, type LlmGlobalRow } from './db';
-
-/** Crypto.randomUUID with a fallback for older browsers (Safari < 15.4). */
-function uuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  // Random-enough fallback.
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { uuid } from '../lib/uuid';
 
 export interface NewApiKey {
   provider: LlmProviderId;

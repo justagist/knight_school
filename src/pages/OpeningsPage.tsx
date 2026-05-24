@@ -9,9 +9,11 @@ import { CURATED_STUDIES, findStudyByKey, studyMatchesQuery } from '../lessons/c
 import { importStudy, isStudyImported } from '../lessons/lichessStudy';
 import { notifyStudiesChanged } from '../lessons/useStudies';
 import { DrillView } from '../drill/DrillView';
+import { MixedDrillView } from '../drill/MixedDrillView';
 import { ensureDrillLine, getDrillLine, listDrillLines } from '../db/drillLines';
+import { indexStudyPositions, listPositionsForStudy } from '../db/drillPositions';
 import { nextDrillLine, priorityLabel, sortByDrillPriority } from '../drill/scheduler';
-import type { DrillLineRow } from '../db/db';
+import type { DrillLineRow, DrillPositionRow } from '../db/db';
 import { useLichessAuth } from '../hooks/useLichessAuth';
 import { Link } from 'react-router-dom';
 
@@ -39,6 +41,7 @@ export function OpeningsPage() {
   const studyId = params.get('study');
   const curatedKey = params.get('curated');
   const drillId = params.get('drill');
+  const mixedStudyId = params.get('mixed');
   const searchParam = params.get('search') ?? '';
   const chapterParam = Number(params.get('chapter') ?? '1');
   const chapterIdx = Number.isFinite(chapterParam) && chapterParam > 0 ? chapterParam - 1 : 0;
@@ -70,6 +73,32 @@ export function OpeningsPage() {
       cancelled = true;
     };
   }, [drillId]);
+
+  // Mixed-drill pool — loaded when `?mixed=<studyId>` is present. Auto-
+  // rebuilds the index for studies imported before v9 (legacy rows have
+  // no drillPositions entries).
+  const [mixedPositions, setMixedPositions] = useState<DrillPositionRow[] | null>(null);
+  useEffect(() => {
+    if (!mixedStudyId) {
+      setMixedPositions(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      // Always re-index on mixed-drill open. The indexer is cheap (single-
+      // thread DFS over the PGN tree, ~100ms for a 50-chapter study) and
+      // this is the simplest way to back-fill variations for studies that
+      // were imported before chessops-based variation-walking shipped.
+      // Earlier rows only carried main-line positions.
+      const s = studies.find((st) => st.id === mixedStudyId);
+      if (s) await indexStudyPositions(s);
+      const rows = await listPositionsForStudy(mixedStudyId);
+      if (!cancelled) setMixedPositions(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mixedStudyId, studies]);
 
   // Local search state — kept in sync with the URL `search` param. The URL is
   // canonical (so the Analyze deep-link works), but typing should feel
@@ -158,6 +187,18 @@ export function OpeningsPage() {
     void refreshDrillLines();
   }, [refreshDrillLines, setParams]);
 
+  const exitMixedDrill = useCallback(() => {
+    setParams((p) => {
+      const next = new URLSearchParams(p);
+      next.delete('mixed');
+      next.delete('dmode');
+      next.delete('dside');
+      next.delete('dlen');
+      next.delete('dchapters');
+      return next;
+    });
+  }, [setParams]);
+
   const updateSearch = (value: string) => {
     setSearchText(value);
     setParams(
@@ -175,6 +216,64 @@ export function OpeningsPage() {
     return <DrillView line={drillLine} onExit={exitDrill} onFinished={() => void refreshDrillLines()} />;
   }
 
+  if (mixedStudyId && mixedPositions !== null) {
+    const mixedStudy = studies.find((s) => s.id === mixedStudyId);
+    if (!mixedStudy) {
+      // Study removed while drill was set up — bounce back to library.
+      return (
+        <div className="card border-l-4 border-l-blunder p-3 text-sm">
+          That study isn't in your library any more.{' '}
+          <button type="button" className="text-accent hover:underline" onClick={exitMixedDrill}>
+            Back to library →
+          </button>
+        </div>
+      );
+    }
+    const dmode = params.get('dmode') === 'spot' ? 'spot' : 'free';
+    const dside = params.get('dside') === 'black' ? 'black' : 'white';
+    const dlen = Number.parseInt(params.get('dlen') ?? '25', 10) || 0;
+    const dchapters = (params.get('dchapters') ?? '')
+      .split(',')
+      .map((s) => Number.parseInt(s, 10))
+      .filter((n) => Number.isFinite(n));
+    return (
+      <MixedDrillView
+        study={mixedStudy}
+        positions={mixedPositions}
+        chapterIndices={dchapters.length > 0 ? dchapters : mixedStudy.chapters.map((_, i) => i)}
+        userSide={dside}
+        mode={dmode}
+        length={dlen}
+        onExit={exitMixedDrill}
+        onDrillSubset={(chapters) => {
+          // Re-run the drill scoped to the weak chapters. Reset the
+          // session by also remounting (URL change is enough — the view's
+          // useEffect resets state when its inputs change).
+          setParams((p) => {
+            const next = new URLSearchParams(p);
+            next.set('dchapters', chapters.join(','));
+            return next;
+          });
+        }}
+        onReviewChapter={(chapterIndex) => {
+          // Hand off to the study viewer at that chapter; drops the
+          // mixed-drill params so the URL bookmarks as a normal study link.
+          setParams((p) => {
+            const next = new URLSearchParams(p);
+            next.delete('mixed');
+            next.delete('dmode');
+            next.delete('dside');
+            next.delete('dlen');
+            next.delete('dchapters');
+            next.set('study', mixedStudy.id);
+            next.set('chapter', String(chapterIndex + 1));
+            return next;
+          });
+        }}
+      />
+    );
+  }
+
   if (selected) {
     return (
       <StudyViewer
@@ -183,6 +282,23 @@ export function OpeningsPage() {
         onChapterChange={setChapter}
         onBack={backToLibrary}
         onStartDrill={(idx, side) => void startDrill(selected, idx, side)}
+        onStartMixedDrill={(cfg) => {
+          // Build a `?mixed=<studyId>&...` URL that the page will read in
+          // Phase C to render the mixed-drill view. The engine itself
+          // lives in src/drill/useMixedDrill.ts (next phase).
+          setParams((p) => {
+            const next = new URLSearchParams(p);
+            next.set('mixed', selected.id);
+            next.set('dmode', cfg.mode);
+            next.set('dside', cfg.side);
+            next.set('dlen', String(cfg.length));
+            next.set('dchapters', cfg.chapterIndices.join(','));
+            next.delete('study');
+            next.delete('chapter');
+            next.delete('drill');
+            return next;
+          });
+        }}
       />
     );
   }
