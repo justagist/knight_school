@@ -5,11 +5,11 @@
 KnightSchool is a fully client-side React + TypeScript PWA. There is no backend.
 
 - **UI** — React 18 + Vite + Tailwind CSS. Mobile-first responsive layout (side-by-side on desktop ≥1024px, stacked on mobile).
-- **Routing** — `react-router-dom`. Four pages: Analyze (default), Openings, Plan, Settings.
+- **Routing** — `react-router-dom`. Six routes: Home (default), Analyze, Study (formerly `/openings`, still redirects), Plan, Settings, NotFound. Routes are `React.lazy()` split so the initial bundle doesn't drag analyze-only deps into Home.
 - **Board** — `chessground` for rendering + `chess.js` for move generation & validation.
 - **Engine** — Stockfish (WASM) running in a Web Worker. Multi-PV hardcoded to 3.
 - **Storage** — IndexedDB via `Dexie.js`. Backup/restore via `dexie-export-import`.
-- **LLM** — Thin `LLMProvider` interface. Anthropic + OpenAI implementations. Direct browser → provider calls.
+- **LLM** — Thin `LLMProvider` interface. Five direct implementations: Anthropic, OpenAI, Gemini, Groq, OpenRouter (the last two via the shared OpenAI-compatible factory). Direct browser → provider calls, no proxy.
 - **PWA** — `vite-plugin-pwa` with `registerType: 'prompt'`. Service worker precaches app shell + WASM + sounds + ECO data.
 
 ## Data sources

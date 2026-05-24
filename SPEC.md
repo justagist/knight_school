@@ -96,14 +96,20 @@ knight_school/
 
 `react-router-dom`. Six routes:
 
-| Path        | Component       | Purpose                                       |
-|-------------|-----------------|-----------------------------------------------|
-| `/`         | `HomePage`      | landing — links into the four primary tabs    |
-| `/analyze`  | `AnalyzeView`   | PGN analysis + classification + Elle hooks    |
-| `/openings` | `OpeningsPage`  | studies, drills, mixed pool, practice queue   |
-| `/plan`     | `PlanPage`      | goal + weekly checklist                       |
-| `/settings` | `SettingsPage`  | providers, engine, sounds, board, storage     |
-| `/study/:id`| `StudyViewer`   | lesson viewer for an imported study           |
+| Path        | Component      | Purpose                                                                   |
+|-------------|----------------|---------------------------------------------------------------------------|
+| `/`         | `HomePage`     | landing — links into the four primary tabs                                |
+| `/analyze`  | `AnalyzePage`  | PGN analysis + classification + Elle hooks                                |
+| `/study`    | `OpeningsPage` | studies, drills, mixed pool, practice queue. Hosts the inline StudyViewer |
+| `/openings` | (redirect)     | legacy alias — `<Navigate to="/study" replace>` so old deep-links survive |
+| `/plan`     | `PlanPage`     | goal + weekly checklist                                                   |
+| `/settings` | `SettingsPage` | providers, engine, sounds, board, storage                                 |
+| `*`         | `NotFoundPage` | 404                                                                       |
+
+The viewer for an imported study renders **inline** inside
+`OpeningsPage` (`StudyViewer` is a child component, not a routed
+page); a study is selected via the `?study=<id>` query param. Routes
+are split with `React.lazy()` so the initial bundle stays Home-only.
 
 `Header` shows the desktop nav; `BottomTabBar` shows mobile primary nav.
 
@@ -336,7 +342,8 @@ the right answer for shared devices.
   positions render offline.
 - **Studies** are forever-cached in Dexie; the viewer never refetches
   except via an explicit Refresh button.
-- **Sounds + board pieces** are precached.
+- **Sounds** are synthesised live via Web Audio (no files to cache).
+  **Board pieces** are SVG and ship in the JS bundle.
 - **LLM calls** require network. The chat input + import / explain
   buttons surface "Network not available" tooltips when
   `navigator.onLine === false`.
