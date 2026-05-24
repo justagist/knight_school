@@ -6,7 +6,11 @@ A client-side chess learning PWA. Analyze your own games with Stockfish, drill o
 
 Everything runs in your browser - no backend, no auth, no telemetry. Bring your own LLM API key.
 
-> **Status:** MVP feature-complete. [SPEC.md](./SPEC.md) is the canonical product + architecture spec.
+**Live:** [knight-school.pages.dev](https://knight-school.pages.dev/)
+
+> **Built with:** this project is (almost) entirely vibe-coded with [Claude Code](https://claude.com/claude-code). The spec, architecture, and every line of code were iterated with Claude as the primary author; the human role was framing, review, and direction. [SPEC.md](./SPEC.md) is the canonical product + architecture spec.
+>
+> **Status:** MVP feature-complete.
 
 ## Screenshots
 
@@ -31,6 +35,51 @@ Capture brief: [`docs/screenshots/README.md`](docs/screenshots/README.md).
 - **Elle** - A friendly AI chess assistant. Comments on moves on demand, answers chess questions, and uses your provider's web search for current news. Drill-aware: opening chat mid-drill prompts an explicit invalidation modal.
 - **Study** - Import Lichess Studies, drill chapter lines or mixed pools, pull master-game stats from the Lichess Opening Explorer when a token is configured.
 - **Plan** - Set a goal in plain text; get a fixed weekly template (3 drills, 2 analyses, 1 lesson, 1 guess review, daily Lichess puzzle) with a daily checklist that rolls incomplete items forward to today.
+
+## Install
+
+KnightSchool is a Progressive Web App. You can use it directly in any modern browser without installing anything, or "install" it to your home screen / dock for a chrome-free, app-like experience that survives offline.
+
+### Just use it in the browser
+
+Open [knight-school.pages.dev](https://knight-school.pages.dev/). That's it - no install required. The app caches its shell on first load so subsequent visits work offline.
+
+### iOS / iPadOS (Safari)
+
+1. Open the site in **Safari** (Chrome on iOS uses Safari's engine but doesn't expose the install flow).
+2. Tap the **Share** button (square with up arrow) at the bottom of the screen.
+3. Scroll and tap **Add to Home Screen**.
+4. Confirm the name (`KnightSchool`) and tap **Add**.
+
+The installed app gets its own home-screen icon and launches without browser chrome. Important: installed PWAs are exempt from Safari's 7-day inactivity wipe of IndexedDB - install if you want your analysis, drill stats, and chat history to stick around.
+
+### Android (Chrome / Edge / Brave)
+
+1. Open the site in Chrome (or any Chromium-based browser).
+2. Either:
+   - Tap the **Install** prompt if Chrome surfaces it at the bottom of the screen, **OR**
+   - Tap the three-dot menu (⋮) at the top-right and choose **Install app** / **Add to Home screen**.
+3. Confirm.
+
+The installed app appears in your app drawer with its own icon and launches in its own window.
+
+### Desktop (Chrome / Edge / Brave)
+
+1. Open the site.
+2. Look for the **install icon** in the address bar (usually a small monitor with a down-arrow, on the right side of the URL).
+3. Click it and confirm **Install**.
+
+Alternative: three-dot menu → **Cast, save, and share** (or **Apps**) → **Install KnightSchool**.
+
+The installed app launches in its own window without browser tabs, can be pinned to the taskbar / dock, and shares the same IndexedDB store as the browser tab so your data is consistent.
+
+### Desktop Safari
+
+Safari on macOS 14+ supports installing web apps. Open the site, then **File → Add to Dock**. Older Safari versions: use the site in a tab.
+
+### Desktop Firefox
+
+Firefox doesn't expose a PWA install flow on desktop today. Use the site in a tab - everything still works, just without the standalone window.
 
 ## Privacy
 
