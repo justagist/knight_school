@@ -6,14 +6,31 @@ A client-side chess learning PWA. Analyze your own games with Stockfish, drill o
 
 Everything runs in your browser — no backend, no auth, no telemetry. Bring your own LLM API key.
 
-> **Status:** in active development. Currently on **Step 1 of 10** in the build plan — scaffold, branding, theme, PWA shell, and deploy pipeline.
+> **Status:** MVP feature-complete (steps 1–10 of the build plan). [SPEC.md](./SPEC.md) is the canonical product + architecture spec.
+
+## Screenshots
+
+![Landing](docs/screenshots/landing-light.png)
+
+![Analyze](docs/screenshots/analyze-light.png)
+
+![Plan tab](docs/screenshots/plan.png)
+
+![Openings tab](docs/screenshots/openings.png)
+
+![Elle chat panel](docs/screenshots/chat-light.png)
+
+![Settings](docs/screenshots/settings.png)
+
+Light/dark pairs ship for landing, analyze, and chat (`*-dark.png`).
+Capture brief: [`docs/screenshots/README.md`](docs/screenshots/README.md).
 
 ## What it does
 
-- **Analyze** — Paste a PGN; get move-by-move Stockfish evaluation, top engine lines, classification (best/good/inaccuracy/mistake/blunder), and an eval graph.
-- **Elle** — A friendly AI chess assistant. Comments on moves on demand, answers chess questions, and uses your provider's web search for current news.
-- **Openings** — Import Lichess Studies and drill repertoire lines. Pulls real stats from the Lichess Opening Explorer.
-- **Plan** — Set a goal in plain text; get a fixed weekly template of drills, analysis, and lessons.
+- **Analyze** — Paste a PGN; get move-by-move Stockfish evaluation, top engine lines, classification (`best`, `good`, `inaccuracy`, `mistake`, `blunder`, `book`, `opening`), and an eval graph. Guess-the-move mode masks the next move and scores your accuracy.
+- **Elle** — A friendly AI chess assistant. Comments on moves on demand, answers chess questions, and uses your provider's web search for current news. Drill-aware: opening chat mid-drill prompts an explicit invalidation modal.
+- **Study** — Import Lichess Studies, drill chapter lines or mixed pools, pull master-game stats from the Lichess Opening Explorer when a token is configured.
+- **Plan** — Set a goal in plain text; get a fixed weekly template (3 drills, 2 analyses, 1 lesson, 1 guess review, daily Lichess puzzle) with a daily checklist that rolls incomplete items forward to today.
 
 ## Privacy
 
@@ -27,11 +44,12 @@ No analytics, no telemetry, no third-party tracking.
 
 ## Self-hosting
 
-Requires **Node 20 or newer** (an `.nvmrc` is included — `nvm use` picks it up).
+Requires **Node 20 or newer** (an `.nvmrc` pins to 22 — `nvm use` picks it up). Node 18 will fail on the postinstall step + chessops imports.
 
 ```sh
 git clone https://github.com/justagist/knight_school
 cd knight_school
+nvm use
 npm install
 npm run dev        # local dev at http://localhost:5173
 ```
@@ -43,15 +61,16 @@ npm run build
 npm run serve      # serves dist/ at http://localhost:8080 with COOP/COEP
 ```
 
-No environment variables. No `.env` file. Bring your own LLM API key in the in-app Settings page.
+No environment variables. No `.env` file. Bring your own LLM API key in the in-app Settings page. The local serve script does not set the strict CSP from `public/_headers` — that ships only via Cloudflare. See [DEVELOPMENT.md](./DEVELOPMENT.md) for the smoke-test recipe.
 
 ## Settings overview
 
-- **Appearance** — Light / dark / system theme. Board theme and piece options (step 2+).
+- **Appearance** — Light / dark / system theme. Board theme + coordinate placement.
 - **Engine** — Stockfish Lite (~6 MB, default) or Full (~40 MB, downloaded on demand). Analysis depth 10–30.
 - **Sounds** — Move / capture / check / game-end. Off by default.
-- **LLM (Elle)** — Provider (Groq / Gemini / Anthropic / OpenAI / OpenRouter), API key, model, test-connection button. Multiple keys per provider with auto-fallback on rate-limit.
-- **Storage** — Used MB, export/import all data, clear everything.
+- **LLM (Elle)** — Provider (Groq / Gemini / Anthropic / OpenAI / OpenRouter), API key, model, test-connection button. Multiple keys per provider with auto-fallback on rate-limit. A **Session only** toggle keeps the key in memory and discards it on tab close — useful on shared devices.
+- **Lichess** — Optional Lichess personal access token. Unlocks Opening Explorer enrichment + private Study imports.
+- **Storage** — Used MB, export/import all data (with an "Include API keys" toggle that defaults OFF), clear everything.
 
 ## API keys
 
@@ -100,11 +119,25 @@ Three flavours of drill on the Study tab. They share one position index built pe
 - **Mixed (free)** — pick All chapters / Pick chapters, free-drill mode, a length (10 / 25 / 50 / All). The engine drops you into a random chapter's starting position; you play your side, the engine plays the opponent's moves at random from the pool (weighted by occurrence count). When a line runs out, the engine teleports to a new chapter start so the drill keeps accumulating moves toward the target length. A wrong move ends the run. Use this when testing whether a repertoire stays in your head across multiple openings.
 
   The pool walks **every node** in every chapter's move tree — main line *and* variations — so the drill exercises the alternative responses the study author bothered to annotate, not just the headline line.
-- **Spot drill** — same setup but `mode: spot`. The engine surfaces *critical* positions — FENs where, across the selected chapter scope, exactly one user-side move exists and the position is at least 3 plies deep. You play one move per spot; the engine advances to the next regardless of pass / fail. Use this when revising — you focus on the moves that actually require theory recall, not the obvious opening replies.
+- **Spot drill** — same setup but `mode: spot`. The engine surfaces *critical* positions — FENs where, across the selected chapter scope, exactly one user-side move exists and the position is at least 3 plies deep. After each move a feedback card shows pass / fail; tap **Next spot** to advance. Use this when revising — you focus on the moves that actually require theory recall, not the obvious opening replies.
 
 The setup modal is the same for all three. The "Drill" button at the top of the Study page opens it with mixed-mode defaults; the per-chapter `▶ Drill this chapter` button opens it with chapter-mode defaults. Either way, you can re-scope before clicking *Start drill*.
 
 After a mixed / spot drill: the results card shows accuracy + per-chapter breakdown + a failure list with review links. A `Drill weak spots` CTA appears when at least one chapter scored below 70% and pre-selects those chapters for the next run.
+
+A **practice queue** sits at the top of the Study tab — interleaves per-chapter drills (sorted by the failed → stale → review scheduler) with saved mixed/spot session configs. Tap × to remove a row from the queue.
+
+## Plan
+
+Set a free-text goal — "reach 1500 rapid in 3 months", "stop hanging pieces" — and the app pulls a target date out of obvious phrasing ("3 months", "by Aug 15") when it can. The Plan tab then renders a fixed weekly checklist:
+
+- 3 drill sessions (Mon / Wed / Fri)
+- 2 game analysis sessions (Tue / Thu)
+- 1 study chapter to read (Sat)
+- 1 guess-the-move review (Sun)
+- A daily Lichess puzzle prompt on every day
+
+Incomplete items roll forward into today's column with a `from <Day>` annotation. The original day's slot collapses to a muted `moved to today` placeholder so the same item never shows twice. Weekly reset happens on local Monday midnight; the previous week's checks stay in IndexedDB as audit history. Replacing the goal archives the old one — viewable under **Previous goals** (read-only).
 
 ## Deployment
 
