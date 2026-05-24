@@ -22,7 +22,7 @@ const OPENING_FETCH_PLIES = 30;
 
 /** Per-FEN Explorer lookup status — drives the "looking up…" vs "done"
  * vs "error" branches in the opening header. */
-export type ExplorerStatus = 'loading' | 'loaded' | 'error';
+export type ExplorerStatus = 'loading' | 'loaded' | 'skipped' | 'empty' | 'error';
 
 export interface GameAnalysisResult {
   /** Eval per FEN index (parallel to game.fens). */
@@ -157,13 +157,13 @@ export function useGameAnalysis(
         for (const fen of missingFens) {
           const key = normalizeFenForExplorer(fen);
           void fetchExplorerEntry(fen)
-            .then((row) => {
+            .then((res) => {
               if (cancelled) return;
-              if (row) {
-                setExplorerByFen((prev) => ({ ...prev, [row.fen]: row }));
+              if (res.status === 'ok') {
+                setExplorerByFen((prev) => ({ ...prev, [res.row.fen]: res.row }));
                 setExplorerStatus((prev) => ({ ...prev, [key]: 'loaded' }));
               } else {
-                setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+                setExplorerStatus((prev) => ({ ...prev, [key]: res.status }));
               }
             })
             .catch(() => {
@@ -334,13 +334,13 @@ export function useGameAnalysis(
       // transitions: undefined → 'loading' → 'loaded' | 'error'.
       setExplorerStatus((prev) => (prev[key] ? prev : { ...prev, [key]: 'loading' }));
       void fetchExplorerEntry(fen)
-        .then((row) => {
+        .then((res) => {
           if (runIdRef.current !== runId) return;
-          if (row) {
-            setExplorerByFen((prev) => ({ ...prev, [row.fen]: row }));
+          if (res.status === 'ok') {
+            setExplorerByFen((prev) => ({ ...prev, [res.row.fen]: res.row }));
             setExplorerStatus((prev) => ({ ...prev, [key]: 'loaded' }));
           } else {
-            setExplorerStatus((prev) => ({ ...prev, [key]: 'error' }));
+            setExplorerStatus((prev) => ({ ...prev, [key]: res.status }));
           }
         })
         .catch(() => {

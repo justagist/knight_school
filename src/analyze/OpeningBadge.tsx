@@ -78,7 +78,7 @@ interface OpeningHeaderProps {
   /** Explorer row for the current ply when Lichess token is configured. Adds game-count enrichment. */
   current: ExplorerEntryRow | undefined;
   /** Status of the Explorer fetch (undefined if no token / fetch never started). */
-  currentStatus: 'loading' | 'loaded' | 'error' | undefined;
+  currentStatus: 'loading' | 'loaded' | 'skipped' | 'empty' | 'error' | undefined;
   lastKnownName: string | undefined;
   lastKnownEco: string | undefined;
   atStartingPosition: boolean;
