@@ -245,6 +245,7 @@ function DayColumn({
 }) {
   const items = itemsForDay(day);
   const future = day > today;
+  const past = day < today;
   return (
     <div
       className={`card flex flex-col gap-2 p-2 text-xs ${
@@ -258,15 +259,24 @@ function DayColumn({
         {isToday && <span className="text-[10px] uppercase tracking-wide text-accent">Today</span>}
       </header>
       <ul className="flex flex-col gap-1">
-        {items.map((item) => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            checked={completedIds.has(item.id)}
-            disabled={future}
-            onToggle={() => onToggle(item.id)}
-          />
-        ))}
+        {items.map((item) => {
+          const done = completedIds.has(item.id);
+          // Past-day items still uncompleted have rolled forward to
+          // today's column — render a placeholder here so the user
+          // doesn't see the same actionable row twice on screen.
+          if (past && !done) {
+            return <MovedRow key={item.id} item={item} />;
+          }
+          return (
+            <ItemRow
+              key={item.id}
+              item={item}
+              checked={done}
+              disabled={future}
+              onToggle={() => onToggle(item.id)}
+            />
+          );
+        })}
         {rollover.map((item) => (
           <ItemRow
             key={`rollover-${item.id}`}
@@ -299,6 +309,7 @@ function DayAccordion({
 }) {
   const items = itemsForDay(day);
   const future = day > today;
+  const past = day < today;
   const doneCount = items.filter((i) => completedIds.has(i.id)).length;
   return (
     <details
@@ -320,15 +331,21 @@ function DayAccordion({
         </span>
       </summary>
       <ul className="flex flex-col gap-1 border-t border-border px-3 py-2 text-xs">
-        {items.map((item) => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            checked={completedIds.has(item.id)}
-            disabled={future}
-            onToggle={() => onToggle(item.id)}
-          />
-        ))}
+        {items.map((item) => {
+          const done = completedIds.has(item.id);
+          if (past && !done) {
+            return <MovedRow key={item.id} item={item} />;
+          }
+          return (
+            <ItemRow
+              key={item.id}
+              item={item}
+              checked={done}
+              disabled={future}
+              onToggle={() => onToggle(item.id)}
+            />
+          );
+        })}
         {rollover.map((item) => (
           <ItemRow
             key={`rollover-${item.id}`}
@@ -341,6 +358,23 @@ function DayAccordion({
         ))}
       </ul>
     </details>
+  );
+}
+
+/**
+ * Placeholder rendered in a past day's slot when that day's item is
+ * still incomplete — the actionable copy now lives in today's
+ * column via the rollover prop. Avoids showing the same item twice.
+ */
+function MovedRow({ item }: { item: PlanItem }) {
+  return (
+    <li className="flex min-h-[2.25rem] items-center gap-2 rounded px-1 py-1 text-muted">
+      <span aria-hidden className="inline-block h-4 w-4 shrink-0" />
+      <span className="flex-1 truncate italic">{item.label}</span>
+      <span className="shrink-0 text-[10px] uppercase tracking-wide text-faint">
+        moved to today
+      </span>
+    </li>
   );
 }
 

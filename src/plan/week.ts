@@ -49,6 +49,14 @@ export function daysUntil(targetIso: string): number {
  *
  * Kept intentionally narrow — anything ambiguous returns undefined and
  * the UI shows the creation date instead.
+ *
+ * TODO(plan-date-parser): richer natural-language phrasing such as
+ *   - "by end of year" / "EOY"
+ *   - "next quarter" / "this quarter"
+ *   - "before <event>" (with a tiny phrase dictionary)
+ *   - relative weekdays ("next Friday")
+ * could plug in here. Keep the contract the same (return ISO or
+ * undefined); UI doesn't need to change.
  */
 export function parseTargetDate(text: string, now: Date = new Date()): string | undefined {
   const t = text.toLowerCase();
