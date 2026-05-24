@@ -101,7 +101,7 @@ function SavedTokenRow({ row, onChange }: SavedTokenRowProps) {
         <span>{revealed ? row.token : masked}</span>
         <button
           type="button"
-          className="btn-ghost px-1.5 py-0 text-[10px]"
+          className="btn-ghost px-2 py-1 text-xs"
           onClick={() => setRevealed((r) => !r)}
         >
           {revealed ? 'Hide' : 'Reveal'}

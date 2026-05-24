@@ -411,15 +411,17 @@ export function OpeningsPage() {
           import unlock once the user pastes a personal token. Surfaced
           here so the user finds it without digging through Settings. */}
       {!lichess.loading && !lichess.hasToken && (
-        <div className="card flex items-center gap-3 border-l-4 border-l-secondary px-3 py-2 text-xs text-muted">
-          <span aria-hidden className="text-secondary">ℹ</span>
-          <span className="flex-1">
-            Add a Lichess token for richer opening data (master-game stats, popular
-            continuations, private study import).
-          </span>
+        <div className="card flex flex-col gap-2 border-l-4 border-l-secondary px-3 py-2 text-xs text-muted sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex min-w-0 items-start gap-2 sm:flex-1">
+            <span aria-hidden className="shrink-0 text-secondary">ℹ</span>
+            <span className="min-w-0">
+              Add a Lichess token for richer opening data (master-game stats, popular
+              continuations, private study import).
+            </span>
+          </div>
           <Link
             to="/settings#lichess"
-            className="shrink-0 font-medium text-secondary hover:underline"
+            className="shrink-0 self-start font-medium text-secondary hover:underline sm:self-auto"
           >
             Settings →
           </Link>
@@ -595,7 +597,7 @@ function PracticeQueue({
               <button
                 type="button"
                 onClick={() => onStartSession(s)}
-                className="btn-secondary shrink-0 px-2 py-0.5 text-[11px]"
+                className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
                 title="Start this saved drill"
               >
                 Drill
@@ -603,7 +605,7 @@ function PracticeQueue({
               <button
                 type="button"
                 onClick={() => onRemoveSession(s.id)}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm text-muted hover:bg-blunder/10 hover:text-blunder"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-base text-muted hover:bg-blunder/10 hover:text-blunder"
                 title="Remove from queue"
                 aria-label="Remove from queue"
               >
@@ -643,7 +645,7 @@ function PracticeQueue({
               <button
                 type="button"
                 onClick={() => onStartLine(l)}
-                className="btn-secondary shrink-0 px-2 py-0.5 text-[11px]"
+                className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
                 title="Drill this line"
               >
                 Drill
@@ -651,7 +653,7 @@ function PracticeQueue({
               <button
                 type="button"
                 onClick={() => onRemoveLine(l.id)}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm text-muted hover:bg-blunder/10 hover:text-blunder"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-base text-muted hover:bg-blunder/10 hover:text-blunder"
                 title="Remove from queue"
                 aria-label="Remove from queue"
               >

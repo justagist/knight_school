@@ -45,7 +45,7 @@ export function PlayerStrip({ name, side, captured, advantage, toMove }: PlayerS
         <span className="truncate font-medium">{label}</span>
         {captured.length > 0 && (
           <span
-            className="select-none whitespace-nowrap text-[18px] leading-none text-ink-700 dark:text-ink-200"
+            className="min-w-0 flex-1 select-none truncate text-[18px] leading-none text-ink-700 dark:text-ink-200"
             aria-label={`Captured: ${captured.length} piece${captured.length === 1 ? '' : 's'}`}
           >
             {captured.map((p, i) => (

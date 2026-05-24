@@ -368,10 +368,10 @@ function DayAccordion({
  */
 function MovedRow({ item }: { item: PlanItem }) {
   return (
-    <li className="flex min-h-[2.25rem] items-center gap-2 rounded px-1 py-1 text-muted">
-      <span aria-hidden className="inline-block h-4 w-4 shrink-0" />
+    <li className="flex min-h-[2.75rem] items-center gap-2 rounded text-muted">
+      <span aria-hidden className="inline-block h-11 w-11 shrink-0" />
       <span className="flex-1 truncate italic">{item.label}</span>
-      <span className="shrink-0 text-[10px] uppercase tracking-wide text-faint">
+      <span className="shrink-0 pr-2 text-[10px] uppercase tracking-wide text-faint">
         moved to today
       </span>
     </li>
@@ -415,21 +415,29 @@ function ItemRow({
 
   return (
     <li
-      className={`flex min-h-[2.25rem] items-center gap-2 rounded px-1 py-1 ${
+      className={`flex min-h-[2.75rem] items-center gap-2 rounded ${
         checked ? 'text-muted line-through' : ''
       } ${disabled ? 'opacity-50' : ''}`}
     >
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={onToggle}
-        className="h-4 w-4 shrink-0 accent-accent"
-        aria-label={item.label}
-      />
+      {/* 44×44 tap surface around the native checkbox — meets the
+          mobile-tap-target spec without changing the visual size. */}
+      <label
+        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center ${
+          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={onToggle}
+          className="h-4 w-4 accent-accent"
+          aria-label={item.label}
+        />
+      </label>
       {link}
       {fromDay !== undefined && (
-        <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted">
+        <span className="shrink-0 pr-2 text-[10px] uppercase tracking-wide text-muted">
           from {DAY_LABELS[fromDay]}
         </span>
       )}
