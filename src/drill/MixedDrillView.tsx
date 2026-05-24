@@ -101,7 +101,16 @@ export function MixedDrillView({
     chapterIndices.length === study.chapters.length
       ? 'All chapters'
       : `${chapterIndices.length} of ${study.chapters.length} chapters`;
-  const progressLabel = length > 0 ? `${drill.state.userMovesMade}/${length}` : `${drill.state.userMovesMade}`;
+  // Spot mode shows "X/Y correct of Z attempted" so the user can see
+  // running accuracy live. Free mode keeps the simpler "X of N" view.
+  const progressLabel =
+    mode === 'spot'
+      ? `${drill.state.userMovesMade}/${drill.state.userMovesAttempted} correct${
+          length > 0 ? ` · ${drill.state.userMovesAttempted}/${length}` : ''
+        }`
+      : length > 0
+        ? `${drill.state.userMovesMade}/${length}`
+        : `${drill.state.userMovesMade}`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -131,6 +140,8 @@ export function MixedDrillView({
             fen={drill.state.fen}
             orientation={userSide}
             lastMove={drill.state.lastMove}
+            // Disable during feedback / wrong / complete so a stray click
+            // can't fire submitMove on a stale FEN.
             viewOnly={drill.state.status !== 'playing' || !drill.state.awaitingUser}
             movableColor={userSide}
             onUserMove={(uci) => drill.submitMove(uci)}
@@ -140,6 +151,9 @@ export function MixedDrillView({
         <div className="flex flex-col gap-3">
           {drill.state.status === 'playing' && (
             <PromptCard awaiting={drill.state.awaitingUser} userSide={userSide} mode={mode} />
+          )}
+          {drill.state.status === 'feedback' && drill.state.feedback && (
+            <FeedbackCard feedback={drill.state.feedback} onNext={drill.next} onExit={onExit} />
           )}
           {drill.state.status === 'wrong' && drill.state.wrong && (
             <WrongCard
@@ -182,6 +196,81 @@ function PromptCard({
       <p className="text-xs text-muted">
         Side to play: {userSide}. {mode === 'spot' ? 'Find the one correct move from the chapter.' : 'Play a move that matches the chapter\'s line.'}
       </p>
+    </div>
+  );
+}
+
+/**
+ * Spot-mode result card — pass or fail. Shown between user moves so the
+ * user gets explicit feedback before the engine advances to the next
+ * position. The Next button is the only way forward, so the user has to
+ * acknowledge the outcome before continuing.
+ */
+function FeedbackCard({
+  feedback,
+  onNext,
+  onExit,
+}: {
+  feedback: {
+    pass: boolean;
+    playedSan: string;
+    expected: { san: string; chapterTitle: string }[];
+    matchedChapterTitle?: string;
+  };
+  onNext: () => void;
+  onExit: () => void;
+}) {
+  if (feedback.pass) {
+    return (
+      <div className="card flex flex-col gap-2 border-l-4 border-l-best p-3 text-sm">
+        <p className="font-semibold text-best">Correct.</p>
+        <p className="text-xs">
+          You played <span className="font-mono font-semibold">{feedback.playedSan}</span>
+          {feedback.matchedChapterTitle && (
+            <span className="text-muted"> (from {feedback.matchedChapterTitle})</span>
+          )}
+          .
+        </p>
+        <div className="mt-1 flex gap-2">
+          <button type="button" onClick={onNext} className="btn-primary flex-1 text-xs">
+            Next spot →
+          </button>
+          <button type="button" onClick={onExit} className="btn-secondary text-xs">
+            Exit
+          </button>
+        </div>
+      </div>
+    );
+  }
+  // De-dup expected by SAN — multiple chapters may agree on the same move.
+  const byMove = new Map<string, string[]>();
+  for (const e of feedback.expected) {
+    const list = byMove.get(e.san) ?? [];
+    list.push(e.chapterTitle);
+    byMove.set(e.san, list);
+  }
+  return (
+    <div className="card flex flex-col gap-2 border-l-4 border-l-blunder p-3 text-sm">
+      <p className="font-semibold text-blunder">Not in the line.</p>
+      <p className="text-xs">
+        You played <span className="font-mono">{feedback.playedSan || '(illegal)'}</span>. Expected:
+      </p>
+      <ul className="space-y-1 text-xs">
+        {[...byMove.entries()].map(([san, titles]) => (
+          <li key={san} className="font-mono">
+            <span className="font-semibold">{san}</span>
+            <span className="text-muted"> ({titles.join(', ')})</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-1 flex gap-2">
+        <button type="button" onClick={onNext} className="btn-primary flex-1 text-xs">
+          Next spot →
+        </button>
+        <button type="button" onClick={onExit} className="btn-secondary text-xs">
+          Exit
+        </button>
+      </div>
     </div>
   );
 }

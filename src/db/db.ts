@@ -305,6 +305,39 @@ export interface DrillAttemptRow {
 }
 
 /**
+ * Saved drill session — a parameter set the user chose in the setup
+ * modal that they want to come back to later. Differs from
+ * {@link DrillLineRow}: a DrillLineRow is per-chapter, fixed at the
+ * chapter's main line. A DrillSessionRow stores any setup-modal
+ * combination (mixed scope, spot mode, chapter subset, …) so the
+ * Practice queue can surface mixed / spot drills the same way it
+ * surfaces chapter drills.
+ *
+ * Per-attempt stats roll up the same way as DrillLineRow.
+ */
+export interface DrillSessionRow {
+  /** UUID. Primary key. */
+  id: string;
+  studyId: string;
+  /** Cached for the queue card so it doesn't have to load the study row. */
+  studyName: string;
+  scope: 'chapter' | 'mixed' | 'pick';
+  mode: 'free' | 'spot';
+  side: 'white' | 'black';
+  /** 0 = unlimited. */
+  length: number;
+  chapterIndices: number[];
+  /** Cumulative stats — passes counted on terminal completion. */
+  attempts: number;
+  successes: number;
+  lastResult?: 'pass' | 'fail';
+  lastDrilledAt?: number;
+  createdAt: number;
+  /** Free-text label the user can give the session ("My Italian repertoire"). */
+  label?: string;
+}
+
+/**
  * Position pool entry for mixed / spot drills. One row per unique FEN
  * (normalised to position-only via {@link normalizeFenForExplorer}) per
  * study. Built once on study import and updated on re-import.
@@ -371,6 +404,7 @@ export class KsDatabase extends Dexie {
   drillLines!: EntityTable<DrillLineRow, 'id'>;
   drillAttempts!: EntityTable<DrillAttemptRow, 'id'>;
   drillPositions!: EntityTable<DrillPositionRow, 'id'>;
+  drillSessions!: EntityTable<DrillSessionRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -480,6 +514,25 @@ export class KsDatabase extends Dexie {
       drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
       drillAttempts: '&id, drillLineId, startedAt, mode',
       drillPositions: '&id, studyId',
+    });
+    // v10: saved drill sessions so the user can stash a mixed / spot
+    // configuration into the Practice queue without starting it yet.
+    this.version(10).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt, mode',
+      drillPositions: '&id, studyId',
+      drillSessions: '&id, studyId, lastDrilledAt, createdAt',
     });
   }
 }

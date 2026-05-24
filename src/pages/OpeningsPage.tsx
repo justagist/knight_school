@@ -12,8 +12,14 @@ import { DrillView } from '../drill/DrillView';
 import { MixedDrillView } from '../drill/MixedDrillView';
 import { ensureDrillLine, getDrillLine, listDrillLines } from '../db/drillLines';
 import { indexStudyPositions, listPositionsForStudy } from '../db/drillPositions';
+import {
+  addDrillSession,
+  deleteDrillSession,
+  listDrillSessions,
+  recordSessionAttempt,
+} from '../db/drillSessions';
 import { nextDrillLine, priorityLabel, sortByDrillPriority } from '../drill/scheduler';
-import type { DrillLineRow, DrillPositionRow } from '../db/db';
+import type { DrillLineRow, DrillPositionRow, DrillSessionRow } from '../db/db';
 import { useLichessAuth } from '../hooks/useLichessAuth';
 import { Link } from 'react-router-dom';
 
@@ -49,8 +55,10 @@ export function OpeningsPage() {
   // Drill-related state — resolved lazily when the URL has `drill=<id>`.
   const [drillLine, setDrillLine] = useState<DrillLineRow | null>(null);
   const [drillLines, setDrillLines] = useState<DrillLineRow[]>([]);
+  const [drillSessions, setDrillSessions] = useState<DrillSessionRow[]>([]);
   const refreshDrillLines = useCallback(async () => {
     setDrillLines(await listDrillLines());
+    setDrillSessions(await listDrillSessions());
   }, []);
   useEffect(() => {
     void refreshDrillLines();
@@ -195,6 +203,7 @@ export function OpeningsPage() {
       next.delete('dside');
       next.delete('dlen');
       next.delete('dchapters');
+      next.delete('dsession');
       return next;
     });
   }, [setParams]);
@@ -236,6 +245,7 @@ export function OpeningsPage() {
       .split(',')
       .map((s) => Number.parseInt(s, 10))
       .filter((n) => Number.isFinite(n));
+    const dsession = params.get('dsession');
     return (
       <MixedDrillView
         study={mixedStudy}
@@ -245,6 +255,12 @@ export function OpeningsPage() {
         mode={dmode}
         length={dlen}
         onExit={exitMixedDrill}
+        onFinished={(result) => {
+          // When this session was launched from a saved DrillSession,
+          // roll the outcome back into that row so the queue's accuracy
+          // + "lastDrilledAt" reflect the latest attempt.
+          if (dsession) void recordSessionAttempt(dsession, result);
+        }}
         onDrillSubset={(chapters) => {
           // Re-run the drill scoped to the weak chapters. Reset the
           // session by also remounting (URL change is enough — the view's
@@ -283,9 +299,6 @@ export function OpeningsPage() {
         onBack={backToLibrary}
         onStartDrill={(idx, side) => void startDrill(selected, idx, side)}
         onStartMixedDrill={(cfg) => {
-          // Build a `?mixed=<studyId>&...` URL that the page will read in
-          // Phase C to render the mixed-drill view. The engine itself
-          // lives in src/drill/useMixedDrill.ts (next phase).
           setParams((p) => {
             const next = new URLSearchParams(p);
             next.set('mixed', selected.id);
@@ -297,6 +310,19 @@ export function OpeningsPage() {
             next.delete('chapter');
             next.delete('drill');
             return next;
+          });
+        }}
+        onQueueDrill={(cfg) => {
+          // Stash the config as a saved DrillSession — surfaces in the
+          // Practice queue without starting the drill now.
+          void addDrillSession({
+            studyId: selected.id,
+            studyName: selected.name,
+            scope: cfg.scope,
+            mode: cfg.mode,
+            side: cfg.side,
+            length: cfg.length,
+            chapterIndices: cfg.chapterIndices,
           });
         }}
       />
@@ -405,16 +431,35 @@ export function OpeningsPage() {
 
       <StudyImporter onImported={openStudy} />
 
-      {drillLines.length > 0 && (
+      {(drillLines.length > 0 || drillSessions.length > 0) && (
         <PracticeQueue
           lines={drillLines}
-          onStart={(line) =>
+          sessions={drillSessions}
+          onStartLine={(line) =>
             setParams((p) => {
               const next = new URLSearchParams(p);
               next.set('drill', line.id);
               return next;
             })
           }
+          onStartSession={(s) =>
+            setParams((p) => {
+              const next = new URLSearchParams(p);
+              next.set('mixed', s.studyId);
+              next.set('dmode', s.mode);
+              next.set('dside', s.side);
+              next.set('dlen', String(s.length));
+              next.set('dchapters', s.chapterIndices.join(','));
+              // Carry the session id so completion can roll stats back
+              // into the same DrillSessionRow (lastResult, attempts++).
+              next.set('dsession', s.id);
+              next.delete('study');
+              next.delete('chapter');
+              next.delete('drill');
+              return next;
+            })
+          }
+          onRemoveSession={(id) => void deleteDrillSession(id)}
         />
       )}
 
@@ -450,49 +495,119 @@ export function OpeningsPage() {
 }
 
 /**
- * Practice queue surface — top of the page when the user has at least one
- * drill line. Sorts by scheduler priority (failed → stale 7d → review) and
- * shows the top 5 with a one-click "Drill now" CTA.
+ * Practice queue surface — top of the page when the user has any drillable
+ * item. Renders two row kinds in one list:
+ *   - DrillLineRow:    per-chapter drills generated by ▶ Drill this chapter
+ *   - DrillSessionRow: mixed / spot / picked-subset configs saved via the
+ *                      "Add to queue" button on the setup modal
+ *
+ * Sorting: per-chapter lines use the scheduler buckets (failed → stale →
+ * fresh). Sessions interleave at the top — newly-saved entries surface
+ * first since the user just decided they wanted them.
  */
 function PracticeQueue({
   lines,
-  onStart,
+  sessions,
+  onStartLine,
+  onStartSession,
+  onRemoveSession,
 }: {
   lines: DrillLineRow[];
-  onStart: (line: DrillLineRow) => void;
+  sessions: DrillSessionRow[];
+  onStartLine: (line: DrillLineRow) => void;
+  onStartSession: (session: DrillSessionRow) => void;
+  onRemoveSession: (sessionId: string) => void;
 }) {
-  const sorted = sortByDrillPriority(lines);
-  const top = sorted.slice(0, 5);
+  const sortedLines = sortByDrillPriority(lines);
+  const topLines = sortedLines.slice(0, 5);
+  // Sessions newest-first (createdAt desc).
+  const topSessions = [...sessions]
+    .sort((a, b) => (b.lastDrilledAt ?? b.createdAt) - (a.lastDrilledAt ?? a.createdAt))
+    .slice(0, 5);
   const headLine = nextDrillLine(lines);
-  if (!headLine) return null;
+  const headSession = topSessions[0];
+  const total = lines.length + sessions.length;
+  if (total === 0) return null;
   return (
     <section className="card flex flex-col gap-2 p-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600 dark:text-ink-400">
-          Practice queue ({lines.length})
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Practice queue ({total})
         </h3>
-        <button
-          type="button"
-          onClick={() => onStart(headLine)}
-          className="btn-primary text-xs"
-          title={`Start drilling: ${headLine.chapterTitle}`}
-        >
-          ▶ Drill next
-        </button>
+        {headSession ? (
+          <button
+            type="button"
+            onClick={() => onStartSession(headSession)}
+            className="btn-primary text-xs"
+            title={`Resume saved drill — ${headSession.studyName}`}
+          >
+            ▶ Drill next
+          </button>
+        ) : headLine ? (
+          <button
+            type="button"
+            onClick={() => onStartLine(headLine)}
+            className="btn-primary text-xs"
+            title={`Start drilling: ${headLine.chapterTitle}`}
+          >
+            ▶ Drill next
+          </button>
+        ) : null}
       </div>
       <ul className="flex flex-col gap-1">
-        {top.map((l) => {
+        {topSessions.map((s) => {
+          const accuracy =
+            s.attempts > 0 ? `${Math.round((s.successes / s.attempts) * 100)}%` : '—';
+          const scopeLabel =
+            s.scope === 'mixed' ? 'mixed' : s.scope === 'pick' ? `${s.chapterIndices.length} ch.` : 'chapter';
+          return (
+            <li
+              key={s.id}
+              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 rounded px-2 py-1 text-xs odd:bg-surface-2/60"
+            >
+              <span className="min-w-0 truncate">
+                <span className="font-medium">{s.label || `${s.mode === 'spot' ? 'Spot' : 'Mixed'} drill`}</span>
+                <span className="text-muted">
+                  {' · '}
+                  {s.studyName} · {s.side} · {scopeLabel}
+                </span>
+              </span>
+              <span className="shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
+                {s.mode === 'spot' ? 'spot' : 'mixed'}
+              </span>
+              <span className="shrink-0 font-mono tabular-nums text-muted">{accuracy}</span>
+              <button
+                type="button"
+                onClick={() => onStartSession(s)}
+                className="btn-secondary shrink-0 px-2 py-0.5 text-[11px]"
+                title="Start this saved drill"
+              >
+                Drill
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemoveSession(s.id)}
+                className="shrink-0 px-1.5 text-[11px] text-muted hover:text-blunder"
+                title="Remove from queue"
+                aria-label="Remove from queue"
+              >
+                ✕
+              </button>
+            </li>
+          );
+        })}
+        {topLines.map((l) => {
           const tag = priorityLabel(l);
           const accuracy =
             l.attempts > 0 ? `${Math.round((l.successes / l.attempts) * 100)}%` : '—';
           return (
             <li
               key={l.id}
-              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 rounded px-2 py-1 text-xs odd:bg-ink-100/60 dark:odd:bg-ink-800/40"
+              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 rounded px-2 py-1 text-xs odd:bg-surface-2/60"
             >
               <span className="min-w-0 truncate">
                 <span className="font-medium">{l.chapterTitle}</span>
-                <span className="text-ink-500 dark:text-ink-400">
+                <span className="text-muted">
                   {' · '}
                   {l.studyName} · {l.userSide}
                 </span>
@@ -500,25 +615,24 @@ function PracticeQueue({
               <span
                 className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
                   tag === 'failed'
-                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+                    ? 'bg-blunder/15 text-blunder'
                     : tag === 'stale'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                      : 'bg-ink-200 text-ink-600 dark:bg-ink-800 dark:text-ink-300'
+                      ? 'bg-inaccuracy/15 text-inaccuracy'
+                      : 'bg-surface-2 text-muted'
                 }`}
               >
                 {tag}
               </span>
-              <span className="shrink-0 font-mono tabular-nums text-ink-500 dark:text-ink-400">
-                {accuracy}
-              </span>
+              <span className="shrink-0 font-mono tabular-nums text-muted">{accuracy}</span>
               <button
                 type="button"
-                onClick={() => onStart(l)}
+                onClick={() => onStartLine(l)}
                 className="btn-secondary shrink-0 px-2 py-0.5 text-[11px]"
                 title="Drill this line"
               >
                 Drill
               </button>
+              <span aria-hidden /> {/* spacer so columns align with session rows */}
             </li>
           );
         })}

@@ -28,6 +28,13 @@ interface DrillSetupModalProps {
   open: boolean;
   onClose: () => void;
   onStart: (result: DrillSetupResult) => void;
+  /**
+   * Optional "Add to queue" — when wired, the modal shows a secondary
+   * button next to Start drill that stashes the same config into the
+   * Practice queue without launching the drill. Lets the user save a
+   * setup for later without committing time right now.
+   */
+  onQueue?: (result: DrillSetupResult) => void;
 }
 
 /**
@@ -47,6 +54,7 @@ export function DrillSetupModal({
   open,
   onClose,
   onStart,
+  onQueue,
 }: DrillSetupModalProps) {
   const [scope, setScope] = useState<DrillScope>(initial.scope);
   const [mode, setMode] = useState<DrillMode>(initial.mode);
@@ -219,10 +227,30 @@ export function DrillSetupModal({
           </div>
         </fieldset>
 
-        <div className="mt-1 flex items-center justify-end gap-2 border-t border-border pt-3">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
           <button type="button" onClick={onClose} className="btn-secondary text-sm">
             Cancel
           </button>
+          {onQueue && (
+            <button
+              type="button"
+              onClick={() =>
+                onQueue({
+                  scope,
+                  mode,
+                  side,
+                  length,
+                  chapterIndices:
+                    scope === 'mixed' ? allChapters : chapterIndices,
+                })
+              }
+              disabled={!canStart}
+              className="btn-secondary text-sm"
+              title="Save this drill setup for later — it'll appear in the Practice queue without starting now."
+            >
+              Add to queue
+            </button>
+          )}
           <button
             type="button"
             onClick={() =>

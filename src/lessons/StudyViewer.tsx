@@ -35,6 +35,12 @@ interface StudyViewerProps {
    * the mixed-drill view via the encoded session params.
    */
   onStartMixedDrill?: (config: DrillSetupResult) => void;
+  /**
+   * Add a drill config to the Practice queue without launching it.
+   * Wired the same way as `onStartMixedDrill` but writes a DrillSession
+   * row instead of navigating.
+   */
+  onQueueDrill?: (config: DrillSetupResult) => void;
 }
 
 /**
@@ -50,6 +56,7 @@ export function StudyViewer({
   onRefreshed,
   onStartDrill,
   onStartMixedDrill,
+  onQueueDrill,
 }: StudyViewerProps) {
   const chapterCount = study.chapters.length;
   const safeInitial = clampIndex(initialChapter, chapterCount);
@@ -461,6 +468,14 @@ export function StudyViewer({
             onStartMixedDrill(cfg);
           }
         }}
+        onQueue={
+          onQueueDrill
+            ? (cfg) => {
+                setDrillSetup(null);
+                onQueueDrill(cfg);
+              }
+            : undefined
+        }
       />
     </div>
   );

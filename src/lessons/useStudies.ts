@@ -3,6 +3,7 @@ import type { StudyRow } from '../db/db';
 import { deleteStudy, listStudies } from '../db/studies';
 import { deleteDrillLinesForStudy } from '../db/drillLines';
 import { deletePositionsForStudy } from '../db/drillPositions';
+import { deleteSessionsForStudy } from '../db/drillSessions';
 
 /**
  * Reactive view of the studies table. Listens for the
@@ -35,6 +36,7 @@ export function useStudies() {
     // drop the position-pool index used by mixed / spot drills.
     await deleteDrillLinesForStudy(id);
     await deletePositionsForStudy(id);
+    await deleteSessionsForStudy(id);
     await deleteStudy(id);
     notifyStudiesChanged();
     window.dispatchEvent(new Event('ks-drills-changed'));

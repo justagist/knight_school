@@ -19,11 +19,22 @@ interface ExpectedMove {
 }
 
 export interface MixedDrillState {
-  status: 'playing' | 'wrong' | 'complete' | 'aborted';
+  /**
+   * - `playing`  — board interactive, awaiting user move (or engine reply).
+   * - `feedback` — spot-mode pause after a user move; the result card is on
+   *                screen and the user must tap "Next spot" to continue.
+   * - `wrong`    — free-mode end-of-drill failure card.
+   * - `complete` — drill finished (target reached or pool exhausted).
+   * - `aborted`  — user exited mid-drill.
+   */
+  status: 'playing' | 'feedback' | 'wrong' | 'complete' | 'aborted';
   fen: string;
   awaitingUser: boolean;
   /** How many user moves the user has played correctly. */
   userMovesMade: number;
+  /** How many user moves the user has played, regardless of correctness.
+   *  Used by spot mode for "4/7 correct" tallies in the breadcrumb. */
+  userMovesAttempted: number;
   /** Per-chapter pass count, keyed by chapter index. Filled as we go. */
   perChapterPasses: Map<number, number>;
   /** Per-chapter attempt count (passes + fails). */
@@ -38,6 +49,14 @@ export interface MixedDrillState {
   wrong?: {
     playedSan: string;
     expected: ExpectedMove[];
+  };
+  /** Spot-mode feedback payload — set when status='feedback'. Holds
+   *  pass/fail + the move details so the result card can render. */
+  feedback?: {
+    pass: boolean;
+    playedSan: string;
+    expected: ExpectedMove[];
+    matchedChapterTitle?: string;
   };
   lastMove?: [string, string];
   /** Target length (number of user moves the drill targets). 0 = all (∞). */
@@ -83,6 +102,9 @@ export function useMixedDrill({
 }: UseMixedDrillArgs): {
   state: MixedDrillState;
   submitMove: (input: string) => void;
+  /** Advance the drill after a spot-mode feedback card. No-op in free
+   *  mode (free transitions automatically between user turns). */
+  next: () => void;
   retry: () => void;
   abort: () => void;
   /** All entries in the pool that are spot-position candidates (used by the
@@ -299,31 +321,26 @@ export function useMixedDrill({
         perChapterPasses.set(chapterIdx, (perChapterPasses.get(chapterIdx) ?? 0) + 1);
         const perChapterAttempts = new Map(s.perChapterAttempts);
         perChapterAttempts.set(chapterIdx, (perChapterAttempts.get(chapterIdx) ?? 0) + 1);
-        // Spot mode: after each user move (correct or wrong) the drill
-        // jumps to the NEXT spot position rather than playing on. Free
-        // mode continues the line.
         if (mode === 'spot') {
-          const nextSpot = pickNextSpot(spotPositions, s.fen);
-          if (!nextSpot) {
-            const targetReached = s.target > 0 && s.userMovesMade + 1 >= s.target;
-            return {
-              ...s,
-              userMovesMade: s.userMovesMade + 1,
-              perChapterPasses,
-              perChapterAttempts,
-              status: 'complete',
-              lastMove: [move!.from, move!.to],
-              ...(targetReached ? { status: 'complete' as const } : {}),
-            };
-          }
+          // Spot mode: show the result card, wait for user to tap "Next"
+          // before advancing. Avoids the silent "click made nothing
+          // happen" experience the prior version gave.
           return {
             ...s,
-            fen: nextSpot.fen,
-            awaitingUser: true,
+            status: 'feedback' as const,
+            awaitingUser: false,
+            fen: newFen,
             userMovesMade: s.userMovesMade + 1,
+            userMovesAttempted: s.userMovesAttempted + 1,
             perChapterPasses,
             perChapterAttempts,
-            lastMove: undefined,
+            lastMove: [move!.from, move!.to],
+            feedback: {
+              pass: true,
+              playedSan: move!.san,
+              expected,
+              matchedChapterTitle: matched.chapterTitle,
+            },
           };
         }
         return {
@@ -331,6 +348,7 @@ export function useMixedDrill({
           fen: newFen,
           awaitingUser: sideToMove(newFen) === sideChar(userSide),
           userMovesMade: s.userMovesMade + 1,
+          userMovesAttempted: s.userMovesAttempted + 1,
           perChapterPasses,
           perChapterAttempts,
           lastMove: [move!.from, move!.to],
@@ -339,6 +357,31 @@ export function useMixedDrill({
     },
     [state, byFen, chapterScope, userSide, mode, spotPositions, persist],
   );
+
+  const next = useCallback(() => {
+    // Advance to the next spot position after the feedback card is shown.
+    // Free mode doesn't use this — its 'wrong' status terminates the drill.
+    setState((s) => {
+      if (s.status !== 'feedback') return s;
+      if (mode !== 'spot') return { ...s, status: 'playing' };
+      // Target reached → complete.
+      if (s.target > 0 && s.userMovesAttempted >= s.target) {
+        return { ...s, status: 'complete', feedback: undefined };
+      }
+      const nextSpot = pickNextSpot(spotPositions, s.fen);
+      if (!nextSpot) {
+        return { ...s, status: 'complete', feedback: undefined };
+      }
+      return {
+        ...s,
+        status: 'playing',
+        fen: nextSpot.fen,
+        awaitingUser: true,
+        feedback: undefined,
+        lastMove: undefined,
+      };
+    });
+  }, [mode, spotPositions]);
 
   const retry = useCallback(() => {
     attemptIdRef.current = uuid();
@@ -365,7 +408,7 @@ export function useMixedDrill({
     setState((s) => ({ ...s, status: 'aborted' }));
   }, [mode]);
 
-  return { state, submitMove, retry, abort, spotCount: spotPositions.length };
+  return { state, submitMove, next, retry, abort, spotCount: spotPositions.length };
 }
 
 function initialState(args: {
@@ -399,10 +442,12 @@ function initialState(args: {
     fen,
     awaitingUser: sideToMove(fen) === sideChar(userSide),
     userMovesMade: 0,
+    userMovesAttempted: 0,
     perChapterPasses: new Map(),
     perChapterAttempts: new Map(),
     failures: [],
     wrong: undefined,
+    feedback: undefined,
     lastMove: undefined,
     target,
   };
@@ -413,17 +458,16 @@ function recordFailure(
   playedSan: string,
   expected: ExpectedMove[],
   mode: MixedDrillMode,
-  spotPositions: { fen: string }[],
+  // spotPositions stays in the arg list so spot-mode advancement is
+  // a future-friendly tweak; currently we land on 'feedback' instead
+  // of teleporting.
+  _spotPositions: { fen: string }[],
 ): MixedDrillState {
   const failures = [...s.failures, { fen: s.fen, playedSan, expected }];
   const perChapterAttempts = new Map(s.perChapterAttempts);
   for (const e of expected) {
     perChapterAttempts.set(e.chapterIndex, (perChapterAttempts.get(e.chapterIndex) ?? 0) + 1);
   }
-  // Free mode: a wrong move ends the drill (per spec). Spot mode: log the
-  // failure, advance to the next spot. Either way the wrong card surfaces
-  // briefly — in spot mode the parent will see status='wrong' and can
-  // either auto-advance after a tick or wait for user "Next" click.
   if (mode === 'free') {
     return {
       ...s,
@@ -431,27 +475,19 @@ function recordFailure(
       wrong: { playedSan, expected },
       failures,
       perChapterAttempts,
+      userMovesAttempted: s.userMovesAttempted + 1,
     };
   }
-  // Spot mode: advance immediately to the next spot. If none → complete.
-  const nextSpot = pickNextSpot(spotPositions, s.fen);
-  if (!nextSpot) {
-    return {
-      ...s,
-      failures,
-      perChapterAttempts,
-      status: 'complete',
-      wrong: { playedSan, expected },
-    };
-  }
+  // Spot mode: land on 'feedback' so the result card renders. The user
+  // taps "Next spot" to advance (handled by the `next()` action below).
   return {
     ...s,
-    fen: nextSpot.fen,
-    awaitingUser: true,
+    status: 'feedback',
+    awaitingUser: false,
     failures,
     perChapterAttempts,
-    wrong: { playedSan, expected },
-    lastMove: undefined,
+    userMovesAttempted: s.userMovesAttempted + 1,
+    feedback: { pass: false, playedSan, expected },
   };
 }
 
