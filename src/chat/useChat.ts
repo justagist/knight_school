@@ -55,6 +55,10 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
     let cancelled = false;
     threadGenRef.current += 1;
     const gen = threadGenRef.current;
+    // Thread switch invalidates any in-flight send for the previous
+    // thread — drop the sending flag so the new thread's input isn't
+    // locked behind a request the user no longer cares about.
+    setSending(false);
 
     (async () => {
       let t: ChatThreadRow;
@@ -159,7 +163,11 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
         });
         setMessages(await listMessages(thread.id));
       } finally {
-        if (threadGenRef.current === gen) setSending(false);
+        // Always clear the in-flight flag, even if the user switched
+        // threads mid-request. Stale-write protection happens earlier
+        // via the threadGenRef check before each appendMessage; leaving
+        // sending=true here strands the input forever.
+        setSending(false);
       }
     },
     [thread, sending, screen],
