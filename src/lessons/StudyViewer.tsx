@@ -293,9 +293,31 @@ export function StudyViewer({
         </div>
       )}
 
-      {/* Body: board + sidebar */}
+      {/*
+        Mobile order: comment → board → move buttons → chapter buttons → move list.
+        Putting the buttons near the bottom of the viewport keeps them in
+        easy thumb reach while the board stays visible above. Move list
+        drops to the bottom — users tap it less often than the prev/next
+        buttons during a lesson.
+
+        Desktop order: board column on the left (with comment under it),
+        move list + buttons on the right side panel — same as before.
+
+        Implementation: the board column comes first in DOM (mobile sees
+        comment-above-board because the column itself flips comment to
+        order-first on mobile). The sidebar's MoveList gets `order-last`
+        on mobile, and the keyboard hint gets pushed past it. Desktop
+        clears those orders via `lg:order-none`.
+      */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
         <div className="mx-auto flex w-full max-w-[min(80vh,_640px)] flex-col gap-2">
+          {parsed && (
+            <LessonComment
+              text={parsed.comments[ply]}
+              // Comment above the board on mobile, below on desktop.
+              className="order-first lg:order-none"
+            />
+          )}
           {parsed ? (
             <div className="flex items-stretch gap-2">
               {settings.engineEnabled && (
@@ -318,19 +340,17 @@ export function StudyViewer({
               </div>
             </div>
           ) : (
-            <div className="card grid aspect-square place-items-center text-sm text-ink-500 dark:text-ink-400">
+            <div className="card grid aspect-square place-items-center text-sm text-muted">
               No moves in this chapter.
             </div>
           )}
-          {parsed && <LessonComment text={parsed.comments[ply]} />}
         </div>
         <div className="flex flex-col gap-3">
           {parsed && (
             <>
-              <div className="card p-2">
-                <MoveList moves={parsed.moves} ply={ply} onSelectPly={setPly} />
-              </div>
-              <div className="flex gap-2 text-sm">
+              {/* Move-nav row — first in DOM so mobile sees it directly
+                  below the board. */}
+              <div className="flex gap-2 text-sm lg:order-2">
                 <button
                   type="button"
                   onClick={() => setPly(0)}
@@ -365,7 +385,7 @@ export function StudyViewer({
                 </button>
               </div>
               {chapterCount > 1 && (
-                <div className="flex gap-2 text-sm">
+                <div className="flex gap-2 text-sm lg:order-3">
                   <button
                     type="button"
                     onClick={() => changeChapter(chapterIdx - 1)}
@@ -386,7 +406,13 @@ export function StudyViewer({
                   </button>
                 </div>
               )}
-              <p className="text-[11px] text-ink-500 dark:text-ink-400">
+              {/* Move list — drops to the bottom on mobile so the buttons
+                  above it stay within thumb reach. Desktop puts it back at
+                  the top of the sidebar. */}
+              <div className="card p-2 lg:order-1">
+                <MoveList moves={parsed.moves} ply={ply} onSelectPly={setPly} />
+              </div>
+              <p className="text-[11px] text-muted lg:order-4">
                 Arrow keys navigate moves. Home / End jump to chapter ends.
               </p>
             </>
@@ -430,10 +456,22 @@ function inferOrientation(parsed: ParsedGame | null, title: string): 'white' | '
  * showing them under the board lets users read along while stepping through
  * moves. Hidden when the current ply has no commentary.
  */
-function LessonComment({ text }: { text: string | undefined }) {
+function LessonComment({
+  text,
+  className,
+}: {
+  text: string | undefined;
+  /** Extra classes — the parent uses this to push the comment above the
+   *  board on mobile via flex order. */
+  className?: string;
+}) {
   if (!text) return null;
   return (
-    <div className="card whitespace-pre-line border-l-4 border-l-accent px-3 py-2 text-sm leading-relaxed text-ink-700 dark:text-ink-200">
+    <div
+      className={`card whitespace-pre-line border-l-4 border-l-accent px-3 py-2 text-sm leading-relaxed text-primary ${
+        className ?? ''
+      }`}
+    >
       {text}
     </div>
   );
