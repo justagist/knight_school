@@ -249,44 +249,46 @@ function WeekNav({
   const label = weekRangeLabel(weekStart);
   const tag = isPastWeek ? 'Past' : isFutureWeek ? 'Upcoming' : 'Current';
   return (
-    <nav className="card flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
-      <div className="flex min-w-0 items-center gap-2">
+    <nav className="card flex flex-wrap items-center justify-between gap-2 p-2 text-xs">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <button
           type="button"
           onClick={() => onStep(-1)}
-          className="btn-ghost h-9 px-2 text-base"
+          className="btn-secondary inline-flex h-10 items-center gap-1 px-3 text-sm"
           aria-label="Previous week"
           title="Previous week"
         >
-          ←
+          <span aria-hidden className="text-base font-bold text-primary">←</span>
+          <span className="hidden sm:inline">Prev</span>
         </button>
-        <button
-          type="button"
-          onClick={() => onStep(1)}
-          className="btn-ghost h-9 px-2 text-base"
-          aria-label="Next week"
-          title="Next week"
-        >
-          →
-        </button>
-        <div className="min-w-0">
-          <span className="font-medium text-primary">{label}</span>
+        <div className="min-w-0 flex-1 text-center">
+          <div className="font-semibold text-primary">{label}</div>
           <span
-            className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+            className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
               isCurrentWeek
-                ? 'bg-accent/10 text-accent'
+                ? 'bg-accent/15 text-accent'
                 : 'bg-surface-2 text-muted'
             }`}
           >
-            {tag}
+            {tag} week
           </span>
         </div>
+        <button
+          type="button"
+          onClick={() => onStep(1)}
+          className="btn-secondary inline-flex h-10 items-center gap-1 px-3 text-sm"
+          aria-label="Next week"
+          title="Next week"
+        >
+          <span className="hidden sm:inline">Next</span>
+          <span aria-hidden className="text-base font-bold text-primary">→</span>
+        </button>
       </div>
       {!isCurrentWeek && (
         <button
           type="button"
           onClick={onJumpToCurrent}
-          className="btn-secondary text-xs"
+          className="btn-primary text-xs"
         >
           Jump to this week
         </button>
