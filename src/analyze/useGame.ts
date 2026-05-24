@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { parsePgn, PgnParseError, type ParsedGame } from '../lib/pgn';
+import { recordGameView } from '../db/gameHistory';
 
 export interface UseGameReturn {
   game: ParsedGame | null;
@@ -81,6 +82,10 @@ export function useGame(): UseGameReturn {
       try {
         localStorage.setItem(STORAGE_KEY, pgn);
       } catch {}
+      // Fire-and-forget: record the open in the Analyze recent-games
+      // list. Failure (e.g. quota / Dexie open error) is silent so the
+      // history feature can never block a successful load.
+      void recordGameView(pgn, parsed).catch(() => {});
     } catch (err) {
       if (err instanceof PgnParseError) setError(err.message);
       else setError(err instanceof Error ? err.message : 'Failed to parse PGN.');

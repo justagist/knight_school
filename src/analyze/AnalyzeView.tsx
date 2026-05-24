@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Board } from '../components/Board';
 import { MoveList } from '../components/MoveList';
 import { PgnImport } from '../components/PgnImport';
+import { RecentGamesCard } from './RecentGamesCard';
 import { EvalBar } from '../components/EvalBar';
 import { EngineLines } from '../components/EngineLines';
 import { EvalGraph } from '../components/EvalGraph';
@@ -271,6 +272,7 @@ export function AnalyzeView() {
       <div className="space-y-4">
         <Header showSubtitle />
         <PgnImport onLoad={g.loadPgn} error={g.error ?? undefined} />
+        <RecentGamesCard onPickGame={g.loadPgn} />
       </div>
     );
   }

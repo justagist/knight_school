@@ -406,6 +406,44 @@ export interface PlanCheckRow {
   completedAt: number;
 }
 
+/**
+ * One PGN the user has opened on the Analyze screen. Keyed by the same
+ * PGN hash that ChatThreadRow.contextId + GuessRecordRow.gameKey use,
+ * so future cross-table joins (chat thread for this game, accuracy %)
+ * can land without an extra lookup.
+ *
+ * Removing a row here is purely cosmetic - it pulls the entry out of
+ * the "Recent games" list on Analyze. Chat threads, per-move
+ * commentary, and guess records for the same gameKey stay until they
+ * are cleared explicitly via Settings -> Storage.
+ */
+export interface GameHistoryRow {
+  /** Stable PGN hash. Primary key. */
+  gameKey: string;
+  /** Raw PGN as the user pasted/uploaded - what we replay from when
+   *  the user clicks the row. */
+  rawPgn: string;
+  /** Cached "Carlsen vs Nakamura - Norway 2024" label so the list
+   *  renders without re-parsing the PGN on every render. */
+  label: string;
+  /** Subset of headers the list UI cares about (date, event). Cached
+   *  for the same reason as `label`. */
+  headers: {
+    White?: string;
+    Black?: string;
+    Event?: string;
+    Site?: string;
+    Date?: string;
+    Result?: string;
+  };
+  /** ms epoch of the first time this game was opened. */
+  firstViewedAt: number;
+  /** ms epoch of the most recent open - drives sort order. */
+  lastViewedAt: number;
+  /** Total opens (bumped on each loadPgn call). */
+  viewCount: number;
+}
+
 export interface GuessRecordRow {
   /** UUID. Primary key. */
   id: string;
@@ -445,6 +483,7 @@ export class KsDatabase extends Dexie {
   drillSessions!: EntityTable<DrillSessionRow, 'id'>;
   planGoals!: EntityTable<PlanGoalRow, 'id'>;
   planChecks!: EntityTable<PlanCheckRow, 'id'>;
+  gameHistory!: EntityTable<GameHistoryRow, 'gameKey'>;
 
   constructor() {
     super('knightschool');
@@ -597,6 +636,29 @@ export class KsDatabase extends Dexie {
       drillSessions: '&id, studyId, lastDrilledAt, createdAt',
       planGoals: '&id, createdAt, archived',
       planChecks: '&id, [weekStart+itemId], weekStart, completedAt',
+    });
+    // v12: per-user "Recent games" list shown in the Analyze empty
+    // state. Primary key is the PGN hash so opening the same game
+    // twice produces a single row with a bumped lastViewedAt.
+    this.version(12).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt, mode',
+      drillPositions: '&id, studyId',
+      drillSessions: '&id, studyId, lastDrilledAt, createdAt',
+      planGoals: '&id, createdAt, archived',
+      planChecks: '&id, [weekStart+itemId], weekStart, completedAt',
+      gameHistory: '&gameKey, lastViewedAt',
     });
   }
 }
