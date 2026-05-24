@@ -1,5 +1,5 @@
 /**
- * Step 9 weekly plan template. Identical every week — no adaptive logic.
+ * Step 9 weekly plan template. Identical every week - no adaptive logic.
  *
  * Distribution rationale:
  *   - 3 drills + 2 analyses + 1 lesson + 1 guess review = 7 weekly items,
@@ -22,7 +22,7 @@ export interface PlanItem {
   label: string;
   /** Internal route, when clicking the item should jump inside the app. */
   linkTo?: string;
-  /** External URL — only the daily puzzle today. */
+  /** External URL - only the daily puzzle today. */
   linkExternal?: string;
   /** Day the item is anchored to. Past-day incomplete items roll
    *  forward to today; future-day items are visible but not actionable. */
@@ -34,7 +34,7 @@ export const PUZZLE_URL = 'https://lichess.org/training';
 
 // Labels stay short so they fit inside a single 7-column-grid cell on
 // desktop (~140px wide). The card title carries the "this week"
-// framing — items don't need to repeat it.
+// framing - items don't need to repeat it.
 const PUZZLE_LABEL = '20 puzzles';
 const DRILL_LABEL = 'Drill a line';
 const ANALYZE_LABEL = 'Analyze a game';

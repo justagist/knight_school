@@ -26,7 +26,7 @@
  *    This is a deliberate placeholder until Step 7 (Opening Explorer)
  *    delivers true book-position detection via Lichess masters DB. See
  *    DEVELOPMENT.md "Move classification logic" for details.
- *  - The 'book' classification type is reserved for Step 7 — currently
+ *  - The 'book' classification type is reserved for Step 7 - currently
  *    unused but kept in the type union so the UI work doesn't need to
  *    change when Explorer lands.
  *
@@ -128,10 +128,10 @@ export function classifyMove(args: ClassifyArgs): MoveClass {
  *
  * Returns:
  *   - `'book'` if Lichess Masters DB has >= {@link BOOK_MIN_GAMES} games at
- *     the BEFORE position (the played move is opening theory — engine eval
+ *     the BEFORE position (the played move is opening theory - engine eval
  *     isn't the right framing). This supersedes everything else.
  *   - `null` if either cached row is below {@link MIN_CLASSIFY_DEPTH} or
- *     missing — caller renders no glyph + can surface a "depth too low" note.
+ *     missing - caller renders no glyph + can surface a "depth too low" note.
  *   - `'opening'` as an offline fallback for the first
  *     {@link OPENING_PLY_THRESHOLD} plies when no Explorer data is in cache
  *     yet (the user hasn't run analysis, hasn't been online, or this is
@@ -141,7 +141,7 @@ export function classifyMove(args: ClassifyArgs): MoveClass {
  *
  * `moveIndex` is the 0-based index of the move in the game (move 1 white = 0).
  * `explorerBefore` is the cached Explorer row for the position BEFORE the
- * move (may be undefined — for opening positions we still emit 'opening' as
+ * move (may be undefined - for opening positions we still emit 'opening' as
  * a fallback, for later positions the absence is normal).
  */
 export function classifyFromCachedRows(
@@ -166,7 +166,7 @@ export function classifyFromCachedRows(
   if (moveIndex < OPENING_PLY_THRESHOLD && !explorerBefore) return 'opening';
 
   // Terminal rows are stored at depth 0; classify them anyway since they're
-  // not "shallow analysis" — they're definitive outcomes.
+  // not "shallow analysis" - they're definitive outcomes.
   const isTerminalBefore = before.depth === 0 && (before.mate != null || before.scoreCp != null);
   const isTerminalAfter = after.depth === 0 && (after.mate != null || after.scoreCp != null);
   if (!isTerminalBefore && before.depth < MIN_CLASSIFY_DEPTH) return null;
@@ -215,7 +215,7 @@ export const MOVE_CLASS_STYLES: Record<MoveClass, MoveClassStyle> = {
     colorClass: 'text-best',
   },
   good: {
-    // No glyph by design — matches Lichess UX which keeps the move list quiet
+    // No glyph by design - matches Lichess UX which keeps the move list quiet
     // on routine moves.
     glyph: '',
     label: 'Good',

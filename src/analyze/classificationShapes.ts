@@ -7,10 +7,10 @@ import { MOVE_CLASS_STYLES, type MoveClass } from '../analysis/classify';
  * Kept near MOVE_CLASS_STYLES so the two stay visually consistent.
  */
 const CLASSIFICATION_COLOR: Record<MoveClass, string> = {
-  opening: '#0ea5e9', // sky-500 — temporary first-6-moves fallback
-  book: '#0284c7', // sky-600 — reserved for Step 7 Lichess Explorer
+  opening: '#0ea5e9', // sky-500 - temporary first-6-moves fallback
+  book: '#0284c7', // sky-600 - reserved for Step 7 Lichess Explorer
   best: '#10b981', // emerald-500
-  good: '#94a3b8', // slate-400 — rarely shown, defensive default
+  good: '#94a3b8', // slate-400 - rarely shown, defensive default
   inaccuracy: '#d97706', // amber-600
   mistake: '#ea580c', // orange-600
   blunder: '#dc2626', // red-600
@@ -33,7 +33,7 @@ export function buildClassificationShapes(
   klass: MoveClass | null,
 ): DrawShape[] {
   if (!lastMove || !klass) return [];
-  // 'good' is intentionally silent on the board — matches the move list.
+  // 'good' is intentionally silent on the board - matches the move list.
   // 'opening' is also silent on the board: a sky-blue dot on every move of
   // the first 6 moves would clutter the board for no signal. The move list
   // still shows the ○ glyph so the user can see *why* it's not classified.

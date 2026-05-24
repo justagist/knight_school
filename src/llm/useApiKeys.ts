@@ -31,7 +31,7 @@ export interface UseApiKeysReturn {
   keys: ApiKeyRow[];
   /** Per-provider config (active key id, fallback toggle). */
   configByProvider: Record<LlmProviderId, ProviderConfigRow | undefined>;
-  /** Globally active provider — what Elle will use. */
+  /** Globally active provider - what Elle will use. */
   activeProvider: LlmProviderId | null;
   /** Currently active key for a given provider, if any. */
   activeKey: (provider: LlmProviderId) => ApiKeyRow | undefined;
@@ -40,7 +40,7 @@ export interface UseApiKeysReturn {
   /** True if the key is held in memory only (session-only toggle). */
   isSessionOnly: (id: string) => boolean;
 
-  // Mutations — async; they refresh state on completion.
+  // Mutations - async; they refresh state on completion.
   addKey: (input: NewApiKey) => Promise<void>;
   updateKey: (id: string, patch: Partial<Pick<ApiKeyRow, 'label' | 'apiKey' | 'model'>>) => Promise<void>;
   deleteKey: (id: string) => Promise<void>;

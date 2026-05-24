@@ -1,7 +1,7 @@
 import type { PlanDay } from './template';
 
 /**
- * Helpers for the Plan tab's Monday-rooted week. All dates are local —
+ * Helpers for the Plan tab's Monday-rooted week. All dates are local -
  * the checklist resets on the user's Monday midnight, not UTC's.
  */
 
@@ -65,7 +65,7 @@ export function daysUntil(targetIso: string): number {
  * like "3 months", "in 6 weeks", "30 days from now", and "by Aug 15".
  * Returns ISO YYYY-MM-DD or undefined when nothing obvious matches.
  *
- * Kept intentionally narrow — anything ambiguous returns undefined and
+ * Kept intentionally narrow - anything ambiguous returns undefined and
  * the UI shows the creation date instead.
  *
  * TODO(plan-date-parser): richer natural-language phrasing such as
@@ -79,7 +79,7 @@ export function daysUntil(targetIso: string): number {
 export function parseTargetDate(text: string, now: Date = new Date()): string | undefined {
   const t = text.toLowerCase();
 
-  // "N units" — units day | week | month | year.
+  // "N units" - units day | week | month | year.
   const numWords: Record<string, number> = {
     one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
     seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
@@ -110,7 +110,7 @@ export function parseTargetDate(text: string, now: Date = new Date()): string | 
     const parsed = new Date(`${m2[1]} ${m2[2]}, ${year}`);
     if (!Number.isNaN(parsed.getTime())) {
       // If the parsed date is already in the past relative to today,
-      // roll forward to next year — interpreting "by Aug 15" said in
+      // roll forward to next year - interpreting "by Aug 15" said in
       // September as "by Aug 15 next year".
       const today = new Date(now);
       today.setHours(0, 0, 0, 0);

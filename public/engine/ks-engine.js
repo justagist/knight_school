@@ -5,17 +5,17 @@
  * main thread never sees engine work. Communicates with main thread via
  * postMessage and forwards/receives raw UCI strings.
  *
- * Protocol — main thread → worker:
- *   { type: 'init' }                — load Stockfish; replies with { type: 'ready' }
- *   { type: 'uci', cmd: 'go ...' }  — raw UCI command
- *   { type: 'stop' }                — convenience for stop
- *   { type: 'quit' }                — terminate engine cleanly
+ * Protocol - main thread → worker:
+ *   { type: 'init' }                - load Stockfish; replies with { type: 'ready' }
+ *   { type: 'uci', cmd: 'go ...' }  - raw UCI command
+ *   { type: 'stop' }                - convenience for stop
+ *   { type: 'quit' }                - terminate engine cleanly
  *
- * Protocol — worker → main thread:
+ * Protocol - worker → main thread:
  *   { type: 'ready' }
- *   { type: 'uci', line: '...' }    — raw UCI output from engine
- *   { type: 'error', message: ... } — fatal load / runtime errors
- *   { type: 'log', stage, ... }     — diagnostic milestones for debugging
+ *   { type: 'uci', line: '...' }    - raw UCI output from engine
+ *   { type: 'error', message: ... } - fatal load / runtime errors
+ *   { type: 'log', stage, ... }     - diagnostic milestones for debugging
  */
 
 /* eslint-disable no-undef */
@@ -86,7 +86,7 @@ async function init() {
         postMessage({ type: 'uci', line });
       });
       sf.postMessage('uci');
-      // KnightSchool spec hardcodes Multi-PV to 3. Set once at boot — sending
+      // KnightSchool spec hardcodes Multi-PV to 3. Set once at boot - sending
       // setoption around or during a search is poorly specified in UCI.
       sf.postMessage('setoption name MultiPV value 3');
       sf.postMessage('setoption name Threads value 1');

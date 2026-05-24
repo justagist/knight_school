@@ -15,7 +15,7 @@ export interface ExplorationState {
   branchPly: number;
   /** Moves played in this exploration line, in order. */
   moves: ExplorationMove[];
-  /** Current FEN — baseFen if no moves yet, else last move's fenAfter. */
+  /** Current FEN - baseFen if no moves yet, else last move's fenAfter. */
   currentFen: string;
 }
 
@@ -41,7 +41,7 @@ interface UseExplorationArgs {
    * board snaps back to the game's line.
    */
   anchorFen: string | null;
-  /** Current game ply at the anchor — captured when exploration begins. */
+  /** Current game ply at the anchor - captured when exploration begins. */
   anchorPly: number;
 }
 
@@ -59,7 +59,7 @@ export function useExploration({ anchorFen, anchorPly }: UseExplorationArgs): Us
   const [state, setState] = useState<ExplorationState | null>(null);
 
   // Whenever the user navigates to a different ply (or loads a new game),
-  // the anchor FEN changes — drop the exploration so they're not stuck
+  // the anchor FEN changes - drop the exploration so they're not stuck
   // looking at a stale branched position.
   useEffect(() => {
     setState(null);

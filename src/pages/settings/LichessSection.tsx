@@ -11,7 +11,7 @@ import { notifyLichessAuthChanged } from '../../hooks/useLichessAuth';
 
 /**
  * Settings section for the optional Lichess API token. Lichess locked the
- * Opening Explorer behind auth in 2026 — the app falls back to bundled ECO
+ * Opening Explorer behind auth in 2026 - the app falls back to bundled ECO
  * when this isn't set, but with a token the Openings tab gains master-game
  * stats, popular continuations, and other Explorer features.
  *
@@ -60,7 +60,7 @@ export function LichessSection() {
         >
           Create a personal access token →
         </a>{' '}
-        (no scopes required — the Explorer is public-data-only).
+        (no scopes required - the Explorer is public-data-only).
       </p>
 
       {row ? <SavedTokenRow row={row} onChange={refresh} /> : <AddTokenForm onChange={refresh} />}
@@ -119,7 +119,7 @@ function SavedTokenRow({ row, onChange }: SavedTokenRowProps) {
             setTesting(true);
             try {
               const result = await testLichessToken(row.token);
-              await recordLichessTest('ok', `OK — ${result.username}`);
+              await recordLichessTest('ok', `OK - ${result.username}`);
             } catch (err) {
               await recordLichessTest('error', err instanceof Error ? err.message : String(err));
             } finally {
@@ -180,10 +180,10 @@ function AddTokenForm({ initial, onChange, onCancel }: AddTokenFormProps) {
         setSubmitting(true);
         setError(null);
         try {
-          // Test before saving — bad tokens shouldn't enter storage.
+          // Test before saving - bad tokens shouldn't enter storage.
           const result = await testLichessToken(token);
           await putLichessAuth({ token: token.trim(), label: label.trim() || 'Lichess' });
-          await recordLichessTest('ok', `OK — ${result.username}`);
+          await recordLichessTest('ok', `OK - ${result.username}`);
           await onChange();
           if (!initial) {
             setToken('');

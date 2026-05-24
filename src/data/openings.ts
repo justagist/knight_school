@@ -1,5 +1,5 @@
 /**
- * Minimal bundled opening "book" — generated lazily at module load.
+ * Minimal bundled opening "book" - generated lazily at module load.
  *
  * The spec calls for ECO/opening-name lookup "bundled, never networked." We're
  * starting small: hand-curated mainlines of the most common openings, each a
@@ -8,7 +8,7 @@
  *
  * "book" classification is simply: position FEN ∈ this set. Lines below cover
  * roughly the first 4-8 plies of every popular White & Black system. Add more
- * as needed — each line takes one row.
+ * as needed - each line takes one row.
  *
  * Source for line selection: standard public-domain opening theory. No
  * proprietary content. If we want full ECO coverage later, swap this for a
@@ -137,7 +137,7 @@ function buildOpeningSet(): Set<string> {
 }
 
 /**
- * Drop halfmove + fullmove counters from a FEN — same position by transposition
+ * Drop halfmove + fullmove counters from a FEN - same position by transposition
  * should match even with different move counts.
  */
 export function normalizeFen(fen: string): string {

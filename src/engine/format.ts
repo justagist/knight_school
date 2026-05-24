@@ -8,7 +8,7 @@ import type { PvLine } from './types';
  * side-to-move is black.
  */
 export function formatScore(line: PvLine | undefined, sideToMove: 'w' | 'b', perspective: 'w' | 'b' = 'w'): string {
-  if (!line) return '—';
+  if (!line) return '-';
   const flip = sideToMove !== perspective;
 
   if (line.mate != null) {
@@ -16,7 +16,7 @@ export function formatScore(line: PvLine | undefined, sideToMove: 'w' | 'b', per
     if (m === 0) return '#';
     return `${m > 0 ? '' : '-'}M${Math.abs(m)}`;
   }
-  if (line.scoreCp == null) return '—';
+  if (line.scoreCp == null) return '-';
   const cp = flip ? -line.scoreCp : line.scoreCp;
   const pawns = cp / 100;
   const sign = pawns > 0 ? '+' : pawns < 0 ? '−' : '';

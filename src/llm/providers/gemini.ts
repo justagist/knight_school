@@ -34,7 +34,7 @@ const MODELS: ModelDescriptor[] = [
 
 export const geminiInfo: ProviderInfo = {
   blurb:
-    'Google Gemini has a free tier suitable for casual use. Get a key at https://aistudio.google.com/apikey. Free-tier rate limits apply — heavy users may want to upgrade or switch providers.',
+    'Google Gemini has a free tier suitable for casual use. Get a key at https://aistudio.google.com/apikey. Free-tier rate limits apply - heavy users may want to upgrade or switch providers.',
   apiKeyUrl: 'https://aistudio.google.com/apikey',
   webSearchNote:
     'Web search uses Google Search grounding. Available on most current Gemini models.',
@@ -125,7 +125,7 @@ export const geminiProvider: LLMProvider = {
       generationConfig: {
         maxOutputTokens: req.maxTokens ?? 2048,
         // Gemini 2.5 models have "thinking" enabled by default, which
-        // silently consumes maxOutputTokens BEFORE producing visible text —
+        // silently consumes maxOutputTokens BEFORE producing visible text -
         // mid-conversation that truncates the response right when the user
         // is reading. We disable thinking for chat (we don't need long
         // chains-of-thought for short conversational replies) by setting

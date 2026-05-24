@@ -18,7 +18,7 @@ module.exports = {
     react: { version: '18.3' },
   },
   rules: {
-    // Relaxed defaults — don't fight iteration
+    // Relaxed defaults - don't fight iteration
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     '@typescript-eslint/no-explicit-any': 'off',
     'react-refresh/only-export-components': 'off',

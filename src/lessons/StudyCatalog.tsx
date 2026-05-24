@@ -4,7 +4,7 @@ import { importStudy } from './lichessStudy';
 import { notifyStudiesChanged } from './useStudies';
 
 interface StudyCatalogProps {
-  /** Set of study ids already imported — those rows render an "Open" badge instead of Import. */
+  /** Set of study ids already imported - those rows render an "Open" badge instead of Import. */
   importedIds: Set<string>;
   /** Fires once import succeeds (or when user clicks an already-imported entry). */
   onOpen: (studyId: string) => void;

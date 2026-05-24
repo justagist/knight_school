@@ -44,7 +44,7 @@ export function EngineLines({ snapshot, ready, error, variant, fen, openingName 
 
       <ol className="divide-y divide-border">
         {lines.map((line, idx) => {
-          // "Computing" state on the Best row — three pulsing dots while
+          // "Computing" state on the Best row - three pulsing dots while
           // the new top-line is still settling (depth not yet meaningful).
           // Avoids the user seeing the previous position's eval pretend to
           // be the answer for the new position.
@@ -143,7 +143,7 @@ function Dot({ delay }: { delay: number }) {
 
 function parsePawnish(label: string): number | null {
   const trimmed = label.trim().replace(/^\+/, '');
-  if (!trimmed || trimmed === '—') return null;
+  if (!trimmed || trimmed === '-') return null;
   if (trimmed.startsWith('M')) return 10;
   if (trimmed.startsWith('-M') || trimmed.startsWith('−M')) return -10;
   const normalized = trimmed.replace(/^[−–]/, '-');
@@ -188,11 +188,11 @@ function uciMovesToSan(uciMoves: string[], startingFen: string, maxMoves: number
       if (!m) break;
       sans.push(m.san);
     } catch {
-      // Illegal in this position — engine PV may include moves only valid after earlier ones we missed.
+      // Illegal in this position - engine PV may include moves only valid after earlier ones we missed.
       break;
     }
   }
-  if (sans.length === 0) return { preview: '—', full: '—', truncated: false };
+  if (sans.length === 0) return { preview: '-', full: '-', truncated: false };
 
   const startMoveNum = Number.parseInt(startingFen.split(' ')[5] ?? '1', 10);
   const startSide = startingFen.split(' ')[1] === 'b' ? 'b' : 'w';

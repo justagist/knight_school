@@ -12,7 +12,7 @@ const NAV = [
 /**
  * Three-way segmented control for theme selection. Consistent appearance in
  * both light and dark modes (the old cycle button had a button frame in
- * light + no frame in dark — jarring).
+ * light + no frame in dark - jarring).
  */
 function ThemeToggle() {
   const { mode, setMode } = useTheme();
@@ -38,7 +38,7 @@ function ThemeToggle() {
             onClick={() => setMode(o.value)}
             title={o.label}
             // Inactive options use primary text at 60% opacity so both the
-            // glyph and the label read at the same contrast level — the
+            // glyph and the label read at the same contrast level - the
             // old `text-muted` made the icons nearly invisible in light
             // mode against the bg-surface-2 container.
             style={active ? undefined : { color: 'color-mix(in srgb, var(--text-primary) 60%, transparent)' }}
@@ -80,7 +80,7 @@ export function Header() {
         <Link
           to="/"
           className="-m-1 flex items-center gap-2 rounded p-1 text-primary transition-colors hover:bg-surface-2"
-          aria-label="KnightSchool — home"
+          aria-label="KnightSchool - home"
           title="Back to Analyze"
         >
           <KnightMark />
@@ -90,7 +90,7 @@ export function Header() {
           </div>
         </Link>
 
-        {/* Top tabs — desktop only. On mobile a BottomTabBar replaces this
+        {/* Top tabs - desktop only. On mobile a BottomTabBar replaces this
             so primary nav is always visible without horizontal scrolling.
             `mx-auto` centres the nav within the bounded header container so
             the row doesn't read as brand-tight-nav-empty-space-toggle on

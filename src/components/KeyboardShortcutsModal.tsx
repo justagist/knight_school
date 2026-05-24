@@ -20,7 +20,7 @@ const SHORTCUTS: Shortcut[] = [
  * a text input and opens. Esc / click-outside closes.
  *
  * The shortcuts themselves are wired in the screens that own them
- * (AnalyzeView handles arrows + f, ChatPanel handles Esc, etc.) — this
+ * (AnalyzeView handles arrows + f, ChatPanel handles Esc, etc.) - this
  * modal is purely informational so a user can discover them without
  * digging through Settings.
  */

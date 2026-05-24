@@ -10,7 +10,7 @@ interface UseGameSoundsArgs {
 
 /**
  * Plays a sound effect when the user's ply position advances by exactly one
- * move — i.e. when they step forward through the game. Jumping multiple plies
+ * move - i.e. when they step forward through the game. Jumping multiple plies
  * at once (clicking a move deep in the list, pressing End, etc.) is silent
  * to avoid a barrage. Stepping backwards is silent.
  *

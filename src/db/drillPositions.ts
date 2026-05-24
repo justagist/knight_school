@@ -7,13 +7,13 @@ import { db, type DrillPositionRow, type StudyRow } from './db';
 import { normalizeFenForExplorer } from './explorer';
 
 /**
- * Walk every node in every chapter's PGN tree — main line *plus* all
- * variations — and aggregate every visited position into the
+ * Walk every node in every chapter's PGN tree - main line *plus* all
+ * variations - and aggregate every visited position into the
  * `drillPositions` table. Each row groups every occurrence of one FEN
  * (across chapters AND across mainline/sideline) along with the move
  * played from that position and the side-to-move.
  *
- * Called on study import / re-import. Idempotent — overwrites existing rows
+ * Called on study import / re-import. Idempotent - overwrites existing rows
  * for the study so a refresh brings the pool in sync without orphan entries.
  *
  * Implementation note: chess.js v1.4's `loadPgn` flattens variations to
@@ -25,7 +25,7 @@ import { normalizeFenForExplorer } from './explorer';
  * position-BEFORE the move.
  *
  * Studies that fail chessops parse (board-editor diagrams, malformed
- * PGN) are skipped — per-chapter drills still work for them.
+ * PGN) are skipped - per-chapter drills still work for them.
  */
 export async function indexStudyPositions(study: StudyRow): Promise<void> {
   const { rows } = buildStudyPositions(study);
@@ -37,7 +37,7 @@ export async function indexStudyPositions(study: StudyRow): Promise<void> {
 
 export interface BuildPositionsResult {
   rows: DrillPositionRow[];
-  /** Titles of chapters chessops couldn't parse — surfaced as a soft
+  /** Titles of chapters chessops couldn't parse - surfaced as a soft
    *  warning to the user since per-chapter drills still work for these
    *  but mixed / spot drills will miss those chapters. */
   skippedChapters: string[];
@@ -46,7 +46,7 @@ export interface BuildPositionsResult {
 /**
  * Build (without writing) the position-pool rows for a study. Pure CPU
  * work so it can run inside an atomic transaction that also stores the
- * StudyRow — see importStudy.
+ * StudyRow - see importStudy.
  */
 export function buildStudyPositions(study: StudyRow): BuildPositionsResult {
   const byKey = new Map<string, DrillPositionRow>();
@@ -99,7 +99,7 @@ interface WalkCtx {
  *
  * chessops's tree puts the FIRST child as the main-line continuation and
  * any subsequent children as variations from the same starting position;
- * the walker doesn't distinguish — every reachable position lands in the
+ * the walker doesn't distinguish - every reachable position lands in the
  * pool, which is the whole point of the variation walk.
  */
 function walkTree(node: { children: ChildNode<PgnNodeData>[] }, pos: Position, ctx: WalkCtx) {
@@ -107,7 +107,7 @@ function walkTree(node: { children: ChildNode<PgnNodeData>[] }, pos: Position, c
     const san = child.data.san;
     const move = parseSan(pos, san);
     if (!move) {
-      // Illegal SAN under the current position — skip this branch but
+      // Illegal SAN under the current position - skip this branch but
       // continue with siblings. Happens with malformed PGN; rare.
       continue;
     }

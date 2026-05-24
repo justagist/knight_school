@@ -17,12 +17,12 @@ const BACKUP_VERSION = 1;
  *
  * Wraps `dexie-export-import.exportDB` and uses its `skipTables` option to
  * exclude api-key data when the user hasn't opted in. The export JSON
- * format is the package's standard schema — interop with their `importDB`
+ * format is the package's standard schema - interop with their `importDB`
  * is preserved.
  */
 export async function exportToBlob(opts: ExportOptions): Promise<Blob> {
   // When excluding api keys we also exclude per-key state. Chat history and
-  // commentary travel regardless — they aren't credentials, and a backup
+  // commentary travel regardless - they aren't credentials, and a backup
   // without your past Elle conversations would be of limited use.
   const skipTables: string[] = opts.includeApiKeys
     ? []
@@ -49,7 +49,7 @@ export async function importFromBlob(blob: Blob): Promise<void> {
     overwriteValues: true,
     clearTablesBeforeImport: true,
   });
-  // Re-imported data wholesale — every event-driven view needs to re-pull.
+  // Re-imported data wholesale - every event-driven view needs to re-pull.
   // Without these the library / queue / plan render the post-clear empty
   // state until the user reloads, which looks like a failed import.
   window.dispatchEvent(new Event('ks-studies-changed'));

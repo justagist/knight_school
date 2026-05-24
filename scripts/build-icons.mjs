@@ -5,9 +5,9 @@
 //   node scripts/build-icons.mjs
 //
 // Outputs:
-//   public/icon-180.png  — apple-touch-icon (iOS Safari)
-//   public/icon-192.png  — PWA manifest
-//   public/icon-512.png  — PWA manifest (full-res)
+//   public/icon-180.png  - apple-touch-icon (iOS Safari)
+//   public/icon-192.png  - PWA manifest
+//   public/icon-512.png  - PWA manifest (full-res)
 //
 // The SVG source is public/icon-512.svg.
 

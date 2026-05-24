@@ -23,16 +23,16 @@ export interface DrillState {
   status: DrillStatus;
   /** How many plies of the line have been played so far. */
   ply: number;
-  /** Current board FEN — derived from ply. */
+  /** Current board FEN - derived from ply. */
   fen: string;
   /** True when it's the user's turn (i.e. app waiting on input). */
   awaitingUser: boolean;
   /** Filled when status === 'wrong'. */
   wrong?: DrillWrongDetails;
-  /** Filled when status === 'feedback' — chapter author's note shown
+  /** Filled when status === 'feedback' - chapter author's note shown
    *  after a correct user move. User taps "Next" to advance. */
   feedbackComment?: string;
-  /** True when chat was used during this attempt — does not count toward stats. */
+  /** True when chat was used during this attempt - does not count toward stats. */
   invalidated: boolean;
   variant: DrillVariant;
 }
@@ -71,9 +71,9 @@ const OPPONENT_MOVE_DELAY_MS = 500;
  *   3. When `ply === uciMoves.length`, status='complete'.
  *
  * Submit accepts either a UCI string (board drag) or a SAN string (guess
- * variant) — we resolve SAN against the current FEN with chess.js.
+ * variant) - we resolve SAN against the current FEN with chess.js.
  *
- * Stats persistence happens inside this hook on terminal state — the caller
+ * Stats persistence happens inside this hook on terminal state - the caller
  * doesn't need to call recordDrillAttempt manually.
  */
 export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs): UseDrillReturn {
@@ -156,7 +156,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
       if (status !== 'playing') return;
       if (!isUserTurn(line, ply)) return;
       // Resolve the user's input to a UCI string. Accept either UCI ("e2e4")
-      // or SAN ("e4", "Nxf3+") — chess.js handles both via move().
+      // or SAN ("e4", "Nxf3+") - chess.js handles both via move().
       const chess = new Chess(fen);
       let move: ReturnType<typeof chess.move> | null = null;
       try {
@@ -173,7 +173,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
         move = null;
       }
       if (!move) {
-        // Illegal — treat as wrong so user gets feedback rather than silence.
+        // Illegal - treat as wrong so user gets feedback rather than silence.
         const expectedUci = line.uciMoves[ply];
         const expectedSan = line.sanMoves[ply];
         const w: DrillWrongDetails = {
@@ -195,7 +195,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
         const newPly = ply + 1;
         setLastMove([move.from, move.to]);
         setPly(newPly);
-        // Pause on the author's note for this move (if any) — gives the
+        // Pause on the author's note for this move (if any) - gives the
         // user a beat to read the explanation before the opponent
         // teleports in. comments are indexed by post-move ply.
         const comment = line.comments[newPly];
@@ -227,7 +227,7 @@ export function useDrill({ line, variant = 'board', onFinished }: UseDrillArgs):
   }, []);
 
   const retry = useCallback(() => {
-    // Start a fresh attempt — new id, reset state.
+    // Start a fresh attempt - new id, reset state.
     attemptIdRef.current = uuid();
     startedAtRef.current = Date.now();
     persistedRef.current = false;

@@ -42,7 +42,7 @@ const WORKER_URL = '/engine/ks-engine.js';
 
 /**
  * Construct a singleton-style engine handle. Owns one Web Worker and
- * serializes analyze() calls — calling analyze again cancels the prior one.
+ * serializes analyze() calls - calling analyze again cancels the prior one.
  */
 export function createEngine(): EngineHandle {
   let worker: Worker | null = new Worker(WORKER_URL, { type: 'classic' });
@@ -58,7 +58,7 @@ export function createEngine(): EngineHandle {
   // play by the rules: never have two `go`s in flight. So we keep at most
   // one search alive and hold the next request in `pendingAnalysis` until
   // the prior bestmove arrives. After each cancellation we also send
-  // `isready` and wait for `readyok` as a synchronization barrier — this
+  // `isready` and wait for `readyok` as a synchronization barrier - this
   // is what Lichess does, and it removes any ambiguity about engine
   // readiness for older Stockfish builds (SF_classical in particular).
   //
@@ -84,7 +84,7 @@ export function createEngine(): EngineHandle {
     if (m.type === 'ready') {
       readyResolved = true;
       readyResolve?.();
-      // Boot succeeded — drop the boot watchdog so the no-op timer
+      // Boot succeeded - drop the boot watchdog so the no-op timer
       // doesn't sit pending for 20s.
       if (watchdogId !== null) {
         clearTimeout(watchdogId);
@@ -124,7 +124,7 @@ export function createEngine(): EngineHandle {
     pendingAnalysis?.fail(err);
   };
 
-  // Boot — the worker doesn't auto-init; we send 'init' so we get a 'ready' reply.
+  // Boot - the worker doesn't auto-init; we send 'init' so we get a 'ready' reply.
   worker.postMessage({ type: 'init' });
 
   // Watchdog: if ready hasn't fired in 20s, assume init is stuck and surface that.
@@ -236,7 +236,7 @@ export function createEngine(): EngineHandle {
         // 'stopping': nothing to do, bestmove will drive startNext().
       })
       .catch(() => {
-        // readyPromise rejected (boot failed) — fail the pending request.
+        // readyPromise rejected (boot failed) - fail the pending request.
         if (pendingAnalysis === ctx) {
           pendingAnalysis.fail(new Error(lastFatalError ?? 'engine failed to initialize'));
           pendingAnalysis = null;

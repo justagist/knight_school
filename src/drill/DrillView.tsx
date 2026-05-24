@@ -11,7 +11,7 @@ interface DrillViewProps {
   onExit: () => void;
   /** Fires after the user finishes (pass/fail). Parent can advance to the next queued line. */
   onFinished?: (result: 'pass' | 'fail') => void;
-  /** Optional initial variant — defaults to 'board' (drag pieces). */
+  /** Optional initial variant - defaults to 'board' (drag pieces). */
   initialVariant?: DrillVariant;
 }
 
@@ -22,7 +22,7 @@ interface DrillViewProps {
  *   - reveal panel showing the chapter author's comment on the current move
  *   - pass / fail terminal screens with retry + next CTAs
  *
- * Engine analysis is intentionally OFF during a drill — the point is recall,
+ * Engine analysis is intentionally OFF during a drill - the point is recall,
  * not eval-assisted guessing. Once finished the user can re-open the chapter
  * in the lesson viewer to see the eval bar.
  */
@@ -79,14 +79,14 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
   }, [drill.state.ply, drill.state.fen, drill.state.invalidated, drill.state.awaitingUser, line.id]);
 
   // When the user retries, reset the chat-warning flag too so the warning
-  // shows again on the new attempt (per spec — "one-time per session per
+  // shows again on the new attempt (per spec - "one-time per session per
   // attempt").
   const handleRetry = () => {
     drill.retry();
     drillCtx.resetWarning();
   };
 
-  // SAN submit from the guess input — accepted on Enter or Submit click.
+  // SAN submit from the guess input - accepted on Enter or Submit click.
   const submitGuess = () => {
     const v = guessInput.trim();
     if (!v) return;
@@ -125,7 +125,7 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
 
       {drill.state.invalidated && (
         <div className="card border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-          This attempt is invalidated (chat was used) — it won't count toward your stats. You can still finish for practice value.
+          This attempt is invalidated (chat was used) - it won't count toward your stats. You can still finish for practice value.
         </div>
       )}
 
@@ -273,7 +273,7 @@ function PromptCard({
     );
   }
   // While prompting for the user's move, show the author's last comment for
-  // context but never the upcoming move itself — that would defeat the drill.
+  // context but never the upcoming move itself - that would defeat the drill.
   const moveNumber = Math.floor(ply / 2) + 1;
   const dots = ply % 2 === 0 ? '.' : '...';
   return (
@@ -367,7 +367,7 @@ function CompleteCard({
       </p>
       <p className="text-xs">
         {invalidated
-          ? 'Attempt invalidated by chat use — stats unchanged.'
+          ? 'Attempt invalidated by chat use - stats unchanged.'
           : `Recorded as pass. Lifetime: ${newSuccesses}/${newAttempts} (${accuracy}%).`}
       </p>
       <div className="flex gap-2">

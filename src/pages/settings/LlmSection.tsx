@@ -23,7 +23,7 @@ export function LlmSection() {
   const pickProvider = (p: LlmProviderId) => {
     // Per spec: clicking a provider pill BOTH sets it active AND shows
     // its keys below. Merging the two previously-duplicated rows. Setting
-    // active is only safe when the provider has at least one saved key —
+    // active is only safe when the provider has at least one saved key -
     // otherwise the app would be configured with an unusable provider.
     setSelectedProvider(p);
     const hasKey = keys.keys.some((k) => k.provider === p);
@@ -150,14 +150,14 @@ export function LlmSection() {
 
       {!anythingSaved && (
         <p className="mt-4 border-t border-border pt-3 text-[11px] text-muted">
-          Tip: start with Groq for the most generous free tier (no credit card, ~1,000 requests/day on Llama 3.3 70B). Gemini is the easiest free path if you want web search. Add a paid Anthropic or OpenAI key for stronger reasoning — auto-fallback handles the switching between keys when one hits a limit.
+          Tip: start with Groq for the most generous free tier (no credit card, ~1,000 requests/day on Llama 3.3 70B). Gemini is the easiest free path if you want web search. Add a paid Anthropic or OpenAI key for stronger reasoning - auto-fallback handles the switching between keys when one hits a limit.
         </p>
       )}
     </>
   );
 }
 
-// ActiveProviderRow was merged into the inline provider pill row above —
+// ActiveProviderRow was merged into the inline provider pill row above -
 // clicking a pill now sets active AND shows that provider's keys, so a
 // separate "Active provider" selector is redundant.
 
@@ -217,7 +217,7 @@ function KeyRow({ row, isActive, sessionOnly, provider, onMakeActive, onUpdate, 
         {sessionOnly && (
           <span
             className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300"
-            title="In-memory only — discarded when this tab closes"
+            title="In-memory only - discarded when this tab closes"
           >
             Session
           </span>
@@ -351,7 +351,7 @@ function AddKeyForm({ provider, onAdd }: AddKeyFormProps) {
           {provider.models.map((m) => (
             <option key={m.id} value={m.id}>
               {m.label}
-              {m.hint ? ` — ${m.hint}` : ''}
+              {m.hint ? ` - ${m.hint}` : ''}
             </option>
           ))}
         </select>
@@ -428,7 +428,7 @@ function EditKeyForm({ row, provider, onSave, onCancel }: EditKeyFormProps) {
           {provider.models.map((m) => (
             <option key={m.id} value={m.id}>
               {m.label}
-              {m.hint ? ` — ${m.hint}` : ''}
+              {m.hint ? ` - ${m.hint}` : ''}
             </option>
           ))}
         </select>

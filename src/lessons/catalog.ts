@@ -1,12 +1,12 @@
 /**
  * Curated seed list of public Lichess studies. Hand-picked to cover the most
  * common openings a beginner / intermediate solo player will run into. Each
- * entry is a real Lichess study — we don't ship the PGN ourselves; users
+ * entry is a real Lichess study - we don't ship the PGN ourselves; users
  * trigger the fetch + import on demand.
  *
  * Adding an entry: find a public study you trust, copy the 8-char slug from
  * the URL (https://lichess.org/study/XXXXXXXX), drop a row below. Keep the
- * list short — this is a starter set, not an exhaustive index. Power users
+ * list short - this is a starter set, not an exhaustive index. Power users
  * can paste any other study URL in the importer.
  */
 export interface CuratedStudy {
@@ -14,7 +14,7 @@ export interface CuratedStudy {
   key: string;
   /** Lichess study id (slug). */
   studyId: string;
-  /** Display name — what we render before the user imports. */
+  /** Display name - what we render before the user imports. */
   name: string;
   /** Author / curator on Lichess. Surfaced so users know who maintains it. */
   author?: string;
@@ -24,7 +24,7 @@ export interface CuratedStudy {
   blurb: string;
   /** Bucket for grouping in the UI. */
   category: 'fundamentals' | 'openings-white' | 'openings-black' | 'endgames';
-  /** Search aliases — opening names that should match this study when the
+  /** Search aliases - opening names that should match this study when the
    *  Analyze view deep-links here. Case-insensitive substring match. */
   matches: string[];
 }
@@ -32,7 +32,7 @@ export interface CuratedStudy {
 /**
  * Seed list of popular public Lichess studies. Slugs pulled from
  * lichess.org/study/all/popular and verified against
- * https://lichess.org/api/study/{id}.pgn — each returns HTTP 200 as of
+ * https://lichess.org/api/study/{id}.pgn - each returns HTTP 200 as of
  * the time these were imported.
  *
  * Titles are cleaned (emojis stripped) for consistent display. Authors
@@ -43,21 +43,21 @@ export interface CuratedStudy {
  * fallen out of the popular list.
  */
 export const CURATED_STUDIES: CuratedStudy[] = [
-  // Fundamentals — broad guides, traps, study plans
+  // Fundamentals - broad guides, traps, study plans
   {
     key: 'ideal-opening',
     studyId: 'bbxmDYZV',
     name: 'What is your Ideal Opening?',
     author: 'LeninPerez',
     side: 'both',
-    blurb: 'Pick the right opening for your level — beginner, intermediate, advanced paths.',
+    blurb: 'Pick the right opening for your level - beginner, intermediate, advanced paths.',
     category: 'fundamentals',
     matches: [],
   },
   {
     key: 'study-plan-mastery',
     studyId: '1POKgJWJ',
-    name: 'Study Plan — Road to Mastery',
+    name: 'Study Plan - Road to Mastery',
     author: 'MagicalzDragonz',
     side: 'both',
     blurb: 'Structured improvement plan with puzzles, openings, and middlegame ideas.',
@@ -82,7 +82,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'Italian Opening',
     author: 'LeninPerez',
     side: 'white',
-    blurb: 'Giuoco Piano, Greco Attack, Giuoco Pianissimo — classical 1.e4 e5 2.Nf3 Nc6 3.Bc4 lines.',
+    blurb: 'Giuoco Piano, Greco Attack, Giuoco Pianissimo - classical 1.e4 e5 2.Nf3 Nc6 3.Bc4 lines.',
     category: 'openings-white',
     matches: ['italian', 'giuoco', 'evans gambit'],
   },
@@ -92,7 +92,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'Ruy Lopez',
     author: 'LeninPerez',
     side: 'white',
-    blurb: 'Exchange and Morphy Defense (closed + open) — the Spanish main lines.',
+    blurb: 'Exchange and Morphy Defense (closed + open) - the Spanish main lines.',
     category: 'openings-white',
     matches: ['ruy lopez', 'spanish'],
   },
@@ -102,7 +102,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'The London System',
     author: 'LeninPerez',
     side: 'white',
-    blurb: 'Solid 1.d4 + Bf4 setup — formation, principal line.',
+    blurb: 'Solid 1.d4 + Bf4 setup - formation, principal line.',
     category: 'openings-white',
     matches: ['london'],
   },
@@ -112,7 +112,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'Ideas in the London System',
     author: 'FunnyAnimatorJimTV',
     side: 'white',
-    blurb: 'Plans + kingside crashes from the London — pairs well with the LeninPerez study.',
+    blurb: 'Plans + kingside crashes from the London - pairs well with the LeninPerez study.',
     category: 'openings-white',
     matches: ['london'],
   },
@@ -122,7 +122,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: "The Queen's Gambit",
     author: 'Yonushke',
     side: 'white',
-    blurb: 'Queen\'s Gambit Accepted and Declined — main lines and traps.',
+    blurb: 'Queen\'s Gambit Accepted and Declined - main lines and traps.',
     category: 'openings-white',
     matches: ["queen's gambit", 'queens gambit', 'qgd', 'qga'],
   },
@@ -132,7 +132,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'Repertoire for 1.e4 players',
     author: 'LeninPerez',
     side: 'white',
-    blurb: 'Italian, Ruy Lopez, Scotch — a complete 1.e4 repertoire pack.',
+    blurb: 'Italian, Ruy Lopez, Scotch - a complete 1.e4 repertoire pack.',
     category: 'openings-white',
     matches: [],
   },
@@ -144,7 +144,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'Caro-Kann Defense',
     author: 'LeninPerez',
     side: 'black',
-    blurb: 'Advance, Exchange, and Panov Attack — the solid 1...c6 reply to 1.e4.',
+    blurb: 'Advance, Exchange, and Panov Attack - the solid 1...c6 reply to 1.e4.',
     category: 'openings-black',
     matches: ['caro-kann', 'caro kann'],
   },
@@ -154,7 +154,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'All about the Sicilian Defense',
     author: 'francesco_super',
     side: 'black',
-    blurb: 'Dragon, Yugoslav Attack, Accelerated Dragon — a broad Sicilian tour.',
+    blurb: 'Dragon, Yugoslav Attack, Accelerated Dragon - a broad Sicilian tour.',
     category: 'openings-black',
     matches: ['sicilian', 'dragon', 'najdorf'],
   },
@@ -164,7 +164,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: 'French Defense',
     author: 'LeninPerez',
     side: 'black',
-    blurb: 'Exchange and Advance Variations — fundamentals of 1...e6 vs 1.e4.',
+    blurb: 'Exchange and Advance Variations - fundamentals of 1...e6 vs 1.e4.',
     category: 'openings-black',
     matches: ['french'],
   },
@@ -174,7 +174,7 @@ export const CURATED_STUDIES: CuratedStudy[] = [
     name: "King's Indian: Fantastic Opening",
     author: 'FunnyAnimatorJimTV',
     side: 'black',
-    blurb: "Classical Variation main line + kingside attack — Black's hypermodern weapon vs 1.d4.",
+    blurb: "Classical Variation main line + kingside attack - Black's hypermodern weapon vs 1.d4.",
     category: 'openings-black',
     matches: ["king's indian", 'kings indian', 'kid'],
   },
@@ -182,8 +182,8 @@ export const CURATED_STUDIES: CuratedStudy[] = [
 
 export const CATEGORY_LABELS: Record<CuratedStudy['category'], string> = {
   fundamentals: 'Fundamentals',
-  'openings-white': 'Openings — White',
-  'openings-black': 'Openings — Black',
+  'openings-white': 'Openings - White',
+  'openings-black': 'Openings - Black',
   endgames: 'Endgames',
 };
 

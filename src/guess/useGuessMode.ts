@@ -26,7 +26,7 @@ export interface UseGuessModeArgs {
   ply: number;
   /** Hand the ply state back when guess-mode advances. */
   setPly: (n: number) => void;
-  /** Engine eval rows by ply index — read to derive engine's top move. */
+  /** Engine eval rows by ply index - read to derive engine's top move. */
   evals: (PositionEvalRow | undefined)[];
 }
 
@@ -40,7 +40,7 @@ export interface UseGuessModeReturn {
   sideToMove: 'white' | 'black';
   /** The move that's being guessed at the current ply, if any. */
   expectedMove: { san: string; uci: string } | null;
-  /** Stats — refreshed after each submit. */
+  /** Stats - refreshed after each submit. */
   gameStats: GuessStats;
   overallStats: GuessStats;
 
@@ -77,7 +77,7 @@ const EMPTY_STATS: GuessStats = {
  *
  * Each submission writes a row to Dexie via {@link addGuess}, then stats
  * refresh. The comparison shows BOTH "matches played" and "matches engine"
- * because they're different things — Guess-mode rewards the more-correct
+ * because they're different things - Guess-mode rewards the more-correct
  * answer when the actual played move was a mistake.
  */
 export function useGuessMode(args: UseGuessModeArgs): UseGuessModeReturn {

@@ -11,7 +11,7 @@ import type { LlmProviderId } from '../../db/db';
 /**
  * Factory for OpenAI-compatible providers (Groq, OpenRouter, etc.) that
  * speak the standard `/v1/chat/completions` protocol. The OpenAI provider
- * itself does NOT use this factory — it uses the proprietary
+ * itself does NOT use this factory - it uses the proprietary
  * `/v1/responses` endpoint for native web-search tool support, which these
  * compatibility services don't expose.
  *
@@ -24,7 +24,7 @@ import type { LlmProviderId } from '../../db/db';
  *
  * Web search is unsupported on every compat provider we know of, so the
  * factory hard-codes `supportsWebSearch: false` and silently ignores
- * `enableWebSearch` in chat requests — the chat UI is responsible for
+ * `enableWebSearch` in chat requests - the chat UI is responsible for
  * hiding the toggle.
  */
 export interface OpenAiCompatConfig {
@@ -96,12 +96,12 @@ export function createOpenAiCompatProvider(config: OpenAiCompatConfig): LLMProvi
       const body: Record<string, unknown> = {
         model: req.model,
         messages,
-        // 2048 mirrors the cap on Anthropic/OpenAI — enough headroom for
+        // 2048 mirrors the cap on Anthropic/OpenAI - enough headroom for
         // multi-paragraph chess explanations without leaving Elle stranded
         // mid-sentence.
         max_tokens: req.maxTokens ?? 2048,
       };
-      // We deliberately ignore req.enableWebSearch — these providers don't
+      // We deliberately ignore req.enableWebSearch - these providers don't
       // support a web-search tool, and the chat UI hides the toggle.
 
       let resp: Response;
@@ -127,7 +127,7 @@ export function createOpenAiCompatProvider(config: OpenAiCompatConfig): LLMProvi
 
       const json = (await resp.json()) as OpenAiChatCompletionsPayload;
       const text = (json.choices?.[0]?.message?.content ?? '').trim();
-      // Compat providers don't return citations or tool-use signals — flag
+      // Compat providers don't return citations or tool-use signals - flag
       // both as off so the UI doesn't show a misleading "🔎" badge.
       return { text, usedWebSearch: false, citations: [] };
     },
@@ -142,7 +142,7 @@ async function formatError(resp: Response): Promise<string> {
     if (typeof json.error === 'string') detail = json.error;
     else if (json.error?.message) detail = json.error.message;
   } catch {
-    // Non-JSON body — keep raw text.
+    // Non-JSON body - keep raw text.
   }
   return `HTTP ${resp.status}: ${truncate(detail, 240)}`;
 }

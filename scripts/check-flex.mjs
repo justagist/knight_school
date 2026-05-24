@@ -19,12 +19,12 @@ import { join } from 'node:path';
 
 const ROOT = process.argv[2] ?? 'src';
 
-// Parent-side layout modifiers — these only work when the SAME element
+// Parent-side layout modifiers - these only work when the SAME element
 // also declares `flex` / `inline-flex` / `grid` / `inline-grid`.
 //
 // Excluded on purpose: `self-*`, `justify-self-*`, `place-self-*`. Those
 // are child-side properties (CSS `align-self`, `justify-self`); they
-// work even when the child itself has no flex/grid display — only the
+// work even when the child itself has no flex/grid display - only the
 // PARENT needs the display. So a button with `self-start` inside a flex
 // container is correct, not a bug.
 const MODIFIER_RE =
@@ -50,7 +50,7 @@ let failures = 0;
 
 function stripPrefix(token) {
   // `md:flex-col` → `flex-col`. Tailwind allows nested prefixes
-  // (`dark:md:flex-col`) — strip them all.
+  // (`dark:md:flex-col`) - strip them all.
   while (true) {
     const m = token.match(/^[a-z0-9-]+:/);
     if (!m) return token;
@@ -97,7 +97,7 @@ for (const file of walk(ROOT)) {
     if (!value) continue;
     const before = src.slice(0, m.index);
     const line = before.split('\n').length;
-    // Collapse newlines + collapse multiple spaces — same as the JSX
+    // Collapse newlines + collapse multiple spaces - same as the JSX
     // runtime does when rendering the className string.
     const flat = value.replace(/\s+/g, ' ').trim();
     checkClassValue(flat, file, line);

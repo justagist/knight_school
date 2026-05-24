@@ -2,7 +2,7 @@ import { useOnline } from '../hooks/useOnline';
 
 /**
  * Thin top-of-viewport pill that surfaces when the browser thinks we're
- * offline. Muted Slate styling — informational only, not alarming. The
+ * offline. Muted Slate styling - informational only, not alarming. The
  * features that actually need network (chat send, study import, explain
  * move) carry their own disabled tooltip text; this banner is the
  * global signal that the user can correlate against.

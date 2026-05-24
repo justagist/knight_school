@@ -38,7 +38,7 @@ export default function App() {
 }
 
 /**
- * Inner shell — split out so it can read the chat-open state via
+ * Inner shell - split out so it can read the chat-open state via
  * useChatHost() and push main content to the left when the chat rail is
  * open on desktop. On mobile the chat sheet covers the bottom half of the
  * viewport, so no horizontal push is needed.

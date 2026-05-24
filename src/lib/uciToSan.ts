@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 /**
  * Replay a UCI move sequence on a starting FEN and return the SAN of each
  * move. Stops at the first illegal move (returns whatever was parsed up to
- * that point — better than throwing inside system-prompt generation).
+ * that point - better than throwing inside system-prompt generation).
  *
  * UCI moves are coordinate notation: "e2e4", "e7e8q" (promotion). chess.js
  * accepts the same {from, to, promotion} shape after we slice the string.

@@ -3,7 +3,7 @@ import { db } from './db';
 export interface StorageEstimateResult {
   /** Bytes used by all browser storage scoped to this origin (best effort). */
   usage: number;
-  /** Estimated quota — may be undefined or very large depending on browser. */
+  /** Estimated quota - may be undefined or very large depending on browser. */
   quota: number;
   /** True if navigator.storage.estimate() isn't supported in this browser. */
   unsupported: boolean;
@@ -29,7 +29,7 @@ export async function getStorageEstimate(): Promise<StorageEstimateResult> {
  * Wipe every Dexie table KnightSchool owns. Does NOT clear non-Dexie state
  * (localStorage settings, theme prefs, last-PGN cache). Those are cheap to
  * recover and the "danger zone" semantics of the button are about user data
- * (analysis, keys, future chats) — not look-and-feel.
+ * (analysis, keys, future chats) - not look-and-feel.
  */
 export async function clearAllData(): Promise<void> {
   const d = db();

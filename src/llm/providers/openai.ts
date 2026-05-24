@@ -43,7 +43,7 @@ export const openaiInfo: ProviderInfo = {
     'OpenAI. Requires a model that supports the web_search tool for current chess news. Paid API account; small per-search fee.',
   apiKeyUrl: 'https://platform.openai.com/api-keys',
   webSearchNote:
-    'Web search via the Responses API (web_search tool). Only some models support it — check the model picker. Small per-search fee.',
+    'Web search via the Responses API (web_search tool). Only some models support it - check the model picker. Small per-search fee.',
 };
 
 interface OpenAIResponsesOutputItem {
@@ -76,7 +76,7 @@ export const openaiProvider: LLMProvider = {
   async testConnection(apiKey: string, model: string): Promise<TestResult> {
     if (!apiKey.trim()) return { ok: false, message: 'API key is empty.' };
     try {
-      // Use chat.completions with max_tokens=1 — minimal cost, validates
+      // Use chat.completions with max_tokens=1 - minimal cost, validates
       // both the key and model access.
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -127,7 +127,7 @@ export const openaiProvider: LLMProvider = {
       model: req.model,
       instructions: req.system,
       input,
-      // See anthropic.ts for the rationale on 2048 — same logic applies.
+      // See anthropic.ts for the rationale on 2048 - same logic applies.
       max_output_tokens: req.maxTokens ?? 2048,
     };
     if (req.enableWebSearch) {

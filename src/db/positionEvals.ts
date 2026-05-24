@@ -4,7 +4,7 @@ import type { EvalSnapshot } from '../engine/types';
 /**
  * Read a cached eval for a FEN. Returns undefined on miss.
  *
- * We require the cached row to be at least `minDepth` deep — a shallower
+ * We require the cached row to be at least `minDepth` deep - a shallower
  * cached eval doesn't satisfy a request for deeper analysis.
  */
 export async function getPositionEval(
@@ -20,7 +20,7 @@ export async function getPositionEval(
 
 /**
  * Persist a completed eval. Overwrites if FEN already exists.
- * Snapshots from the engine come in EvalSnapshot shape — we adapt.
+ * Snapshots from the engine come in EvalSnapshot shape - we adapt.
  */
 export async function putPositionEval(
   snapshot: EvalSnapshot,
@@ -60,7 +60,7 @@ export async function getPositionEvals(
   return rows;
 }
 
-/** Erase all cached evals — backs the Settings "clear all" button later. */
+/** Erase all cached evals - backs the Settings "clear all" button later. */
 export async function clearAllPositionEvals(): Promise<void> {
   await db().positionEvals.clear();
 }

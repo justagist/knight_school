@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * input when offline (and surface the persistent offline banner from spec
  * §"Offline Support").
  *
- * Note: navigator.onLine is a hint, not a guarantee — a connected device
+ * Note: navigator.onLine is a hint, not a guarantee - a connected device
  * with no real internet still reports true. We trust it for "definitely
  * offline" but real errors from fetch still need to be handled separately.
  */

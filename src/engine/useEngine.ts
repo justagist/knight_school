@@ -79,7 +79,7 @@ export function useEngine({ fen, depth, enabled = true, multiPv = 3 }: UseEngine
     setAnalyzing(true);
     setError(null);
 
-    // Terminal positions (checkmate / stalemate) — see analysis/terminal.ts.
+    // Terminal positions (checkmate / stalemate) - see analysis/terminal.ts.
     const terminal = terminalSnapshot(fen);
     if (terminal) {
       setSnapshot(terminal);

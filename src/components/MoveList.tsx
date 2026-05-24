@@ -16,7 +16,7 @@ export function MoveList({ moves, ply, onSelectPly, classifications }: MoveListP
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    // Scroll the move list internally only — never let scrollIntoView bubble
+    // Scroll the move list internally only - never let scrollIntoView bubble
     // up to the window (which on mobile would yank the screen away from the
     // board the user is actually looking at).
     const el = activeRef.current;
@@ -71,7 +71,7 @@ export function MoveList({ moves, ply, onSelectPly, classifications }: MoveListP
       aria-label="Move list"
     >
       {pairs.map((p, rowIdx) => {
-        // Every 5th row gets a subtle bottom border for visual rhythm —
+        // Every 5th row gets a subtle bottom border for visual rhythm -
         // helps scanning long move lists without adding heavy zebra striping.
         const rhythm = rowIdx > 0 && rowIdx % 5 === 0;
         return (

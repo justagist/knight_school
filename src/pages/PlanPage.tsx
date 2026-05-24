@@ -32,7 +32,7 @@ export function PlanPage() {
       : WEEKLY_PLAN.filter((i) => i.day >= startDay);
   const totalThisWeek = activeItems.length;
   const doneThisWeek = activeItems.filter((i) => plan.completedIds.has(i.id)).length;
-  // Rollover is a current-week-only concept — non-current weeks render
+  // Rollover is a current-week-only concept - non-current weeks render
   // their template as-is without pulling items into a "today" column
   // (no day in those weeks is "today"). The `todayForView` passed down
   // becomes -1 for non-current weeks so no day matches.
@@ -298,7 +298,7 @@ function WeekNav({
 }
 
 interface DayProps {
-  /** -1 when the viewed week isn't the current week — no day matches. */
+  /** -1 when the viewed week isn't the current week - no day matches. */
   today: PlanDay | -1;
   startDay: PlanDay | undefined;
   readOnly: boolean;
@@ -398,12 +398,12 @@ function DayColumn({
   onFocus: () => void;
 }) {
   const items = itemsForDay(day);
-  // When viewing a non-current week, no day is "today" — readOnly is
+  // When viewing a non-current week, no day is "today" - readOnly is
   // true and past/future flags are irrelevant for rollover. Items still
   // render their checked state from the stored checks.
   const future = today !== -1 && day > today;
   const past = today !== -1 && day < today;
-  // Days BEFORE the plan's active start day this week are pre-plan —
+  // Days BEFORE the plan's active start day this week are pre-plan -
   // treat them like future days (visible, not actionable, no rollover).
   const beforePlan = startDay !== undefined && day < startDay;
   return (
@@ -438,14 +438,14 @@ function DayColumn({
           className="flex flex-col gap-1"
           onClick={(e) => {
             // Don't focus the column when toggling a checkbox / clicking a
-            // link inside it — those are their own actions.
+            // link inside it - those are their own actions.
             e.stopPropagation();
           }}
         >
           {items.map((item) => {
             const done = completedIds.has(item.id);
             // Past-day items still uncompleted have rolled forward to
-            // today's column — hide them here so the actionable copy
+            // today's column - hide them here so the actionable copy
             // doesn't appear twice. Only applies in the current week.
             if (past && !done) return null;
             return (
@@ -513,7 +513,7 @@ function DayAccordion({
           )}
         </span>
         <span className="font-mono text-[11px] tabular-nums text-muted">
-          {beforePlan ? '—' : `${doneCount}/${items.length}`}
+          {beforePlan ? '-' : `${doneCount}/${items.length}`}
           {rollover.length > 0 && ` +${rollover.length}`}
         </span>
       </summary>
@@ -594,7 +594,7 @@ function ItemRow({
         checked ? 'text-muted line-through' : ''
       } ${disabled ? 'opacity-50' : ''}`}
     >
-      {/* 44×44 tap surface around the native checkbox — meets the
+      {/* 44×44 tap surface around the native checkbox - meets the
           mobile-tap-target spec without changing the visual size. */}
       <label
         className={`inline-flex h-11 w-11 shrink-0 items-center justify-center ${

@@ -4,10 +4,10 @@ interface SettingsAccordionProps {
   id: string;
   title: string;
   /** Open by default? Appearance defaults to open, every other section closed
-   *  per spec — keeps the Settings page from feeling like a wall of cards. */
+   *  per spec - keeps the Settings page from feeling like a wall of cards. */
   defaultOpen?: boolean;
   children: ReactNode;
-  /** Optional right-side badge / status — rendered next to the title. */
+  /** Optional right-side badge / status - rendered next to the title. */
   rightSlot?: ReactNode;
 }
 
@@ -49,7 +49,7 @@ export function SettingsAccordion({
           </span>
         </div>
       </button>
-      {/* `grid-rows` open/close trick — animates max-content height to 0
+      {/* `grid-rows` open/close trick - animates max-content height to 0
           via the 0fr → 1fr grid track, without measuring child heights in
           JS. 200ms ease-in-out per spec. */}
       <div

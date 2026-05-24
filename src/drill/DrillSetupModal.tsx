@@ -19,7 +19,7 @@ export interface DrillSetupResult {
 interface DrillSetupModalProps {
   study: StudyRow;
   /**
-   * Initial defaults — caller picks based on entry point:
+   * Initial defaults - caller picks based on entry point:
    *   - study-level "Drill" button → mixed / free / 25
    *   - per-chapter "Drill" button → chapter / free / all (preserves the
    *     pre-modal behaviour)
@@ -29,7 +29,7 @@ interface DrillSetupModalProps {
   onClose: () => void;
   onStart: (result: DrillSetupResult) => void;
   /**
-   * Optional "Add to queue" — when wired, the modal shows a secondary
+   * Optional "Add to queue" - when wired, the modal shows a secondary
    * button next to Start drill that stashes the same config into the
    * Practice queue without launching the drill. Lets the user save a
    * setup for later without committing time right now.
@@ -44,7 +44,7 @@ interface DrillSetupModalProps {
  * length cap. Single "Start drill" CTA at the bottom.
  *
  * Spot mode requires at least one position in the chosen scope where
- * exactly one user-move exists — the engine itself will surface that
+ * exactly one user-move exists - the engine itself will surface that
  * constraint with a friendly empty state if the user picks spot on a
  * scope that produces none.
  */
@@ -62,7 +62,7 @@ export function DrillSetupModal({
   const [length, setLength] = useState<DrillLength>(initial.length);
   const [chapterIndices, setChapterIndices] = useState<number[]>(initial.chapterIndices);
 
-  // Reset state when the modal opens with new defaults — happens when the
+  // Reset state when the modal opens with new defaults - happens when the
   // user opens the modal from a different chapter than the previous one.
   useEffect(() => {
     if (!open) return;
@@ -246,7 +246,7 @@ export function DrillSetupModal({
               }
               disabled={!canStart}
               className="btn-secondary text-sm"
-              title="Save this drill setup for later — it'll appear in the Practice queue without starting now."
+              title="Save this drill setup for later - it'll appear in the Practice queue without starting now."
             >
               Add to queue
             </button>

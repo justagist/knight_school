@@ -23,21 +23,21 @@ export default {
         muted: 'var(--text-muted)',
         faint: 'var(--text-faint)',
 
-        // Accent (amber — reserved for primary CTA / FAB / active toggle / logo)
+        // Accent (amber - reserved for primary CTA / FAB / active toggle / logo)
         accent: {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
           soft: 'var(--accent-soft)',
         },
 
-        // Secondary (slate blue — user chat bubble, secondary buttons)
+        // Secondary (slate blue - user chat bubble, secondary buttons)
         secondary: {
           DEFAULT: 'var(--secondary)',
           hover: 'var(--secondary-hover)',
           soft: 'var(--secondary-soft)',
         },
 
-        // Move classifications — distinct hue per class so the move list
+        // Move classifications - distinct hue per class so the move list
         // reads at a glance without leaning on the amber accent.
         best: 'var(--class-best)',
         good: 'var(--class-good)',
@@ -52,7 +52,7 @@ export default {
         'board-coord': 'var(--board-coord)',
 
         // Legacy ink-* scale. Kept temporarily so old sites compile. Migrate
-        // away over time — prefer the token names above for new code.
+        // away over time - prefer the token names above for new code.
         ink: {
           50: '#f8fafc',
           100: '#f1f5f9',

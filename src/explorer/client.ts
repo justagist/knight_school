@@ -40,7 +40,7 @@ const EXPLORER_BASE = 'https://explorer.lichess.ovh/masters';
 
 /**
  * Discriminated result so callers can distinguish *expected* skips (no
- * Lichess token configured — normal for offline / unauthenticated use)
+ * Lichess token configured - normal for offline / unauthenticated use)
  * from genuine network or upstream failures. The previous shape collapsed
  * both into `null`, which forced the UI to render an error state for
  * users who had simply chosen not to add a token.
@@ -57,14 +57,14 @@ export type ExplorerFetchResult =
  * Dexie + the SW runtime cache so the next lookup is current.
  *
  * Result shapes:
- *   - { status: 'ok', row }       — fresh from Dexie or just fetched, OR a
+ *   - { status: 'ok', row }       - fresh from Dexie or just fetched, OR a
  *                                   stale-cached row used as fallback after
  *                                   a network blip.
- *   - { status: 'skipped', ... }  — no Lichess token configured. Expected
+ *   - { status: 'skipped', ... }  - no Lichess token configured. Expected
  *                                   state; UI should NOT render an error.
- *   - { status: 'empty' }         — fetched successfully but Lichess has no
+ *   - { status: 'empty' }         - fetched successfully but Lichess has no
  *                                   data for this position.
- *   - { status: 'error', reason } — HTTP failure / network throw with no
+ *   - { status: 'error', reason } - HTTP failure / network throw with no
  *                                   cached fallback available.
  */
 export async function fetchExplorerEntry(fen: string): Promise<ExplorerFetchResult> {
@@ -73,7 +73,7 @@ export async function fetchExplorerEntry(fen: string): Promise<ExplorerFetchResu
   if (isExplorerEntryFresh(cached)) return { status: 'ok', row: cached! };
 
   // Lichess started requiring auth on the Masters Explorer in 2026. Without
-  // a token we skip the network call entirely — the UI falls back to the
+  // a token we skip the network call entirely - the UI falls back to the
   // bundled ECO data (data/eco.json) for opening names. Cached rows from
   // a prior auth'd session can still be returned.
   const token = await getLichessToken();

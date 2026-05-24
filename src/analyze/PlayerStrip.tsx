@@ -3,7 +3,7 @@ import { BLACK_PIECE_GLYPH, WHITE_PIECE_GLYPH, type PieceType } from './captures
 interface PlayerStripProps {
   /** Player name pulled from PGN headers; falls back if missing. */
   name: string | undefined;
-  /** 'white' or 'black' — controls which piece glyphs to render. */
+  /** 'white' or 'black' - controls which piece glyphs to render. */
   side: 'white' | 'black';
   /** Pieces this player has captured from the opponent. */
   captured: PieceType[];

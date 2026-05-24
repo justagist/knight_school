@@ -23,7 +23,7 @@ export interface TestResult {
 }
 
 /**
- * One turn in a chat. Roles are kept simple at the abstraction boundary —
+ * One turn in a chat. Roles are kept simple at the abstraction boundary -
  * each provider implementation maps to its native role names ('model' for
  * Gemini, 'assistant' for OpenAI/Anthropic, etc.).
  */
@@ -55,7 +55,7 @@ export interface ChatCitation {
 
 /**
  * Output from a chat call. `usedWebSearch` is true if the provider's
- * grounding tool was actually invoked during the response — not just
+ * grounding tool was actually invoked during the response - not just
  * enabled. Surface this to the UI as the "🔎 with web search" indicator.
  */
 export interface ChatResult {
@@ -66,7 +66,7 @@ export interface ChatResult {
 
 /**
  * Surfaced when a chat request fails. `retryable` is true when the upstream
- * is rate-limiting (HTTP 429 or provider-specific quota messages) — the
+ * is rate-limiting (HTTP 429 or provider-specific quota messages) - the
  * orchestration layer uses this signal to try the next saved key. Auth
  * errors (401/403) are NOT retryable: surface immediately so the user can
  * fix the bad key.
@@ -84,7 +84,7 @@ export class LLMError extends Error {
 
 /**
  * Thin abstraction over an LLM provider. Each implementation makes direct
- * fetch() calls to the provider's REST API — no proxy server, no SDK bundle,
+ * fetch() calls to the provider's REST API - no proxy server, no SDK bundle,
  * deploy stays fully static.
  *
  * Implementation contract:
@@ -111,7 +111,7 @@ export interface LLMProvider {
   defaultModel(): string;
   /**
    * Make a minimal, cheap API call to validate that {apiKey, model} works.
-   * MUST NOT throw — return {ok:false, message} on any error so the UI
+   * MUST NOT throw - return {ok:false, message} on any error so the UI
    * can render the result uniformly.
    */
   testConnection(apiKey: string, model: string): Promise<TestResult>;
@@ -127,7 +127,7 @@ export interface LLMProvider {
 export interface ProviderInfo {
   /** Short blurb shown directly under the provider's section. */
   blurb: string;
-  /** Where to get an API key (https URL — opens in a new tab). */
+  /** Where to get an API key (https URL - opens in a new tab). */
   apiKeyUrl: string;
   /** Detail about the provider's web-search behavior. */
   webSearchNote: string;

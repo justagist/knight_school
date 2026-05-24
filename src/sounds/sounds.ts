@@ -2,7 +2,7 @@
  * Lightweight chess sound effects synthesized via the Web Audio API.
  *
  * TODO(lichess-sounds): The spec calls for "Lichess's open-source sound files
- * (standard set)" — the canonical assets are at
+ * (standard set)" - the canonical assets are at
  * https://github.com/lichess-org/lila/tree/master/public/sound (CC0/GPL3,
  * usable). To swap: drop the mp3/ogg files into public/sounds/, replace the
  * synth() calls below with `new Audio('/sounds/move.mp3').play()` (or use a
@@ -70,12 +70,12 @@ export function play(kind: SoundKind) {
       tone({ frequency: 660, duration: 0.08, gain: 0.07, type: 'sine' });
       break;
     case 'capture':
-      // Two-tone descending click — a touch more emphatic than a quiet move.
+      // Two-tone descending click - a touch more emphatic than a quiet move.
       tone({ frequency: 740, duration: 0.05, gain: 0.09, type: 'triangle' });
       tone({ frequency: 440, duration: 0.10, gain: 0.08, type: 'triangle' }, 0.04);
       break;
     case 'check':
-      // Higher, slightly longer — alert without being shrill.
+      // Higher, slightly longer - alert without being shrill.
       tone({ frequency: 880, duration: 0.12, gain: 0.09, type: 'triangle' });
       tone({ frequency: 1100, duration: 0.08, gain: 0.07, type: 'sine' }, 0.06);
       break;

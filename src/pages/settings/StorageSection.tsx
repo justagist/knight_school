@@ -39,7 +39,7 @@ export function StorageSection() {
       setStatus({
         kind: 'ok',
         text: includeKeysOnExport
-          ? 'Exported (with API keys — treat the file as a secret).'
+          ? 'Exported (with API keys - treat the file as a secret).'
           : 'Exported (API keys excluded).',
       });
     } catch (err) {
@@ -58,7 +58,7 @@ export function StorageSection() {
     setStatus(null);
     try {
       await importFromBlob(file);
-      setStatus({ kind: 'ok', text: 'Import complete — reload to see your restored data.' });
+      setStatus({ kind: 'ok', text: 'Import complete - reload to see your restored data.' });
       void refreshEstimate();
     } catch (err) {
       setStatus({ kind: 'error', text: err instanceof Error ? err.message : String(err) });
@@ -74,7 +74,7 @@ export function StorageSection() {
     if (!ok) return;
     const reconfirm = window.prompt('Type ERASE to confirm:');
     if (reconfirm !== 'ERASE') {
-      setStatus({ kind: 'error', text: 'Confirmation text didn’t match — nothing was deleted.' });
+      setStatus({ kind: 'error', text: 'Confirmation text didn’t match - nothing was deleted.' });
       return;
     }
     setWorking('clear');
@@ -148,7 +148,7 @@ export function StorageSection() {
           />
           <span>
             <span className="font-medium text-ink-700 dark:text-ink-200">Include API keys.</span>{' '}
-            Off by default. Only enable when transferring to a device you own — the export file
+            Off by default. Only enable when transferring to a device you own - the export file
             would otherwise leak your credentials if shared.
           </span>
         </label>
@@ -204,7 +204,7 @@ function StorageBreakdown() {
         db().chatThreads.count(),
         db().positionEvals.count(),
       ]);
-      // No "games" table — analyses are derived from positionEvals + the
+      // No "games" table - analyses are derived from positionEvals + the
       // user's pasted PGNs (held in memory only). Report 0 / "current" for
       // games. Honest rather than synthetic.
       setCounts({ games: 0, studies, threads, evals });

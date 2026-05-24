@@ -38,10 +38,10 @@ export class NoUsableKeyError extends Error {
  *
  * Order of attempts:
  *  1. The provider's currently-active key (per providerConfig).
- *  2. Other saved keys for the same provider, ordered by createdAt — but
+ *  2. Other saved keys for the same provider, ordered by createdAt - but
  *     only if `fallbackEnabled` is true for the provider.
  *
- * Auth errors (401/403 without a quota signal) surface immediately — the
+ * Auth errors (401/403 without a quota signal) surface immediately - the
  * key is just wrong, no point hammering. Network errors surface immediately
  * too: the *network* is the problem, not the key.
  */
@@ -105,7 +105,7 @@ export async function callChat(args: CallChatArgs): Promise<CallChatOutcome> {
 
   // All retryable errors. Surface the most recent one with context so the
   // user knows the entire pool was rate-limited (not just one key). The
-  // aggregate is itself NOT retryable — there is nothing further to fall
+  // aggregate is itself NOT retryable - there is nothing further to fall
   // back to. A caller looping on `retryable` would loop forever.
   const last = attempted[attempted.length - 1];
   throw new LLMError(

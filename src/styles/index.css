@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 /*
- * KnightSchool color tokens — Slate & Amber.
+ * KnightSchool color tokens - Slate & Amber.
  *
  * All component styles read these via CSS variables (exposed to Tailwind in
  * tailwind.config.js as `bg-base`, `text-muted`, `text-best`, etc.). Never
  * use raw hex in components.
  *
  * Why CSS variables and not Tailwind palette extension only? Themes need
- * to swap atomically when the user toggles light/dark — a single variable
+ * to swap atomically when the user toggles light/dark - a single variable
  * flip at the root is the cheapest, leakage-free way.
  */
 :root {

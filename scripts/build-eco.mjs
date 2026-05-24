@@ -4,7 +4,7 @@
  *
  * Source: https://github.com/lichess-org/chess-openings (CC0).
  * Input  : tmp/eco-a.tsv … tmp/eco-e.tsv (or override via argv[2..6]).
- * Output : src/data/eco.json — a position-keyed map for offline opening lookup.
+ * Output : src/data/eco.json - a position-keyed map for offline opening lookup.
  *
  * Key format: normalized FEN (position + side-to-move + castling + en-passant,
  * dropping the halfmove + fullmove counters so transpositions collapse).
@@ -13,7 +13,7 @@
  * with the longer name (more specific variation wins).
  *
  * Run once (already wired through `npm run build:eco`), commit the resulting
- * JSON. No runtime TSV parsing in the browser — keeps cold-start cheap.
+ * JSON. No runtime TSV parsing in the browser - keeps cold-start cheap.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -87,7 +87,7 @@ writeFileSync(OUTPUT, JSON.stringify(out));
 const positions = Object.keys(out).length;
 const bytes = JSON.stringify(out).length;
 console.log(
-  `eco.json: ${positions} positions from ${rowCount} rows (${skipCount} skipped) — ${(
+  `eco.json: ${positions} positions from ${rowCount} rows (${skipCount} skipped) - ${(
     bytes / 1024
   ).toFixed(0)} KB`,
 );

@@ -14,19 +14,19 @@ interface ExpectedMove {
   uci: string;
   chapterIndex: number;
   chapterTitle: string;
-  /** Occurrence count across the scope — used to weight opponent replies. */
+  /** Occurrence count across the scope - used to weight opponent replies. */
   weight: number;
 }
 
 export interface MixedDrillState {
   /**
-   * - `playing`  — board interactive, awaiting user move (or engine reply).
-   * - `feedback` — spot-mode pause after a user move; the result card is on
+   * - `playing`  - board interactive, awaiting user move (or engine reply).
+   * - `feedback` - spot-mode pause after a user move; the result card is on
    *                screen and the user must tap "Next spot" to continue.
-   * - `wrong`    — free-mode end-of-drill failure card.
-   * - `complete` — drill finished (target reached or pool exhausted).
+   * - `wrong`    - free-mode end-of-drill failure card.
+   * - `complete` - drill finished (target reached or pool exhausted).
    *
-   * Exiting mid-drill is intentionally not recorded as an attempt — the
+   * Exiting mid-drill is intentionally not recorded as an attempt - the
    * caller just unmounts. No 'aborted' terminal state.
    */
   status: 'playing' | 'feedback' | 'wrong' | 'complete';
@@ -45,7 +45,7 @@ export interface MixedDrillState {
   perChapterPasses: Map<number, number>;
   /** Per-chapter attempt count (passes + fails). */
   perChapterAttempts: Map<number, number>;
-  /** Cumulative failure log — one entry per wrong move (drill ends on first
+  /** Cumulative failure log - one entry per wrong move (drill ends on first
    *  wrong move in free mode, can have multiple entries in spot mode). */
   failures: Array<{
     fen: string;
@@ -56,7 +56,7 @@ export interface MixedDrillState {
     playedSan: string;
     expected: ExpectedMove[];
   };
-  /** Spot-mode feedback payload — set when status='feedback'. Holds
+  /** Spot-mode feedback payload - set when status='feedback'. Holds
    *  pass/fail + the move details so the result card can render. */
   feedback?: {
     pass: boolean;
@@ -111,7 +111,7 @@ export function useMixedDrill({
   /** Advance the drill after a spot-mode feedback card. No-op in free
    *  mode (free transitions automatically between user turns). */
   next: () => void;
-  /** Mark the current attempt as invalidated — called by the chat
+  /** Mark the current attempt as invalidated - called by the chat
    *  warning modal when the user opens chat mid-drill. */
   invalidate: () => void;
   retry: () => void;
@@ -205,7 +205,7 @@ export function useMixedDrill({
       persistedRef.current = true;
       void recordDrillAttempt({
         id: attemptIdRef.current,
-        // drillLineId is intentionally omitted — mixed sessions span chapters.
+        // drillLineId is intentionally omitted - mixed sessions span chapters.
         startedAt: startedAtRef.current,
         endedAt: Date.now(),
         result,
@@ -221,7 +221,7 @@ export function useMixedDrill({
     [mode, onFinished],
   );
 
-  // Opponent auto-move (free mode). In spot mode the engine never plays —
+  // Opponent auto-move (free mode). In spot mode the engine never plays -
   // the user is shown a single position, plays one move, and we advance.
   useEffect(() => {
     if (mode !== 'free') return;
@@ -229,11 +229,11 @@ export function useMixedDrill({
     if (state.awaitingUser) return;
     // Not the user's turn. Pick an opponent move from the pool.
     const stm = sideToMove(state.fen);
-    if (stm === sideChar(userSide)) return; // shouldn't happen — awaitingUser would be true
+    if (stm === sideChar(userSide)) return; // shouldn't happen - awaitingUser would be true
     // byFen is keyed on the NORMALISED 4-field fen (what the indexer
     // writes). state.fen here is the full chess.js fen, including
     // halfmove + fullmove counters, so the raw lookup misses and the
-    // engine thinks the line ran out — teleporting the user to a fresh
+    // engine thinks the line ran out - teleporting the user to a fresh
     // chapter after every correct move. Normalise first.
     const row = byFen.get(normalizeFenForExplorer(state.fen));
     // Aggregate occurrences by uci so the weighted pick is biased toward
@@ -248,7 +248,7 @@ export function useMixedDrill({
     }
     const candidates = [...bucket.values()];
     if (candidates.length === 0) {
-      // No continuation in the pool — jump to a fresh chapter start so the
+      // No continuation in the pool - jump to a fresh chapter start so the
       // user keeps drilling toward the target.
       const next = pickStartingFen(startingFens, state.fen);
       if (next) {
@@ -269,7 +269,7 @@ export function useMixedDrill({
         promotion: pick.uci.length > 4 ? pick.uci.slice(4, 5) : undefined,
       });
       if (!m) {
-        // Bad UCI from the pool — bail out gracefully.
+        // Bad UCI from the pool - bail out gracefully.
         setState((s) => ({ ...s, status: 'complete' }));
         persist('pass');
         return;
@@ -285,7 +285,7 @@ export function useMixedDrill({
     return () => window.clearTimeout(t);
   }, [state.status, state.awaitingUser, state.fen, mode, byFen, chapterScope, userSide, startingFens, persist]);
 
-  // Detect completion in free mode — target reached.
+  // Detect completion in free mode - target reached.
   useEffect(() => {
     if (mode !== 'free') return;
     if (state.status !== 'playing') return;
@@ -297,7 +297,7 @@ export function useMixedDrill({
 
   // Line-exhaustion guard. If the user is about to move from a position
   // that has no indexed user-side moves in scope, the chapter ran out
-  // here — silently teleport to a fresh chapter start instead of letting
+  // here - silently teleport to a fresh chapter start instead of letting
   // submitMove mark the user's next move as wrong-with-empty-expected
   // (which produces the "You played X. Expected:" blank-list bug).
   useEffect(() => {
@@ -338,7 +338,7 @@ export function useMixedDrill({
       if (!state.awaitingUser) return;
       const row = byFen.get(normalizeFenForExplorer(state.fen));
       const expected: ExpectedMove[] = aggregateExpected(row, chapterScope, sideChar(userSide));
-      // Race with the line-exhaustion guard above — if the user clicked
+      // Race with the line-exhaustion guard above - if the user clicked
       // faster than the teleport effect, ignore the click rather than
       // marking a legal move wrong against an empty expected set.
       if (expected.length === 0) return;
@@ -421,7 +421,7 @@ export function useMixedDrill({
 
   const next = useCallback(() => {
     // Advance to the next spot position after the feedback card is shown.
-    // Free mode doesn't use this — its 'wrong' status terminates the drill.
+    // Free mode doesn't use this - its 'wrong' status terminates the drill.
     setState((s) => {
       if (s.status !== 'feedback') return s;
       if (mode !== 'spot') return { ...s, status: 'playing' };
@@ -468,11 +468,11 @@ function initialState(args: {
   //
   // TODO(spot-setup-walk): per the original mixed-drill spec, spot mode
   // should play the previous 2–4 moves automatically before asking the
-  // user to find the critical move — gives them the lead-up context.
+  // user to find the critical move - gives them the lead-up context.
   // Plug-in point: when picking a spot here, look up the matching
   // occurrence's chapter + ply, replay that chapter's moves from
   // (ply - 3) up to (ply - 1) via a short animation loop, THEN set
-  // `awaitingUser: true` and the user moves. Skipped for MVP — the
+  // `awaitingUser: true` and the user moves. Skipped for MVP - the
   // current behaviour teleports straight to the spot FEN.
   let fen =
     'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -602,7 +602,7 @@ function sideToMove(fen: string): 'w' | 'b' {
 /**
  * The position indexer keys positions by a 4-field FEN (drops halfmove +
  * fullmove counters). chess.js requires the full 6-field FEN to construct
- * a Chess instance — without it, legalDests() throws and the board appears
+ * a Chess instance - without it, legalDests() throws and the board appears
  * dead. Pad missing fields with sensible defaults so any FEN coming out of
  * the pool is safe to hand back to chess.js.
  */

@@ -16,13 +16,13 @@ interface MixedDrillViewProps {
   onExit: () => void;
   onFinished?: (result: 'pass' | 'fail', invalidated: boolean) => void;
   /**
-   * "Drill weak spots" — re-issue the URL with a narrower chapter scope
+   * "Drill weak spots" - re-issue the URL with a narrower chapter scope
    * matching the chapters the user passed under 70% accuracy. Parent
    * (OpeningsPage) writes the URL params + nudges this view to remount.
    */
   onDrillSubset?: (chapterIndices: number[]) => void;
   /**
-   * "Review failure position" — open the study viewer at the given chapter.
+   * "Review failure position" - open the study viewer at the given chapter.
    * Parent navigates to the study URL. We omit the ply (it's hard to map a
    * FEN back to its in-chapter ply without re-walking the PGN) so the user
    * lands at the chapter start and can step through manually.
@@ -79,7 +79,7 @@ export function MixedDrillView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study.id, mode]);
 
-  // Position-pool lookup by normalised fen — keeps the chat context's
+  // Position-pool lookup by normalised fen - keeps the chat context's
   // "expected moves" view consistent with the engine's matching logic.
   const byFen = useMemo(() => {
     const m = new Map<string, DrillPositionRow>();
@@ -109,7 +109,7 @@ export function MixedDrillView({
         currentFen: drill.state.fen,
         lastMoveSan: drill.state.feedback?.playedSan,
         expectedMoves: [...expectedDedup.values()],
-        // Mixed sessions teleport across chapters — no single chapter
+        // Mixed sessions teleport across chapters - no single chapter
         // lead-up to surface.
         leadupSan: undefined,
         progressLabel:
@@ -176,7 +176,7 @@ export function MixedDrillView({
   return (
     <div className="flex flex-col gap-3">
       {/* Header / breadcrumb. Per spec: "Mixed drill · 8/25" or
-          "Italian Opening · Ch.2 · 4/12" — the latter only applies to
+          "Italian Opening · Ch.2 · 4/12" - the latter only applies to
           per-chapter; here we always show study + scope. */}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onExit} className="btn-secondary text-sm">
@@ -196,7 +196,7 @@ export function MixedDrillView({
 
       {drill.state.invalidated && (
         <div className="card border-l-4 border-l-inaccuracy bg-inaccuracy/10 px-3 py-2 text-xs text-primary">
-          This attempt is invalidated (chat was used) — stats are not being
+          This attempt is invalidated (chat was used) - stats are not being
           recorded. You can keep going for practice value.
         </div>
       )}
@@ -269,7 +269,7 @@ function PromptCard({
 }
 
 /**
- * Spot-mode result card — pass or fail. Shown between user moves so the
+ * Spot-mode result card - pass or fail. Shown between user moves so the
  * user gets explicit feedback before the engine advances to the next
  * position. The Next button is the only way forward, so the user has to
  * acknowledge the outcome before continuing.
@@ -310,7 +310,7 @@ function FeedbackCard({
       </div>
     );
   }
-  // De-dup expected by SAN — multiple chapters may agree on the same move.
+  // De-dup expected by SAN - multiple chapters may agree on the same move.
   const byMove = new Map<string, string[]>();
   for (const e of feedback.expected) {
     const list = byMove.get(e.san) ?? [];
@@ -352,7 +352,7 @@ function WrongCard({
   onRetry: () => void;
   onExit: () => void;
 }) {
-  // De-dup expected by SAN — multiple chapters may agree on the same move.
+  // De-dup expected by SAN - multiple chapters may agree on the same move.
   const byMove = new Map<string, string[]>();
   for (const e of wrong.expected) {
     const list = byMove.get(e.san) ?? [];
@@ -415,7 +415,7 @@ function CompleteCard({
   const total = state.userMovesMade + state.failures.length;
   const accuracy = total > 0 ? Math.round((state.userMovesMade / total) * 100) : 0;
 
-  // Chapters where accuracy was below 70% — used by "Drill weak spots" to
+  // Chapters where accuracy was below 70% - used by "Drill weak spots" to
   // pre-select a narrower scope. Skips chapters with 0 attempts to avoid
   // false weakness signals.
   const weakChapters: number[] = [...state.perChapterAttempts.entries()]

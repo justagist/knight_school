@@ -8,7 +8,7 @@ import { openrouterProvider, openrouterInfo } from './openrouter';
 
 /**
  * Iteration order is the order shown in Settings dropdowns. Groq comes
- * first because it's the most generous free-tier path as of 2026 — no
+ * first because it's the most generous free-tier path as of 2026 - no
  * credit card, ~1k requests/day. Then Gemini (also free but more limited),
  * then the paid majors, then OpenRouter as the "extras / model variety"
  * tail option.

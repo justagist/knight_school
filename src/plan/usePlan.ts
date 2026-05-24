@@ -14,7 +14,7 @@ import { WEEKLY_PLAN, type PlanDay } from './template';
 /**
  * The first day of the viewed week the plan is considered "active" for
  * the current goal. Items anchored to days BEFORE this index are not
- * rolled forward and not rendered as actionable — they pre-date the
+ * rolled forward and not rendered as actionable - they pre-date the
  * goal.
  *
  *   - No goal yet                       → undefined (plan never active).
@@ -96,7 +96,7 @@ export function usePlan(): UsePlanReturn {
   }, [refresh]);
 
   // Roll the local clock so the next time the user opens the page on
-  // Monday morning, the checklist visibly resets — without a refresh
+  // Monday morning, the checklist visibly resets - without a refresh
   // listener like this, today/weekStart would stay stuck at their
   // initial mount values until a full reload.
   useEffect(() => {
@@ -108,7 +108,7 @@ export function usePlan(): UsePlanReturn {
           void refresh();
         }
       },
-      // Five minutes — cheap, plenty for a one-user app to notice the
+      // Five minutes - cheap, plenty for a one-user app to notice the
       // local day rolled over.
       5 * 60 * 1000,
     );
@@ -123,7 +123,7 @@ export function usePlan(): UsePlanReturn {
 
   const toggle = useCallback(
     async (itemId: string) => {
-      // Past / future weeks are read-only — the UI disables the input
+      // Past / future weeks are read-only - the UI disables the input
       // already, but guard at the action layer too so a stray keyboard
       // event can't write a check into a non-current week.
       if (viewWeekStart !== currentWeekStart) return;

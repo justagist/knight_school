@@ -20,11 +20,11 @@ export interface MoveCommentaryArgs {
   evalAfter?: PositionEvalRow;
   /** Classification of the played move ("blunder", "best", ...) if available. */
   classification?: string;
-  /** Game label (e.g. "Morphy vs Duke — 1858"). */
+  /** Game label (e.g. "Morphy vs Duke - 1858"). */
   gameLabel?: string;
   /** Move number for orientation in the prompt. */
   moveNumber?: number;
-  /** 'w' or 'b' — who played this move. */
+  /** 'w' or 'b' - who played this move. */
   color?: 'w' | 'b';
 }
 
@@ -153,7 +153,7 @@ function formatError(err: unknown): string {
 function buildUserPrompt(args: MoveCommentaryArgs): string {
   const lines: string[] = [];
   lines.push(
-    `Explain the move that was played in this position. Keep it short — 2 to 4 sentences. Lead with the key idea.`,
+    `Explain the move that was played in this position. Keep it short - 2 to 4 sentences. Lead with the key idea.`,
   );
   if (args.gameLabel) lines.push(`Game: ${args.gameLabel}`);
   if (args.moveNumber && args.color) {
@@ -187,7 +187,7 @@ function formatEval(row: PositionEvalRow): string {
     const pawns = (row.scoreCp / 100).toFixed(2);
     return `${row.scoreCp >= 0 ? '+' : ''}${pawns} (from side-to-move's POV)`;
   }
-  return '—';
+  return '-';
 }
 
 function formatLineEval(scoreCp?: number, mate?: number): string {
@@ -196,5 +196,5 @@ function formatLineEval(scoreCp?: number, mate?: number): string {
     const pawns = (scoreCp / 100).toFixed(2);
     return `${scoreCp >= 0 ? '+' : ''}${pawns}`;
   }
-  return '—';
+  return '-';
 }

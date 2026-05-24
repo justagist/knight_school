@@ -1,5 +1,5 @@
 /* Base chessground layout + standard cburnett piece set.
-   We intentionally do NOT import chessground.brown.css — board colors come
+   We intentionally do NOT import chessground.brown.css - board colors come
    from the --board-light / --board-dark tokens so the board pairs with the
    app theme automatically. */
 @import '@lichess-org/chessground/assets/chessground.base.css';
@@ -8,7 +8,7 @@
 /*
  * Board layout. The wrap gives 1.4em of room on the left (for rank labels)
  * and below (for file labels) so coordinates render OUTSIDE the playing
- * area — Lichess / classical chess-board style. The inner cg-wrap takes
+ * area - Lichess / classical chess-board style. The inner cg-wrap takes
  * the remaining space and is locked to a 1:1 aspect ratio so the squares
  * stay square at every viewport.
  */
@@ -27,13 +27,13 @@
 }
 
 /*
- * Default board surface — driven by tokens so it auto-switches with the
+ * Default board surface - driven by tokens so it auto-switches with the
  * app's light/dark mode. Light mode pairs the brown board-light/dark
  * tokens (classic Lichess feel); dark mode pairs the slate pair.
  *
  * Pattern: a 2-step repeating-conic-gradient laid out at 25% × 25% tiles,
  * giving an 8×8 checker. Picking pure CSS over an SVG data URI keeps the
- * pattern theme-reactive — the variables resolve at paint, so the same
+ * pattern theme-reactive - the variables resolve at paint, so the same
  * rule covers both themes (and any future ones added by the picker).
  */
 .ks-board-wrap cg-board {
@@ -42,7 +42,7 @@
    * Layer 1: a faint vertical gradient on the whole board for subtle depth
    *          (about 5% darker at the top of every square). Adds production
    *          polish over a flat-color board without changing the language.
-   * Layer 2: the checker — a 2-step repeating-conic-gradient laid out at
+   * Layer 2: the checker - a 2-step repeating-conic-gradient laid out at
    *          25% × 25% tiles, giving an 8×8 board.
    */
   background-image:
@@ -54,7 +54,7 @@
   background-size: 100% 100%, 25% 25%;
 }
 
-/* Green board override — `boardTheme: 'green'` in settings. Theme-agnostic,
+/* Green board override - `boardTheme: 'green'` in settings. Theme-agnostic,
    so the user gets the same green regardless of light/dark mode. */
 .ks-board-theme-green cg-board {
   background-color: #eeeed2;
@@ -85,10 +85,10 @@
 }
 
 /*
- * Coordinates — outside the board frame. Rank numbers live in the 1.4em
+ * Coordinates - outside the board frame. Rank numbers live in the 1.4em
  * margin to the LEFT of the board (vertically), file letters live in the
  * 1.4em margin BELOW the board (horizontally). Both use the --board-coord
- * token at 60% opacity per spec — small and unobtrusive but legible.
+ * token at 60% opacity per spec - small and unobtrusive but legible.
  *
  * Chessground emits coords as a child of `.cg-wrap`, so absolutely
  * positioning them relative to `.cg-wrap` and pulling them outside its
@@ -107,7 +107,7 @@
 }
 
 /* Rank numbers: in the left margin, anchored to the right edge so they
-   sit just outside the board's left edge. `left: auto` is critical —
+   sit just outside the board's left edge. `left: auto` is critical -
    chessground's base CSS sets `left: 4px`, and without unsetting that
    first the rank container snaps back to inside the board. */
 .ks-board-wrap .cg-wrap coords.ranks {
@@ -133,7 +133,7 @@
 }
 
 /* File letters: in the bottom margin, anchored to the top edge so they
-   sit just below the board. Same `bottom: auto` story as ranks — the base
+   sit just below the board. Same `bottom: auto` story as ranks - the base
    chessground rule sets `bottom: -4px` which would otherwise win. */
 .ks-board-wrap .cg-wrap coords.files {
   top: 100%;

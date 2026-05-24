@@ -2,7 +2,7 @@
  * Build a UCI string ("e2e4", "e7e8q") from any move-like object that
  * carries from/to + optional promotion. Centralising this avoids the
  * recurring bug where callers concatenate `${from}${to}` and silently
- * drop the promotion suffix — engines + chess.js then treat the move
+ * drop the promotion suffix - engines + chess.js then treat the move
  * as illegal/wrong on promotion squares.
  */
 export interface MoveLike {

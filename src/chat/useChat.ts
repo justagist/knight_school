@@ -56,7 +56,7 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
     threadGenRef.current += 1;
     const gen = threadGenRef.current;
     // Thread switch invalidates any in-flight send for the previous
-    // thread — drop the sending flag so the new thread's input isn't
+    // thread - drop the sending flag so the new thread's input isn't
     // locked behind a request the user no longer cares about.
     setSending(false);
 
@@ -82,7 +82,7 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
 
   // Track current active provider so the panel header can display it.
   // Refresh on the explicit `ks-llm-changed` event rather than on every
-  // keystroke / send — the previous [messages, sending] deps re-read
+  // keystroke / send - the previous [messages, sending] deps re-read
   // Dexie on every input change.
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +128,7 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
       setSending(true);
 
       try {
-        // 2. Compose history for the model. Strip past errors — they only
+        // 2. Compose history for the model. Strip past errors - they only
         //    exist for UI display.
         const history = (await listMessages(thread.id))
           .filter((m) => !m.errorMessage)

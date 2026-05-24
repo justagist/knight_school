@@ -14,7 +14,7 @@ export function drillLineId(
 
 /**
  * Build (or refresh) a DrillLineRow from a study chapter. We re-parse the
- * chapter PGN so the chapter row in DB stays the only PGN source-of-truth —
+ * chapter PGN so the chapter row in DB stays the only PGN source-of-truth -
  * if the chapter is refreshed (re-imported) the drill line will pick up the
  * new moves on the next `ensureDrillLine` call. Stats are preserved across
  * refreshes (same id).
@@ -77,7 +77,7 @@ export async function deleteDrillLine(id: string): Promise<void> {
   window.dispatchEvent(new Event('ks-drills-changed'));
 }
 
-/** Wipes every drill line for a study — called when the study is removed. */
+/** Wipes every drill line for a study - called when the study is removed. */
 export async function deleteDrillLinesForStudy(studyId: string): Promise<void> {
   await db().transaction('rw', db().drillLines, db().drillAttempts, async () => {
     const lines = await db().drillLines.where('studyId').equals(studyId).toArray();
@@ -91,7 +91,7 @@ export async function deleteDrillLinesForStudy(studyId: string): Promise<void> {
 
 /**
  * Save the outcome of a drill attempt. Updates the line's cumulative stats
- * (unless the attempt was invalidated by chat usage — those are logged but
+ * (unless the attempt was invalidated by chat usage - those are logged but
  * never tallied).
  */
 export async function recordDrillAttempt(attempt: DrillAttemptRow): Promise<void> {
@@ -116,7 +116,7 @@ export async function recordDrillAttempt(attempt: DrillAttemptRow): Promise<void
     }
   });
   // Notify regardless (the queue may want to re-render even for invalidated
-  // attempts — e.g. drop the "in progress" marker).
+  // attempts - e.g. drop the "in progress" marker).
   window.dispatchEvent(new Event('ks-drills-changed'));
 }
 

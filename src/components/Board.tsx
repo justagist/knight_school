@@ -13,7 +13,7 @@ export interface BoardProps {
   orientation?: 'white' | 'black';
   /** [from, to] squares to highlight as the last move */
   lastMove?: [string, string];
-  /** Disable interactive moves — replay mode */
+  /** Disable interactive moves - replay mode */
   viewOnly?: boolean;
   /** Decorative shapes overlaid on the board (e.g. move classification badges). */
   shapes?: DrawShape[];
@@ -27,7 +27,7 @@ export interface BoardProps {
   /**
    * Fires when the user drops a piece on a legal target square. UCI of the
    * move (e.g. "e2e4", "e7e8q"). Caller is responsible for any next-state
-   * updates — the board does NOT mutate the displayed FEN on its own.
+   * updates - the board does NOT mutate the displayed FEN on its own.
    */
   onUserMove?: (uci: string) => void;
 }
@@ -45,7 +45,7 @@ export function Board({
   const wrapRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<ChessgroundApi | null>(null);
   // Keep the latest onUserMove in a ref so the chessground config doesn't
-  // need to be rebuilt every render — the handler closure stays stable.
+  // need to be rebuilt every render - the handler closure stays stable.
   const onUserMoveRef = useRef<typeof onUserMove>(onUserMove);
   useEffect(() => {
     onUserMoveRef.current = onUserMove;
@@ -58,7 +58,7 @@ export function Board({
       fen,
       orientation,
       // chessground doesn't derive turnColor from the FEN's side-to-move
-      // field — it defaults to 'white'. If we don't set this explicitly,
+      // field - it defaults to 'white'. If we don't set this explicitly,
       // dragging Black pieces silently fails because chessground's
       // isMovable check requires turnColor === piece.color.
       turnColor: turnFromFen(fen),
@@ -172,7 +172,7 @@ function cgColor(c: 'white' | 'black' | 'both' | undefined): 'white' | 'black' |
 /**
  * Compute the legal-moves map chessground wants for {@link Config.movable.dests}:
  * Map<from-square, to-square[]> derived from chess.js for the side to move
- * at `fen`. Returns an empty map if the FEN is bad — we'd rather show no
+ * at `fen`. Returns an empty map if the FEN is bad - we'd rather show no
  * legal moves than crash mid-render.
  */
 /** Side to move encoded in the FEN's 2nd field. Defaults to white on bad input. */

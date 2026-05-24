@@ -8,7 +8,7 @@ import { uuid } from '../lib/uuid';
 export const GENERAL_THREAD_ID = 'thread-general';
 
 /**
- * Get-or-create the general thread. Idempotent under concurrent callers —
+ * Get-or-create the general thread. Idempotent under concurrent callers -
  * the read + insert happen in one rw transaction so two opens that race
  * can't write two rows for the same id.
  */
@@ -111,7 +111,7 @@ export async function putCommentary(row: MoveCommentaryRow): Promise<void> {
  * lookups so the same game across reloads finds its prior data.
  */
 export function pgnHash(pgn: string): string {
-  // djb2 — fast, stable, collision-resistant enough for ~thousands of games.
+  // djb2 - fast, stable, collision-resistant enough for ~thousands of games.
   let h = 5381;
   const s = pgn.trim();
   for (let i = 0; i < s.length; i++) {

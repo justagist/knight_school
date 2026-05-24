@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "KnightSchool — Chess made easy. A client-side chess learning PWA.",
+  "description": "KnightSchool - Chess made easy. A client-side chess learning PWA.",
   "license": "MIT",
   "engines": {
     "node": ">=20"

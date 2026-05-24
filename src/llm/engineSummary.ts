@@ -1,7 +1,7 @@
 /**
  * Render an EvalSnapshot into the compact `engineSummary` string we attach
  * to ScreenContext when Elle is reasoning about a position. Returned exactly
- * as it appears in the prompt — no further formatting needed.
+ * as it appears in the prompt - no further formatting needed.
  *
  * Shared between AnalyzeView and the lesson viewer so a consistent block
  * lands in front of the model regardless of context.
@@ -27,9 +27,9 @@ export function summarizeEngine(
         ? `M${l.mate}`
         : l.scoreCp != null
           ? `${(l.scoreCp / 100).toFixed(2)}`
-          : '—';
+          : '-';
     const pv = l.uciMoves.slice(0, 6).join(' ');
     return `  PV${l.pvIndex}: ${score}  ${pv}`;
   });
-  return `Depth ${snapshot.depth} — top lines:\n${lines.join('\n')}`;
+  return `Depth ${snapshot.depth} - top lines:\n${lines.join('\n')}`;
 }

@@ -15,14 +15,14 @@ function openingsLink(name: string): string {
 interface OpeningBadgeProps {
   /** Cached Explorer row for the CURRENT ply. */
   current: ExplorerEntryRow | undefined;
-  /** True at ply 0 — never render anything. */
+  /** True at ply 0 - never render anything. */
   atStartingPosition: boolean;
 }
 
 /**
  * Slim "Variations" card showing only the top popular continuations from
  * the current position (chess.com / lichess Explorer panel style). The
- * opening NAME itself lives inline in the game header — this card is just
+ * opening NAME itself lives inline in the game header - this card is just
  * the explorer drill-down.
  *
  * Hidden when:
@@ -59,7 +59,7 @@ export function OpeningBadge({ current, atStartingPosition }: OpeningBadgeProps)
                   {c.openingName}
                 </Link>
               ) : (
-                <span className="text-ink-500 dark:text-ink-400">—</span>
+                <span className="text-ink-500 dark:text-ink-400">-</span>
               )}
             </span>
             <span className="font-mono tabular-nums text-[10px] text-ink-500 dark:text-ink-400">
@@ -73,7 +73,7 @@ export function OpeningBadge({ current, atStartingPosition }: OpeningBadgeProps)
 }
 
 interface OpeningHeaderProps {
-  /** ECO entry for the current ply, if any. Primary name source — offline, always available. */
+  /** ECO entry for the current ply, if any. Primary name source - offline, always available. */
   eco: EcoEntry | undefined;
   /** Explorer row for the current ply when Lichess token is configured. Adds game-count enrichment. */
   current: ExplorerEntryRow | undefined;
@@ -97,10 +97,10 @@ interface OpeningHeaderProps {
  *      master-game count when present.
  *
  * Display states:
- *   - ply 0                       → "Starting position — play a move to see theory"
+ *   - ply 0                       → "Starting position - play a move to see theory"
  *   - ECO + Explorer match        → "<ECO> <Name> · 47k master games"
  *   - ECO only (no Explorer)      → "<ECO> <Name>"
- *   - No ECO, breadcrumb exists   → "Out of book — last theory: <Name>"
+ *   - No ECO, breadcrumb exists   → "Out of book - last theory: <Name>"
  *   - Nothing matched ever        → "Not in opening theory."
  */
 export function OpeningHeader(props: OpeningHeaderProps) {
@@ -156,7 +156,7 @@ function renderBody({
             · {formatCount(current.totalGames)}
           </span>
         )}
-        {/* "Add Lichess token" CTA — hidden on mobile (no room next to the
+        {/* "Add Lichess token" CTA - hidden on mobile (no room next to the
             opening name) and rendered as a brief link on larger screens.
             Settings is reachable from the bottom tab bar / top nav anyway. */}
         {!hasLichessToken && (
@@ -172,14 +172,14 @@ function renderBody({
     );
   }
 
-  // No ECO match — show breadcrumb if we matched theory earlier. The
+  // No ECO match - show breadcrumb if we matched theory earlier. The
   // opening name itself links to the Openings tab the same way the live
   // header does, so the user can drill into theory for whatever they last
   // recognised even after the game has wandered out of book.
   if (lastKnownName) {
     return (
       <span className="text-muted">
-        Out of book — last theory:{' '}
+        Out of book - last theory:{' '}
         <Link
           to={openingsLink(lastKnownName)}
           className="font-medium text-primary hover:text-accent hover:underline"

@@ -8,9 +8,9 @@ import type { DrillLineRow } from '../db/db';
  *
  * Within each bucket, older `lastDrilledAt` comes first (stalest needs work
  * the most). Lines with no `lastDrilledAt` outrank lines that were drilled
- * recently — never-drilled lines should surface before previously-passed ones.
+ * recently - never-drilled lines should surface before previously-passed ones.
  *
- * No SM-2 / spaced repetition — intentionally simple per the MVP spec.
+ * No SM-2 / spaced repetition - intentionally simple per the MVP spec.
  */
 export function sortByDrillPriority(
   lines: DrillLineRow[],
@@ -20,9 +20,9 @@ export function sortByDrillPriority(
     !l.lastDrilledAt || now - l.lastDrilledAt > 7 * 24 * 60 * 60 * 1000;
 
   const bucket = (l: DrillLineRow): number => {
-    if (l.lastResult === 'fail') return 0; // failed last time — top priority
+    if (l.lastResult === 'fail') return 0; // failed last time - top priority
     if (stale(l)) return 1; // not drilled recently
-    return 2; // recently passed — bottom
+    return 2; // recently passed - bottom
   };
 
   return [...lines].sort((a, b) => {
@@ -45,7 +45,7 @@ export function nextDrillLine(
 }
 
 /**
- * Human-readable label for the scheduler bucket — surfaced in the queue UI
+ * Human-readable label for the scheduler bucket - surfaced in the queue UI
  * as a one-word badge so the user knows why this line is next.
  */
 export function priorityLabel(line: DrillLineRow, now: number = Date.now()): 'failed' | 'stale' | 'review' {

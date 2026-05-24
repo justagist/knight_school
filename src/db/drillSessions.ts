@@ -52,7 +52,7 @@ export async function deleteDrillSession(id: string): Promise<void> {
 }
 
 /**
- * Cascade — call when a study is removed so the queue stops surfacing
+ * Cascade - call when a study is removed so the queue stops surfacing
  * sessions whose study no longer exists.
  */
 export async function deleteSessionsForStudy(studyId: string): Promise<void> {

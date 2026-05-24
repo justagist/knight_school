@@ -41,7 +41,7 @@ export function useGame(): UseGameReturn {
       setGame(parsed);
       setRawPgn(cached);
     } catch {
-      // Stale or invalid — clear it so we don't keep failing.
+      // Stale or invalid - clear it so we don't keep failing.
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {}

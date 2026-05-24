@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
  * Flow:
  *   1. DrillView calls `setActive(true)` on mount, `setActive(false)` on unmount.
  *   2. When the user opens the chat panel while a drill is active, the panel
- *      consults `shouldWarn()` — true once per session per attempt.
+ *      consults `shouldWarn()` - true once per session per attempt.
  *   3. If the user accepts the warning, panel calls `markInvalidatedAndOpen()`
  *      which triggers the registered invalidate callback (from DrillView)
  *      and clears the warning flag for the rest of this attempt.
@@ -27,7 +27,7 @@ interface DrillContextValue {
   /**
    * Has the user already been warned about the current attempt? Reset to
    * `false` whenever a new drill starts (the warning is per-attempt, not
-   * per-session — accidentally hitting "continue" on a previous attempt
+   * per-session - accidentally hitting "continue" on a previous attempt
    * shouldn't carry forward).
    */
   warningAcknowledged: boolean;

@@ -1,6 +1,6 @@
 import { db, type LichessAuthRow } from './db';
 
-/** Always store under the same key — Lichess auth is single-user. */
+/** Always store under the same key - Lichess auth is single-user. */
 const SINGLETON_ID = 'singleton' as const;
 
 /** Returns the saved token row, or undefined if the user hasn't configured one. */

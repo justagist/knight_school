@@ -4,7 +4,7 @@ import type { ExplorationMove } from './useExploration';
 
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q';
 
-/** Standard chess material values. King is omitted — uncapturable. */
+/** Standard chess material values. King is omitted - uncapturable. */
 const PIECE_VALUE: Record<PieceType, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 
 /** Render order in the captured-pieces strip: smallest → largest. */
@@ -26,7 +26,7 @@ export interface CaptureSummary {
  * Replay game moves up to `ply` (plus any exploration moves), collecting
  * captures via chess.js's move.captured field. Promotions don't generate
  * spurious captures because chess.js only sets `captured` when a piece is
- * actually taken — so this stays accurate even through pawn promotions.
+ * actually taken - so this stays accurate even through pawn promotions.
  *
  * O(ply + explorationMoves.length). Cheap to recompute on every ply tick.
  */
@@ -62,7 +62,7 @@ export function summarizeCaptures(
       const result = chess.move({ from: m.from, to: m.to, promotion: m.promotion });
       if (result?.captured) record(result.color, result.captured);
     } catch {
-      // chess.js rejected — shouldn't happen for replay of a parsed game.
+      // chess.js rejected - shouldn't happen for replay of a parsed game.
       break;
     }
   }
@@ -100,7 +100,7 @@ function orderCmp(a: PieceType, b: PieceType): number {
 }
 
 /**
- * Unicode glyphs. Captured pieces are displayed in the OPPONENT's color —
+ * Unicode glyphs. Captured pieces are displayed in the OPPONENT's color -
  * i.e., Black pieces sit next to the White player's name (those are what
  * White captured), and vice versa.
  */

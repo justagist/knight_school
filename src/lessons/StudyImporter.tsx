@@ -12,7 +12,7 @@ interface StudyImporterProps {
  * Paste-a-URL importer for Lichess studies. Accepts a full
  * https://lichess.org/study/{id} URL or a bare 8-char slug.
  *
- * No live token check — the fetch itself will surface the right error.
+ * No live token check - the fetch itself will surface the right error.
  * Public studies work without a token; private ones require one with access.
  */
 export function StudyImporter({ onImported }: StudyImporterProps) {
@@ -72,7 +72,7 @@ export function StudyImporter({ onImported }: StudyImporterProps) {
           type="submit"
           className="btn-primary px-3 text-sm"
           disabled={importing || !input.trim() || !online}
-          title={!online ? 'Network not available — reconnect to import.' : undefined}
+          title={!online ? 'Network not available - reconnect to import.' : undefined}
         >
           {importing ? 'Importing…' : 'Import'}
         </button>

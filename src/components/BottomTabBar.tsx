@@ -7,7 +7,7 @@ interface TabDef {
   end?: boolean;
   /** Outline icon for inactive state. */
   outline: ReactNode;
-  /** Filled icon for active state — same silhouette, more weight. */
+  /** Filled icon for active state - same silhouette, more weight. */
   filled: ReactNode;
 }
 
@@ -23,7 +23,7 @@ interface TabDef {
  *
  * The FAB ([ChatHost](src/chat/ChatHost.tsx) renders this via
  * [FloatingChatButton](src/chat/FloatingChatButton.tsx)) sits ABOVE this
- * bar, not in it — Elle is a cross-cutting feature, not a peer tab.
+ * bar, not in it - Elle is a cross-cutting feature, not a peer tab.
  */
 export function BottomTabBar() {
   const tabs: TabDef[] = [
@@ -100,7 +100,7 @@ export function BottomTabBar() {
        variants use the same path with fill. --- */
 
 function HomeIcon({ filled }: { filled: boolean }) {
-  // Classic house silhouette — sized + stroked to match the other tab icons.
+  // Classic house silhouette - sized + stroked to match the other tab icons.
   return (
     <svg
       width="22"
@@ -118,7 +118,7 @@ function HomeIcon({ filled }: { filled: boolean }) {
 }
 
 function BoardIcon({ filled }: { filled: boolean }) {
-  // A simplified 3x3 chess board grid — recognisable at small sizes.
+  // A simplified 3x3 chess board grid - recognisable at small sizes.
   return (
     <svg
       width="22"

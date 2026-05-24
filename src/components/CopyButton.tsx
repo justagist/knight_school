@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 interface CopyButtonProps {
-  /** Text to copy. If a function, called on click (lazy — useful for large strings). */
+  /** Text to copy. If a function, called on click (lazy - useful for large strings). */
   text: string | (() => string);
   /** Default button label (before copy). */
   label?: string;

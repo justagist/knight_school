@@ -21,7 +21,7 @@ const ChatHostContext = createContext<ChatHostValue | null>(null);
 
 /**
  * App-level chat host. Owns the panel open/close state and the
- * "current loaded PGN" — Analyze publishes the PGN it loaded via
+ * "current loaded PGN" - Analyze publishes the PGN it loaded via
  * {@link useChatHost}, and the panel reads it back when the user opens
  * the chat (so a per-game thread is loaded automatically).
  *
@@ -107,7 +107,7 @@ function DrillInvalidationModal({
       <div className="card max-w-md p-4">
         <h2 className="text-base font-semibold">Open chat during drill?</h2>
         <p className="mt-2 text-sm text-ink-700 dark:text-ink-300">
-          Using chat during a drill will invalidate this exercise — it won't
+          Using chat during a drill will invalidate this exercise - it won't
           count toward your progress or scheduling. You can still finish for
           the learning value.
         </p>

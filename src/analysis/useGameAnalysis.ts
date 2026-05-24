@@ -16,11 +16,11 @@ import type { PositionEvalRow, ExplorerEntryRow } from '../db/db';
  * Plies past the start that we'll fetch Lichess Masters DB data for.
  * Masters DB coverage drops off sharply after the opening; past ~ply 30 the
  * vast majority of positions are unique to that game. Cap the network
- * traffic accordingly — anything past this is unlikely to be "book."
+ * traffic accordingly - anything past this is unlikely to be "book."
  */
 const OPENING_FETCH_PLIES = 30;
 
-/** Per-FEN Explorer lookup status — drives the "looking up…" vs "done"
+/** Per-FEN Explorer lookup status - drives the "looking up…" vs "done"
  * vs "error" branches in the opening header. */
 export type ExplorerStatus = 'loading' | 'loaded' | 'skipped' | 'empty' | 'error';
 
@@ -77,12 +77,12 @@ export function useGameAnalysis(
   // Cached Lichess Masters DB rows aligned to game.fens by index. Drives
   // "Book" classification: when the BEFORE position has >=1000 master
   // games, the played move is labeled book. Limited to OPENING_FETCH_PLIES
-  // plies — Masters DB has near-zero coverage past the opening anyway.
+  // plies - Masters DB has near-zero coverage past the opening anyway.
   const [explorerByFen, setExplorerByFen] = useState<
     Record<string, ExplorerEntryRow | undefined>
   >({});
   // Per-FEN fetch status. Lets the UI distinguish "still loading" from
-  // "loaded but Lichess has nothing for this position" — both result in
+  // "loaded but Lichess has nothing for this position" - both result in
   // an undefined row, but the user-facing message differs.
   const [explorerStatus, setExplorerStatus] = useState<
     Record<string, ExplorerStatus | undefined>
@@ -116,13 +116,13 @@ export function useGameAnalysis(
           // Cached at sufficient depth for the same engine → use as-is.
           if (row.depth >= depth) return row;
           // Terminal rows live at depth:0 by design (no engine analysis
-          // needed — the position has no legal moves). The depth filter
+          // needed - the position has no legal moves). The depth filter
           // above would otherwise reject them and the runner would re-flag
           // the final move as "missing" on every reload. Accept those here.
           //
           // Critically: we only accept *cached* terminal rows. We don't
           // synthesize terminal evals from the FEN itself during rehydrate
-          // — doing so would pre-populate progress on never-analyzed games
+          // - doing so would pre-populate progress on never-analyzed games
           // ("1/N done, Resume?") which is confusing. Fresh games get a
           // clean 0/N start; the runner's loop will synthesize the
           // terminal row on first pass.
@@ -197,8 +197,8 @@ export function useGameAnalysis(
     if (running) return;
     if (engineVariant === 'full') {
       // TODO(full-mode): Once the NNUE-based worker is in place, drop this
-      // guard. Today selecting 'full' is impossible from the UI anyway —
-      // it's disabled in Settings — but guard defensively for safety.
+      // guard. Today selecting 'full' is impossible from the UI anyway -
+      // it's disabled in Settings - but guard defensively for safety.
       setError('Full engine mode is not available yet.');
       return;
     }
@@ -224,7 +224,7 @@ export function useGameAnalysis(
         await engine.ready();
 
         // Fire off Explorer fetches in parallel for the opening-phase FENs.
-        // These don't block the engine loop — they trickle in to
+        // These don't block the engine loop - they trickle in to
         // explorerByFen as they resolve, and the classifier reads whatever
         // is current when it runs. Cached entries return immediately;
         // network ones piggyback on the SW runtime cache (30-day SWR).
@@ -238,7 +238,7 @@ export function useGameAnalysis(
           }
           const fen = game.fens[i];
 
-          // Terminal position? Synthesize the row and persist it directly —
+          // Terminal position? Synthesize the row and persist it directly -
           // Stockfish would either hang or return nothing on these.
           const terminal = terminalEvalRow(fen, engineVariant);
           if (terminal) {
@@ -260,7 +260,7 @@ export function useGameAnalysis(
           if (!snap || snap.lines.length === 0) continue;
           await putPositionEval(snap, engineVariant);
 
-          // Write back to local state — one position at a time so the UI
+          // Write back to local state - one position at a time so the UI
           // can show incremental progress.
           const row: PositionEvalRow = {
             fen: snap.fen,
@@ -311,7 +311,7 @@ export function useGameAnalysis(
     return next;
   }
 
-  // Recognize a cached row that was written by terminalEvalRow() — i.e. a
+  // Recognize a cached row that was written by terminalEvalRow() - i.e. a
   // legal-move-less position (checkmate / stalemate / draw). These rows live
   // at depth 0 by design and need to pass the rehydrate depth filter.
   function isCachedTerminalRow(row: PositionEvalRow): boolean {
@@ -372,7 +372,7 @@ export function useGameAnalysis(
   const complete = total > 0 && evals.length === total && done === total;
 
   // Pick the deepest detected opening name along the game's actual line.
-  // Lichess hangs the opening tag on the *position* — as the line gets
+  // Lichess hangs the opening tag on the *position* - as the line gets
   // more specific, the name gets more specific too (Caro-Kann → Caro-Kann
   // Defense: Exchange Variation), so we scan forward and keep the latest
   // non-empty name we see.

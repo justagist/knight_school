@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="card border-l-4 border-l-blunder p-4 text-sm">
           <h2 className="text-base font-semibold text-blunder">Something broke</h2>
           <p className="mt-1 text-xs text-muted">
-            The screen you were on raised an error. The rest of the app is fine — reset to retry,
+            The screen you were on raised an error. The rest of the app is fine - reset to retry,
             or use the tabs / browser back to leave.
           </p>
           <pre className="mt-2 max-h-48 overflow-auto rounded bg-surface-2 p-2 text-[11px] text-primary whitespace-pre-wrap break-words">

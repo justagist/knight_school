@@ -18,7 +18,7 @@ const MODES: { value: ThemeMode; label: string }[] = [
 ];
 
 const BOARD_THEMES: { value: BoardTheme; label: string }[] = [
-  // `auto` pairs with the app theme — brown squares in light mode, slate
+  // `auto` pairs with the app theme - brown squares in light mode, slate
   // in dark mode. Naming it after the BEHAVIOUR rather than a colour avoids
   // the "but it's not brown in dark mode" confusion the old `brown` label
   // created.
@@ -36,7 +36,7 @@ const ENGINE_VARIANTS: { value: EngineVariant; label: string; hint: string }[] =
 ];
 
 /**
- * Settings page — long, so every section is an accordion. Appearance opens
+ * Settings page - long, so every section is an accordion. Appearance opens
  * by default (cheapest tweaks live there); everything else is collapsed.
  * Chip nav at the top lets users jump straight to a section.
  */
@@ -121,7 +121,7 @@ export function SettingsPage() {
                     onClick={() => update('engineVariant', v.value)}
                     title={
                       disabled
-                        ? 'Full mode arrives in a later update — it needs a one-time ~40 MB NNUE download flow.'
+                        ? 'Full mode arrives in a later update - it needs a one-time ~40 MB NNUE download flow.'
                         : undefined
                     }
                     className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
@@ -133,7 +133,7 @@ export function SettingsPage() {
                     <div className="flex items-center justify-between text-sm font-medium">
                       <span>{v.label}</span>
                       {disabled && (
-                        // Filled badge per spec — reads clearly as
+                        // Filled badge per spec - reads clearly as
                         // "unavailable yet" instead of the old outlined pill
                         // that blended into the card background.
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-surface-1">
@@ -229,7 +229,7 @@ export function SettingsPage() {
           <dd>MIT</dd>
         </dl>
         <p className="mt-3 text-xs text-muted">
-          Elle is an AI. Outputs may be wrong — verify important claims with the engine or other
+          Elle is an AI. Outputs may be wrong - verify important claims with the engine or other
           sources.
         </p>
       </SettingsAccordion>

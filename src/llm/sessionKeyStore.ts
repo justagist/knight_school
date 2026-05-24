@@ -5,7 +5,7 @@ import type { ApiKeyRow, LlmProviderId, ProviderConfigRow } from '../db/db';
  *
  * When a user adds a key with the session-only toggle on, we never write
  * it to IndexedDB. This avoids leaving the key resident on the device
- * after the tab is closed — useful on shared devices, or when a user
+ * after the tab is closed - useful on shared devices, or when a user
  * doesn't want a long-lived copy of an org-level key persisted to disk.
  *
  * The store is module-level so all hooks/services see the same map for

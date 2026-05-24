@@ -33,7 +33,7 @@ export function MoveCommentary({ visible, ...args }: MoveCommentaryProps) {
               className="btn-ghost text-xs"
               disabled={!canRequest}
               onClick={() => void commentary.request(true)}
-              title={!online ? 'Network not available — reconnect to refresh.' : 'Get a fresh commentary'}
+              title={!online ? 'Network not available - reconnect to refresh.' : 'Get a fresh commentary'}
             >
               Regenerate
             </button>
@@ -44,7 +44,7 @@ export function MoveCommentary({ visible, ...args }: MoveCommentaryProps) {
               className="btn-primary text-xs"
               disabled={!canRequest}
               onClick={() => void commentary.request()}
-              title={!online ? 'Network not available — reconnect to ask Elle.' : 'Ask Elle to explain this move'}
+              title={!online ? 'Network not available - reconnect to ask Elle.' : 'Ask Elle to explain this move'}
             >
               {commentary.loading ? 'Asking Elle…' : 'Explain move'}
             </button>

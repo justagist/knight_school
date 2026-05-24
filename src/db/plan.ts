@@ -19,7 +19,7 @@ export async function getActiveGoal(): Promise<PlanGoalRow | undefined> {
   return rows.find((r) => !r.archived);
 }
 
-/** All archived goals, newest-first — used by the goal-history view. */
+/** All archived goals, newest-first - used by the goal-history view. */
 export async function listArchivedGoals(): Promise<PlanGoalRow[]> {
   const rows = await db().planGoals.orderBy('createdAt').reverse().toArray();
   return rows.filter((r) => r.archived);

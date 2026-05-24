@@ -45,7 +45,7 @@ export async function removeStudyCascade(id: string): Promise<void> {
   window.dispatchEvent(new Event('ks-drills-changed'));
 }
 
-/** ms epoch helper — surfaces the "x days ago" label without forcing callers to compute. */
+/** ms epoch helper - surfaces the "x days ago" label without forcing callers to compute. */
 export function studyAgeDays(row: Pick<StudyRow, 'importedAt'>): number {
   return Math.max(0, Math.floor((Date.now() - row.importedAt) / 86_400_000));
 }

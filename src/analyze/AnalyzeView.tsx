@@ -51,7 +51,7 @@ export function AnalyzeView() {
     ? exploration.state!.currentFen
     : g.currentFen ?? null;
 
-  // Per-position live engine — analyzes whatever the user is *looking at*,
+  // Per-position live engine - analyzes whatever the user is *looking at*,
   // exploration or game line. That's the whole point of the interactive
   // mode: try a move, see the eval.
   const engine = useEngine({
@@ -60,7 +60,7 @@ export function AnalyzeView() {
     enabled: settings.engineEnabled && settings.engineVariant === 'lite',
   });
 
-  // Full-game analysis pass — runs on a separate engine worker so it doesn't
+  // Full-game analysis pass - runs on a separate engine worker so it doesn't
   // queue behind the interactive `engine` above.
   const analysis = useGameAnalysis(g.game, settings.analysisDepth, settings.engineVariant);
 
@@ -111,7 +111,7 @@ export function AnalyzeView() {
       : undefined;
     const trajectory = summarizeTrajectory(g.game, analysis.result);
 
-    // Build the exploration block when the user has branched off — gives
+    // Build the exploration block when the user has branched off - gives
     // Elle both the user's tried line AND the game's continuation so she
     // can compare on request.
     let explorationCtx: import('../llm/personaPrompt').ScreenContext['exploration'];
@@ -176,7 +176,7 @@ export function AnalyzeView() {
 
   // Build a board overlay shape for the most recent move's classification.
   // Shows nothing when the user is at the starting position or analysis
-  // hasn't reached this ply yet — keeps the board uncluttered.
+  // hasn't reached this ply yet - keeps the board uncluttered.
   const currentMoveClass = g.ply > 0 ? analysis.result.classifications[g.ply - 1] ?? null : null;
   const classificationShapes = useMemo(
     () => buildClassificationShapes(g.lastMove, currentMoveClass),
@@ -194,7 +194,7 @@ export function AnalyzeView() {
   // the "Last recognized theory" out-of-book fallback only goes as deep as
   // the user has navigated (not the entire game). ECO is the offline-first
   // source (always available, ~3,700 named positions from bundled Lichess
-  // chess-openings data). Explorer adds the same name when authed — we
+  // chess-openings data). Explorer adds the same name when authed - we
   // prefer ECO since it's free of API state.
   const openingBreadcrumb = useMemo(() => {
     if (!g.game) return { name: undefined as string | undefined, eco: undefined as string | undefined };
@@ -208,7 +208,7 @@ export function AnalyzeView() {
         name = ecoEntry.name;
         eco = ecoEntry.eco;
       }
-      // Explorer fills the same fields when present — useful for richer
+      // Explorer fills the same fields when present - useful for richer
       // names sometimes (Lichess has finer-grained tags than the ECO TSV).
       const row = analysis.result.explorerByFen[normalizeFenForExplorer(g.game.fens[i])];
       if (row?.openingName) name = row.openingName;
@@ -217,12 +217,12 @@ export function AnalyzeView() {
     return { name, eco };
   }, [g.game, g.ply, analysis.result.explorerByFen]);
 
-  // Opening name from ECO at the CURRENT ply — primary display source.
+  // Opening name from ECO at the CURRENT ply - primary display source.
   // Works fully offline; doesn't depend on Explorer / Lichess token.
   const currentEco = g.game ? lookupOpening(g.currentFen ?? g.game.startingFen) : undefined;
 
   // Explorer row for the position currently on the board (only meaningful
-  // when we're on the actual game line — not while exploring branches).
+  // when we're on the actual game line - not while exploring branches).
   const currentExplorerRow = g.game
     ? analysis.result.explorerByFen[
         normalizeFenForExplorer(g.currentFen ?? g.game.startingFen)
@@ -265,7 +265,7 @@ export function AnalyzeView() {
     return () => window.removeEventListener('keydown', onKey);
   }, [g]);
 
-  // Empty state — no game loaded
+  // Empty state - no game loaded
   if (!g.game) {
     return (
       <div className="space-y-4">
@@ -288,7 +288,7 @@ export function AnalyzeView() {
 
   return (
     <div className="space-y-3">
-      {/* Compact header — small back button + truncated title. Tap title
+      {/* Compact header - small back button + truncated title. Tap title
           to reveal the full header line (useful when the truncation hides
           a tournament / location detail). */}
       <CompactHeader
@@ -315,7 +315,7 @@ export function AnalyzeView() {
         }
       />
 
-      {/* Status row — one short line telling the user where they are. */}
+      {/* Status row - one short line telling the user where they are. */}
       <StatusRow ply={g.ply} totalPlies={totalPlies} sideToMove={sideToMove} />
 
       {/* Desktop = 60/40 split: board column on the left, tabbed analysis
@@ -348,7 +348,7 @@ export function AnalyzeView() {
             )}
           </div>
 
-          {/* Top player strip — the side facing away from the user. Whoever
+          {/* Top player strip - the side facing away from the user. Whoever
               has captured the most material gets a +N badge. */}
           <PlayerStrip
             name={g.orientation === 'white' ? g.game.headers.Black : g.game.headers.White}
@@ -374,7 +374,7 @@ export function AnalyzeView() {
           <div className="mx-auto flex w-full max-w-[min(90vh,640px)] items-stretch gap-1">
             {/* Eval bar flush to the board (gap-1 instead of gap-2). Hidden
                 during guessing so the user doesn't see the answer before
-                they pick — reappears after reveal. */}
+                they pick - reappears after reveal. */}
             {settings.engineEnabled && guess.mode !== 'guessing' && (
               <div className="flex w-9 flex-col items-stretch">
                 <EvalBar
@@ -391,13 +391,13 @@ export function AnalyzeView() {
                 // In exploration the lastMove is the user's just-played
                 // branch move; otherwise the game's last move.
                 lastMove={exploration.active ? exploration.lastMove : g.lastMove}
-                // Hide classification shape while exploring — the eval
+                // Hide classification shape while exploring - the eval
                 // applies to the live position, not the game-ply move.
                 shapes={
                   guess.mode === 'guessing' || exploration.active ? [] : classificationShapes
                 }
                 // Board is interactive when guess-mode is asking for input
-                // OR whenever we're showing a normal (non-guess) view —
+                // OR whenever we're showing a normal (non-guess) view -
                 // dragging starts/continues an exploration line.
                 viewOnly={guess.mode === 'revealed'}
                 movableColor={guess.mode === 'guessing' ? guess.sideToMove : 'both'}
@@ -412,7 +412,7 @@ export function AnalyzeView() {
             </div>
           </div>
 
-          {/* Bottom player strip — the side facing the user. */}
+          {/* Bottom player strip - the side facing the user. */}
           <PlayerStrip
             name={g.orientation === 'white' ? g.game.headers.White : g.game.headers.Black}
             side={g.orientation}
@@ -477,7 +477,7 @@ export function AnalyzeView() {
           )}
 
           {/* Mobile-only tabbed secondary content. On desktop the right
-              column hosts an identical tabs panel — this one stays mobile-
+              column hosts an identical tabs panel - this one stays mobile-
               only via lg:hidden so we don't render the same tabs twice. */}
           {!guess.active && (
             <div className="lg:hidden">
@@ -524,7 +524,7 @@ export function AnalyzeView() {
             </div>
           )}
 
-          {/* Per-move commentary card — only meaningful when a move has
+          {/* Per-move commentary card - only meaningful when a move has
               actually been played (ply > 0). The card itself surfaces an
               "Explain move" button; clicking it calls Elle and caches the
               result so subsequent renders are instant. Hidden during guess
@@ -551,12 +551,12 @@ export function AnalyzeView() {
           })()}
         </div>
 
-        {/* Desktop side panel — same tabs as mobile (Moves/Engine/Graph/Chat)
+        {/* Desktop side panel - same tabs as mobile (Moves/Engine/Graph/Chat)
             but takes the full vertical space of the right column. Hidden on
             mobile where the equivalent panel stacks below the board. */}
         {!guess.active && (
           <aside className="hidden lg:flex lg:max-h-[calc(100vh-180px)] lg:flex-col">
-            {/* Compact ply indicator pinned above the tabs — replaces the
+            {/* Compact ply indicator pinned above the tabs - replaces the
                 old "Ply N / M" footer that used to live in the side card. */}
             <div className="mb-2 flex items-center justify-between gap-2 px-1 text-xs text-muted">
               <span>
@@ -635,7 +635,7 @@ interface GraphPanelProps {
 
 /**
  * Wraps EvalGraph with a placeholder for the "not enough data yet" state.
- * A near-empty graph reads as broken — the spec calls for a clear "Analyze
+ * A near-empty graph reads as broken - the spec calls for a clear "Analyze
  * the game first" message until at least 25% of positions are evaluated.
  */
 function GraphPanel({
@@ -697,7 +697,7 @@ function compactGameLabel(headers: Record<string, string>): string {
     if (m) yearOrDate = m[1];
     else yearOrDate = '';
   }
-  return yearOrDate ? `${w} vs ${b} — ${yearOrDate}` : `${w} vs ${b}`;
+  return yearOrDate ? `${w} vs ${b} - ${yearOrDate}` : `${w} vs ${b}`;
 }
 function lastName(full: string): string {
   // "Adolf Anderssen" → "Anderssen". Keep single-token names as-is.
@@ -716,7 +716,7 @@ interface CompactHeaderProps {
 function CompactHeader({ compactTitle, fullTitle, onBack, result, opening }: CompactHeaderProps) {
   const [expanded, setExpanded] = useState(false);
   return (
-    // Fixed height — OpeningHeader is now locked to a single line (see
+    // Fixed height - OpeningHeader is now locked to a single line (see
     // src/analyze/OpeningBadge.tsx) so total here is back-btn row (9) +
     // title (5) + result (3.5) + opening (6) ≈ 5.5rem. The `expanded`
     // toggle adds another line; that case is rare enough that the small
@@ -818,13 +818,13 @@ function AnalyzeAllBanner({
   const pct = progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
   const depthTooLow = depth < MIN_CLASSIFY_DEPTH;
   // Distinguish "engine evals reused from cache" from "actually-in-progress."
-  // Engine evaluations are keyed by FEN globally — the starting position and
+  // Engine evaluations are keyed by FEN globally - the starting position and
   // common opening lines are shared across every game, so a freshly-loaded
   // PGN often shows X/N "ready" without the user analyzing it. Mark that
   // case so the user doesn't read it as half-finished work.
   const cachedOnly = !running && !complete && progress.done > 0;
 
-  // Once analysis is complete the CTA disappears — keep the depth + error
+  // Once analysis is complete the CTA disappears - keep the depth + error
   // hints, since those still matter, but lose the full banner so the user's
   // scroll doesn't fight a permanent "Done" pill.
   if (complete && !depthTooLow && !error) return null;
@@ -833,7 +833,7 @@ function AnalyzeAllBanner({
     <div className="card flex flex-col gap-2 px-3 py-2 text-sm">
       {!complete && (
         <>
-          {/* Primary action — full-width on mobile, content-width on
+          {/* Primary action - full-width on mobile, content-width on
               desktop. Progress + cancel live inside the button text when
               running so the user doesn't have to find a separate control. */}
           <div className="flex items-stretch gap-2">
@@ -883,7 +883,7 @@ function AnalyzeAllBanner({
       )}
       {depthTooLow && (
         <div className="text-[11px] text-ink-500 dark:text-ink-400">
-          Depth {depth} is too low for classification — raise to ≥ {MIN_CLASSIFY_DEPTH} in Settings to
+          Depth {depth} is too low for classification - raise to ≥ {MIN_CLASSIFY_DEPTH} in Settings to
           surface inaccuracy / mistake / blunder marks.
         </div>
       )}
@@ -911,7 +911,7 @@ interface BoardControlsProps {
 // across re-renders. When this lived inside BoardControls, every parent
 // re-render (constant on desktop while Stockfish is analysing) created a
 // brand-new function reference, which React treated as a different
-// component — unmounting and remounting all six buttons each render.
+// component - unmounting and remounting all six buttons each render.
 // Click events fired on stale DOM never reached the handler. On mobile
 // the symptom was hidden because the engine fails to start (no SAB on
 // plain HTTP / LAN IP) so AnalyzeView re-rendered far less frequently.
@@ -1095,7 +1095,7 @@ function ExplorationBanner({ moves, onTakeBack, onExit }: ExplorationBannerProps
  * counterfactual ("what should have been played") and refutation ("how
  * the opponent exploits this") rendering in the chat prompt.
  *
- * Returns up to 3 lines, each truncated to ~8 plies — enough for Elle to
+ * Returns up to 3 lines, each truncated to ~8 plies - enough for Elle to
  * narrate the key idea without overflowing the prompt.
  */
 function renderLines(
@@ -1111,7 +1111,7 @@ function renderLines(
       ? `M${line.mate}`
       : line.scoreCp != null
         ? `${(line.scoreCp / 100).toFixed(2)}`
-        : '—';
+        : '-';
     out.push({ score, sanLine: sanSequenceWithNumbers(fen, sans) });
   }
   return out.length > 0 ? out : undefined;

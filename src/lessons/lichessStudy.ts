@@ -6,7 +6,7 @@ import type { StudyRow } from '../db/db';
 
 export interface ImportResult {
   row: StudyRow;
-  /** Chapter titles whose PGN chessops couldn't parse — mixed/spot
+  /** Chapter titles whose PGN chessops couldn't parse - mixed/spot
    *  drills will miss these even though per-chapter drills work. The
    *  caller should surface this as a soft warning. */
   skippedChapters: string[];
@@ -16,7 +16,7 @@ export interface ImportResult {
  * Parse a Lichess study id out of a URL or raw slug. Accepts:
  *   - 8-char alphanumeric slug ("abc12345")
  *   - https://lichess.org/study/abc12345
- *   - https://lichess.org/study/abc12345/xyz67890  (chapter URL — we drop the chapter, import the whole study)
+ *   - https://lichess.org/study/abc12345/xyz67890  (chapter URL - we drop the chapter, import the whole study)
  *   - lichess.org/study/abc12345 (no scheme)
  *
  * Returns null if nothing matches.
@@ -33,7 +33,7 @@ export function extractStudyId(input: string): string | null {
 /**
  * Parse a multi-game PGN (one chapter per game) into discrete chapter blobs.
  * Splits on the boundary `\n\n[Event ` which marks the start of a new game.
- * Extracts the ChapterName tag (a Lichess-specific tag) when present —
+ * Extracts the ChapterName tag (a Lichess-specific tag) when present -
  * falls back to "Chapter N" if missing.
  */
 export function parsePgnChapters(pgn: string): StudyRow['chapters'] {
@@ -81,7 +81,7 @@ export async function fetchStudyPgn(studyId: string): Promise<string> {
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : 'Network error');
   }
-  if (resp.status === 404) throw new Error('Study not found — check the URL.');
+  if (resp.status === 404) throw new Error('Study not found - check the URL.');
   if (resp.status === 401) {
     throw new Error(
       token
@@ -93,12 +93,12 @@ export async function fetchStudyPgn(studyId: string): Promise<string> {
     // 403 from /api/study/{id}.pgn covers two distinct cases:
     //   (a) Study is private and the token (if any) doesn't have access.
     //   (b) Owner has disabled PGN export on an otherwise-public study.
-    // We surface both because the user can't tell from outside which it is —
+    // We surface both because the user can't tell from outside which it is -
     // and the "private" message is wrong half the time.
     throw new Error(
       token
-        ? 'Lichess returned 403 — your token doesn\'t have access, or the owner has disabled PGN export for this study.'
-        : 'Lichess returned 403 — this study is private, or the owner has disabled PGN export. Add a Lichess token in Settings if you have access.',
+        ? 'Lichess returned 403 - your token doesn\'t have access, or the owner has disabled PGN export for this study.'
+        : 'Lichess returned 403 - this study is private, or the owner has disabled PGN export. Add a Lichess token in Settings if you have access.',
     );
   }
   if (resp.status === 429) {
@@ -112,7 +112,7 @@ export async function fetchStudyPgn(studyId: string): Promise<string> {
 
 /**
  * Fetch + parse + persist. Returns the freshly stored row. Re-importing the
- * same id overwrites the existing row (manual-refresh semantics — no SWR for
+ * same id overwrites the existing row (manual-refresh semantics - no SWR for
  * studies, since they're user-curated content rather than DB lookups).
  */
 export async function importStudy(
@@ -135,7 +135,7 @@ export async function importStudy(
   const { rows: positionRows, skippedChapters } = buildStudyPositions(row);
   // One transaction so a crash between study put + pool rebuild can't
   // pair new PGN with stale positions. Either everything lands or
-  // nothing does — re-import is the recovery path.
+  // nothing does - re-import is the recovery path.
   await db().transaction('rw', db().studies, db().drillPositions, async () => {
     await db().studies.put(row);
     await db().drillPositions.where('studyId').equals(studyId).delete();

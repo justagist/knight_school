@@ -125,7 +125,7 @@ export const anthropicProvider: LLMProvider = {
       messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
     };
     if (req.enableWebSearch) {
-      // server_tool — Anthropic web_search. The model id of the tool maps to
+      // server_tool - Anthropic web_search. The model id of the tool maps to
       // a particular implementation version on Anthropic's side.
       body.tools = [
         {
@@ -145,7 +145,7 @@ export const anthropicProvider: LLMProvider = {
         signal: req.signal,
       });
     } catch (err) {
-      // Network failure — treat as non-retryable so the orchestrator surfaces
+      // Network failure - treat as non-retryable so the orchestrator surfaces
       // it instead of cycling through every key on the same dead network.
       throw new LLMError(err instanceof Error ? err.message : 'Network error', {
         retryable: false,
@@ -178,7 +178,7 @@ export const anthropicProvider: LLMProvider = {
       .join('\n')
       .trim();
 
-    // Web search detection — presence of a server_tool_use block typed
+    // Web search detection - presence of a server_tool_use block typed
     // web_search means the tool was invoked. Citations come from the
     // result block's `content` array (each item carries url + title).
     const usedWebSearch = blocks.some(

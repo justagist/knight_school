@@ -33,7 +33,7 @@ export function EvalBar({ snapshot, orientation, analyzing, showCaption = true }
   const scoreLabel = formatScore(top, turn, 'w');
   const whiteHeightPct = whiteShare * 100;
 
-  // Colour the eval label by who's winning. Threshold ±0.20 — anything
+  // Colour the eval label by who's winning. Threshold ±0.20 - anything
   // inside is "near zero" and stays muted so the user doesn't read a noisy
   // +0.05 as a meaningful white edge. Uses the move-classification tokens
   // so the eval bar matches the move list's colour language: green = best
@@ -49,7 +49,7 @@ export function EvalBar({ snapshot, orientation, analyzing, showCaption = true }
           : 'text-muted';
 
   // Marker position (% from top) so the user sees where the bar is currently
-  // filled — handy because the bar transitions can be subtle.
+  // filled - handy because the bar transitions can be subtle.
   const markerPct = orientation === 'white' ? 100 - whiteHeightPct : whiteHeightPct;
 
   return (
@@ -82,7 +82,7 @@ export function EvalBar({ snapshot, orientation, analyzing, showCaption = true }
             height: `${whiteHeightPct}%`,
           }}
         />
-        {/* 0.0 midpoint tick — thin line straddling the boundary. */}
+        {/* 0.0 midpoint tick - thin line straddling the boundary. */}
         <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-ink-500/60 dark:bg-ink-400/60" />
         {/* Current-eval marker (small triangle pointing into the bar from the
             white-advantage side). Position derived from the share so it
@@ -96,7 +96,7 @@ export function EvalBar({ snapshot, orientation, analyzing, showCaption = true }
             aria-hidden="true"
           />
         </div>
-        {/* Subtle pulse overlay while Stockfish is computing — signals work
+        {/* Subtle pulse overlay while Stockfish is computing - signals work
             is happening so the user doesn't think the bar is frozen. */}
         {analyzing && (
           <div className="pointer-events-none absolute inset-0 animate-pulse bg-accent/10" aria-hidden="true" />
@@ -117,13 +117,13 @@ export function EvalBar({ snapshot, orientation, analyzing, showCaption = true }
 
 /**
  * Parse the score label back into a pawn number for colour decisions. The
- * formatter outputs things like `+1.23`, `−0.50`, `M5`, `—`. Mate scores
+ * formatter outputs things like `+1.23`, `−0.50`, `M5`, `-`. Mate scores
  * saturate to ±10 so they pick up the colour without nudging contrast logic
  * elsewhere.
  */
 function parsePawnish(label: string): number | null {
   const trimmed = label.trim().replace(/^\+/, '');
-  if (!trimmed || trimmed === '—') return null;
+  if (!trimmed || trimmed === '-') return null;
   if (trimmed.startsWith('M')) return 10;
   if (trimmed.startsWith('-M') || trimmed.startsWith('−M')) return -10;
   // Allow unicode minus from the formatter.

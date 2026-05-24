@@ -31,7 +31,7 @@ export interface ParsedGame {
    * the comment shown before move 1 (the introduction). `comments[i]` is the
    * comment for the position AFTER move i was played. `undefined` when no
    * comment is attached to that ply. Lichess study / annotated game PGNs use
-   * this heavily — the Openings lesson viewer surfaces the current ply's
+   * this heavily - the Openings lesson viewer surfaces the current ply's
    * comment so the user can read along.
    */
   comments: (string | undefined)[];
@@ -48,11 +48,11 @@ export class PgnParseError extends Error {
  * Sanitize a PGN before passing it to chess.js v1.4.x. Three problems Lichess
  * study exports introduce:
  *
- *  1. **Annotation-only comments** — `{ [%csl Ge4][%cal Ge2e4] }` — board
+ *  1. **Annotation-only comments** - `{ [%csl Ge4][%cal Ge2e4] }` - board
  *     decorations the viewer doesn't render. Drop them entirely.
- *  2. **Inline `[%xxx ...]` markers** inside otherwise-textual comments — also
+ *  2. **Inline `[%xxx ...]` markers** inside otherwise-textual comments - also
  *     not rendered; strip the markers but keep the surrounding author text.
- *  3. **Adjacent `{...}{...}` comments** — chess.js v1.4 throws on these
+ *  3. **Adjacent `{...}{...}` comments** - chess.js v1.4 throws on these
  *     even though they're valid PGN. After step 1 fewer remain, but we
  *     still merge any leftover pair by replacing the `}` ... `{` boundary
  *     with whitespace. Iterate until stable for `} { } {` chains.
@@ -103,7 +103,7 @@ export function parsePgn(pgn: string): ParsedGame {
     chess.loadPgn(sanitized, { strict: false });
   } catch (err) {
     // Lichess studies sometimes ship chapters with diagram-only positions
-    // — boards built in the editor showing a piece formation. These have a
+    // - boards built in the editor showing a piece formation. These have a
     // `[FEN ...]` tag with no black king (or no white king, or fewer than
     // 2 kings), which is not a legal chess position so chess.js rejects.
     // Fall back to a position-only ParsedGame: pull the FEN tag + any
@@ -175,7 +175,7 @@ function tryParsePositionOnlyChapter(pgn: string): ParsedGame | undefined {
   if (!fenMatch) return undefined;
   const startingFen = fenMatch[1];
 
-  // Crude tag extraction — same pattern chess.js's header() walks, but
+  // Crude tag extraction - same pattern chess.js's header() walks, but
   // we can't call header() because the load failed.
   const headers: Record<string, string> = {};
   const tagRe = /^\[([A-Za-z0-9_]+)\s+"([^"]*)"\]/gm;
@@ -217,5 +217,5 @@ export function gameLabel(headers: Record<string, string>): string {
   const event = headers.Event && headers.Event !== '?' ? headers.Event : '';
   const date = headers.Date && headers.Date !== '????.??.??' ? headers.Date : '';
   const tail = [event, date].filter(Boolean).join(' · ');
-  return tail ? `${w} vs ${b} — ${tail}` : `${w} vs ${b}`;
+  return tail ? `${w} vs ${b} - ${tail}` : `${w} vs ${b}`;
 }

@@ -18,7 +18,7 @@ interface GuessModePanelProps {
 
 /**
  * Card UI for "Guess the move" mode. Two phases:
- *  - guessing: "Black to play move 15... — make your guess on the board."
+ *  - guessing: "Black to play move 15... - make your guess on the board."
  *  - revealed: comparison of guess vs played vs engine top, plus a Next
  *    button to advance the ply.
  *
@@ -50,12 +50,12 @@ export function GuessModePanel({
           {!atEnd && mode === 'guessing' && (
             <div className="mt-0.5 text-sm">
               {sideToMove === 'white' ? 'White' : 'Black'} to play{' '}
-              <span className="font-mono">{moveLabel}</span> — make your move on the board.
+              <span className="font-mono">{moveLabel}</span> - make your move on the board.
             </div>
           )}
           {atEnd && (
             <div className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
-              End of game — guess run complete.
+              End of game - guess run complete.
             </div>
           )}
         </div>
@@ -103,7 +103,7 @@ function RevealCard({ comparison, atEnd, onNext }: RevealCardProps) {
         <dd className="font-mono">{comparison.playedSan}</dd>
         <dt className="text-ink-500 dark:text-ink-400">Engine top</dt>
         <dd className="font-mono">
-          {comparison.engineBestSan ?? <span className="text-ink-400 dark:text-ink-500">— (run Analyze game for this)</span>}
+          {comparison.engineBestSan ?? <span className="text-ink-400 dark:text-ink-500">- (run Analyze game for this)</span>}
         </dd>
       </dl>
       <div>
@@ -161,7 +161,7 @@ function StatCell({ label, stats }: { label: string; stats: GuessStats }) {
 function pickVerdict(c: GuessComparison): { label: string; tone: string } {
   if (c.matchesPlayed && c.matchesEngine) {
     return {
-      label: 'You found it — same as played, same as engine top.',
+      label: 'You found it - same as played, same as engine top.',
       tone: 'text-emerald-600 dark:text-emerald-400',
     };
   }

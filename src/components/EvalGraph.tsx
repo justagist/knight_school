@@ -35,7 +35,7 @@ function useThemeColors() {
     };
     read();
     // ThemeProvider toggles the `dark` class on <html>, which swaps the
-    // variable values — watch the class attribute to re-resolve.
+    // variable values - watch the class attribute to re-resolve.
     const obs = new MutationObserver(read);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => obs.disconnect();
@@ -44,7 +44,7 @@ function useThemeColors() {
 }
 
 /**
- * Vertical eval bar — visualises the full game's evaluation curve, white above
+ * Vertical eval bar - visualises the full game's evaluation curve, white above
  * the midline, black below. Click any point to jump the board to that ply.
  *
  * X-axis is ply index (0 = starting position). Y-axis is white-perspective
@@ -120,7 +120,7 @@ export function EvalGraph({ evals, ply, onSelectPly }: EvalGraphProps) {
                   <div className="rounded-md border border-ink-200 bg-white px-2 py-1 text-[11px] shadow-sm dark:border-ink-700 dark:bg-ink-900">
                     <div>ply {p.ply}</div>
                     <div className="font-mono tabular-nums">
-                      {p.eval == null ? '—' : `${p.eval > 0 ? '+' : ''}${p.eval.toFixed(2)}`}
+                      {p.eval == null ? '-' : `${p.eval > 0 ? '+' : ''}${p.eval.toFixed(2)}`}
                       {p.depth > 0 && <span className="ml-1 text-ink-500 dark:text-ink-400">d{p.depth}</span>}
                     </div>
                   </div>

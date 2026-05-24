@@ -33,7 +33,7 @@ export interface EvalSnapshot {
   fen: string;
   /** Side to move: 'w' or 'b' */
   turn: 'w' | 'b';
-  /** Whose-turn perspective. Same as turn — kept for clarity at call sites. */
+  /** Whose-turn perspective. Same as turn - kept for clarity at call sites. */
   perspective: 'w' | 'b';
   /** Top N PV lines, sorted by pvIndex ascending */
   lines: PvLine[];

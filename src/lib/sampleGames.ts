@@ -16,7 +16,7 @@ export interface SampleGame {
 export const SAMPLE_GAMES: SampleGame[] = [
   {
     id: 'opera',
-    label: "Morphy's Opera Game (1858) — Paris",
+    label: "Morphy's Opera Game (1858) - Paris",
     title: "Morphy's Opera Game",
     subtitle: '1858 · Paris · 1-0',
     pgn: `[Event "Paris"]
@@ -33,7 +33,7 @@ export const SAMPLE_GAMES: SampleGame[] = [
   },
   {
     id: 'immortal',
-    label: 'Anderssen vs Kieseritzky — The Immortal Game (1851)',
+    label: 'Anderssen vs Kieseritzky - The Immortal Game (1851)',
     title: 'The Immortal Game',
     subtitle: '1851 · London · 1-0',
     pgn: `[Event "London"]
@@ -51,7 +51,7 @@ export const SAMPLE_GAMES: SampleGame[] = [
   },
   {
     id: 'evergreen',
-    label: 'Anderssen vs Dufresne — The Evergreen Game (1852)',
+    label: 'Anderssen vs Dufresne - The Evergreen Game (1852)',
     title: 'The Evergreen Game',
     subtitle: '1852 · Berlin · 1-0',
     pgn: `[Event "Berlin"]

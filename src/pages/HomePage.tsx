@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
  *   2. How do I use it?
  *   3. How do I start?
  *
- * Intentionally calm and textual — no hero imagery, no animations, no
+ * Intentionally calm and textual - no hero imagery, no animations, no
  * marketing language. Matches Elle's tone rules: direct, concise, no
  * exclamation points, no emoji. Max-width capped at 960px so the page
  * doesn't read as empty on wide screens.
@@ -32,7 +32,7 @@ function Hero() {
       </h1>
       <p className="text-base text-muted sm:text-lg">Chess made easy.</p>
       <p className="max-w-prose text-sm text-muted sm:text-base">
-        Analyze your games, drill openings, and chat with Elle — your AI chess
+        Analyze your games, drill openings, and chat with Elle - your AI chess
         assistant. Everything runs in your browser.
       </p>
     </section>
@@ -102,7 +102,7 @@ function HowItWorks() {
           body={
             <>
               <strong className="text-primary">Add an LLM key</strong> (optional but
-              recommended) — Elle needs a key to chat. Groq is free and works well
+              recommended) - Elle needs a key to chat. Groq is free and works well
               for getting started.{' '}
               <Link to="/settings" className="text-secondary hover:underline">
                 Settings → Elle
@@ -115,7 +115,7 @@ function HowItWorks() {
           n={2}
           body={
             <>
-              <strong className="text-primary">Load a game</strong> — paste a PGN,
+              <strong className="text-primary">Load a game</strong> - paste a PGN,
               upload a <code className="text-faint">.pgn</code> file, or try one of
               the classics from{' '}
               <Link to="/analyze" className="text-secondary hover:underline">
@@ -129,7 +129,7 @@ function HowItWorks() {
           n={3}
           body={
             <>
-              <strong className="text-primary">Step through it</strong> — see how
+              <strong className="text-primary">Step through it</strong> - see how
               each move was rated and ask Elle to explain anything.
             </>
           }
@@ -138,7 +138,7 @@ function HowItWorks() {
           n={4}
           body={
             <>
-              <strong className="text-primary">Train and improve</strong> — import
+              <strong className="text-primary">Train and improve</strong> - import
               an{' '}
               <Link to="/study" className="text-secondary hover:underline">
                 opening study
@@ -168,7 +168,7 @@ function WhyList() {
     <section className="space-y-3">
       <h2 className="text-xl font-semibold text-primary">Why KnightSchool</h2>
       <ul className="grid grid-cols-1 gap-1.5 text-sm text-muted md:grid-cols-2">
-        <Bullet>Runs entirely in your browser — your games and chats stay on your device.</Bullet>
+        <Bullet>Runs entirely in your browser - your games and chats stay on your device.</Bullet>
         <Bullet>Bring your own LLM key (Groq has a free tier).</Bullet>
         <Bullet>Open-source, self-hostable.</Bullet>
         <Bullet>Stockfish for engine analysis. Lichess for opening data.</Bullet>
@@ -194,7 +194,7 @@ function FooterCta() {
         to="/analyze"
         className="btn-primary px-5 py-2.5 text-sm font-semibold"
       >
-        Get started — load a game
+        Get started - load a game
       </Link>
       <Link to="/settings" className="text-xs text-secondary hover:underline">
         Or set up Elle first → Settings

@@ -97,7 +97,7 @@ export async function updateApiKey(
 
 /**
  * Delete a key. If it was active for its provider, clear the activeKeyId
- * (UI surfaces the "no key configured" state — user can pick another).
+ * (UI surfaces the "no key configured" state - user can pick another).
  */
 export async function deleteApiKey(id: string): Promise<void> {
   if (deleteSessionKey(id)) {
@@ -189,7 +189,7 @@ export async function getApiKey(id: string): Promise<ApiKeyRow | undefined> {
 export async function getProviderConfig(
   provider: LlmProviderId,
 ): Promise<ProviderConfigRow | undefined> {
-  // Session config overrides persistent when present — supports
+  // Session config overrides persistent when present - supports
   // "activate this session key" without persisting the id to Dexie.
   const session = getSessionProviderConfig(provider);
   const persistent = await db().providerConfig.get(provider);
@@ -220,7 +220,7 @@ export async function getLlmGlobal(): Promise<LlmGlobalRow | undefined> {
 
 /**
  * Record a test-connection outcome on the key row. Stored so the multi-key
- * list can show "Tested 2 min ago — ok" etc. without re-running the test on
+ * list can show "Tested 2 min ago - ok" etc. without re-running the test on
  * every render.
  */
 export async function recordKeyTest(

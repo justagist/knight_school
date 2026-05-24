@@ -7,10 +7,10 @@ import type { EvalSnapshot } from '../engine/types';
  * EvalSnapshot the UI can render without bothering the engine. Otherwise null.
  *
  * Used by both the interactive useEngine hook and the batch
- * useGameAnalysis runner — Stockfish.wasm's classical build can hang on
+ * useGameAnalysis runner - Stockfish.wasm's classical build can hang on
  * mated positions, and even when it doesn't there's no real analysis to do.
  *
- * For checkmate, mate=0 means "side-to-move IS mated" — i.e. the loser
+ * For checkmate, mate=0 means "side-to-move IS mated" - i.e. the loser
  * is whoever's turn it is.
  */
 export function terminalSnapshot(fen: string): EvalSnapshot | null {

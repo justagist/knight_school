@@ -24,7 +24,7 @@ const MODELS: ModelDescriptor[] = [
   {
     id: 'google/gemini-2.0-flash-exp:free',
     label: 'Gemini 2.0 Flash exp (free)',
-    hint: 'Google\'s flash model routed via OpenRouter — useful when you\'ve exhausted direct Gemini quota.',
+    hint: 'Google\'s flash model routed via OpenRouter - useful when you\'ve exhausted direct Gemini quota.',
     webSearch: false,
   },
 ];
@@ -44,8 +44,8 @@ export const openrouterProvider = createOpenAiCompatProvider({
 
 export const openrouterInfo: ProviderInfo = {
   blurb:
-    'Free tier — no credit card. ~50 requests/day on free models; rises to ~1,000/day after one-time $10 top-up. Aggregator for many model families. Web search not supported on this provider. Free tier limits can change without notice.',
+    'Free tier - no credit card. ~50 requests/day on free models; rises to ~1,000/day after one-time $10 top-up. Aggregator for many model families. Web search not supported on this provider. Free tier limits can change without notice.',
   apiKeyUrl: 'https://openrouter.ai/keys',
   webSearchNote:
-    'OpenRouter does not expose a web-search tool through this client. Elle answers from training knowledge only — no live news, no citations.',
+    'OpenRouter does not expose a web-search tool through this client. Elle answers from training knowledge only - no live news, no citations.',
 };

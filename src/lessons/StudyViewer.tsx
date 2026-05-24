@@ -149,7 +149,7 @@ export function StudyViewer({
 
   const orientation = inferOrientation(parsed, chapter?.title ?? '');
 
-  // FEN at the current ply — drives the eval bar engine.
+  // FEN at the current ply - drives the eval bar engine.
   const currentFen = parsed ? parsed.fens[ply] ?? parsed.startingFen : null;
 
   // Per-position live engine for the eval bar. Same setup as the Analyze
@@ -164,7 +164,7 @@ export function StudyViewer({
   });
 
   // Publish the lesson screen context to the chat host so Elle has full
-  // visibility of the chapter — all moves, every author comment, the ply
+  // visibility of the chapter - all moves, every author comment, the ply
   // the user is looking at, and the current engine eval. Lets the user ask
   // hypotheticals like "what if I played X instead of Y here?".
   useEffect(() => {
@@ -227,7 +227,7 @@ export function StudyViewer({
             imported {formatRelative(study.importedAt)}
           </p>
         </div>
-        {/* Study-level drill — opens the setup modal with mixed defaults
+        {/* Study-level drill - opens the setup modal with mixed defaults
             (every chapter, 25 positions, free mode). Hidden when the parent
             doesn't wire up the mixed-drill callback. */}
         {onStartMixedDrill && (
@@ -235,7 +235,7 @@ export function StudyViewer({
             type="button"
             onClick={() => setDrillSetup('study')}
             className="btn-primary text-sm"
-            title="Quiz yourself across the whole study — sampled positions, mixed chapters."
+            title="Quiz yourself across the whole study - sampled positions, mixed chapters."
           >
             ▶ Drill
           </button>
@@ -251,7 +251,7 @@ export function StudyViewer({
         </button>
       </div>
 
-      {/* Chapter dropdown — Prev/Next chapter buttons live next to the
+      {/* Chapter dropdown - Prev/Next chapter buttons live next to the
         move-nav buttons in the sidebar so the user's hand doesn't have to
         travel up to the header for them. */}
       {chapterCount > 1 && (
@@ -287,10 +287,10 @@ export function StudyViewer({
         Mobile order: comment → board → move buttons → chapter buttons → move list.
         Putting the buttons near the bottom of the viewport keeps them in
         easy thumb reach while the board stays visible above. Move list
-        drops to the bottom — users tap it less often than the prev/next
+        drops to the bottom - users tap it less often than the prev/next
         buttons during a lesson.
 
-        Desktop order: board column on the left (no comment — comment moves
+        Desktop order: board column on the left (no comment - comment moves
         to the sidebar BELOW the buttons so the board's vertical position
         doesn't shift when the comment text grows/shrinks per ply). Right
         sidebar order: move list → move buttons → chapter buttons → comment
@@ -302,12 +302,12 @@ export function StudyViewer({
             <LessonComment
               text={parsed.comments[ply]}
               // Above the board on mobile (top of column) and hidden on
-              // desktop — the desktop copy lives in the sidebar so per-
+              // desktop - the desktop copy lives in the sidebar so per-
               // ply text-length changes don't push the board up and down.
               className="order-first lg:hidden"
             />
           )}
-          {/* Mobile drill trigger — sits right after the comment so the
+          {/* Mobile drill trigger - sits right after the comment so the
               "what to do next" CTA lands with the lesson context. Opens
               the setup modal with chapter-scope defaults. Desktop copy
               lives in the sidebar after its own comment block. */}
@@ -316,7 +316,7 @@ export function StudyViewer({
               type="button"
               onClick={() => setDrillSetup('chapter')}
               className="btn-secondary order-1 text-xs lg:hidden"
-              title="Quiz yourself on this chapter — app plays the opponent, you play your side."
+              title="Quiz yourself on this chapter - app plays the opponent, you play your side."
             >
               ▶ Drill this chapter
             </button>
@@ -351,7 +351,7 @@ export function StudyViewer({
         <div className="flex flex-col gap-3">
           {parsed && (
             <>
-              {/* Move-nav row — first in DOM so mobile sees it directly
+              {/* Move-nav row - first in DOM so mobile sees it directly
                   below the board. */}
               <div className="flex gap-2 text-sm lg:order-2">
                 <button
@@ -409,7 +409,7 @@ export function StudyViewer({
                   </button>
                 </div>
               )}
-              {/* Move list — drops to the bottom on mobile so the buttons
+              {/* Move list - drops to the bottom on mobile so the buttons
                   above it stay within thumb reach. Desktop puts it back at
                   the top of the sidebar. */}
               <div className="card p-2 lg:order-1">
@@ -421,14 +421,14 @@ export function StudyViewer({
                 text={parsed.comments[ply]}
                 className="hidden lg:order-4 lg:block"
               />
-              {/* Desktop drill trigger — directly below the comment so the
+              {/* Desktop drill trigger - directly below the comment so the
                   "next step" CTA pairs with the lesson context. */}
               {onStartDrill && parsed.moves.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setDrillSetup('chapter')}
                   className="btn-secondary hidden text-xs lg:order-5 lg:block"
-                  title="Quiz yourself on this chapter — app plays the opponent, you play your side."
+                  title="Quiz yourself on this chapter - app plays the opponent, you play your side."
                 >
                   ▶ Drill this chapter
                 </button>
@@ -519,7 +519,7 @@ function LessonComment({
   className,
 }: {
   text: string | undefined;
-  /** Extra classes — the parent uses this to push the comment above the
+  /** Extra classes - the parent uses this to push the comment above the
    *  board on mobile via flex order. */
   className?: string;
 }) {

@@ -22,12 +22,12 @@ const TAB_ORDER: { key: AnalysisTabKey; label: string }[] = [
 
 /**
  * Tab switcher for the Analyze view's secondary content. Used on every
- * viewport — mobile stacks it below the board, desktop places it as the
+ * viewport - mobile stacks it below the board, desktop places it as the
  * right column. Replaces the old "long stack of cards below the board"
  * pattern.
  *
  * The Chat tab is a thin trigger that opens the global chat panel via the
- * ChatHost. Full inline chat content lands later — for now we still surface
+ * ChatHost. Full inline chat content lands later - for now we still surface
  * the tab so the layout maps 1:1 with the spec.
  */
 export function AnalysisTabs({
@@ -86,5 +86,5 @@ export function AnalysisTabs({
   );
 }
 
-// Backwards-compatible export name — old callers used `MobileAnalysisTabs`.
+// Backwards-compatible export name - old callers used `MobileAnalysisTabs`.
 export { AnalysisTabs as MobileAnalysisTabs };

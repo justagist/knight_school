@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 
 /**
  * A cached engine evaluation for a single position, keyed by FEN.
- * Same FEN can appear across many games — by sharing storage we avoid
+ * Same FEN can appear across many games - by sharing storage we avoid
  * re-analyzing common positions (opening theory, classic endgames, …).
  *
  * `lines` carries the same shape as PvLine (engine/types.ts) but we keep a
@@ -31,16 +31,16 @@ export interface PositionEvalRow {
   }>;
   /** ms epoch when the eval finished. */
   completedAt: number;
-  /** Engine variant that produced this — invalidates if user changes engine. */
+  /** Engine variant that produced this - invalidates if user changes engine. */
   engine: 'lite' | 'full';
 }
 
 /**
  * LLM provider identifiers. Five surfaces:
- *  - `anthropic`, `openai` — paid, support built-in web search
- *  - `gemini` — Google; supports web search; small free tier
- *  - `groq` — OpenAI-compatible; generous free tier on Llama 3.3 70B; no web search
- *  - `openrouter` — OpenAI-compatible aggregator; model variety; no web search
+ *  - `anthropic`, `openai` - paid, support built-in web search
+ *  - `gemini` - Google; supports web search; small free tier
+ *  - `groq` - OpenAI-compatible; generous free tier on Llama 3.3 70B; no web search
+ *  - `openrouter` - OpenAI-compatible aggregator; model variety; no web search
  */
 export type LlmProviderId = 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openrouter';
 
@@ -49,7 +49,7 @@ export type LlmProviderId = 'anthropic' | 'openai' | 'gemini' | 'groq' | 'openro
  * (work / personal / different orgs); one is marked "active" per provider
  * via {@link ProviderConfigRow}.activeKeyId.
  *
- * Keys are stored in Dexie so they survive in the export/import backup —
+ * Keys are stored in Dexie so they survive in the export/import backup -
  * the export flow has an "Include API keys" toggle (default OFF) so casual
  * backup-sharing doesn't leak credentials.
  */
@@ -133,14 +133,14 @@ export interface ChatMessageRow {
   usedWebSearch?: boolean;
   /** Web-search citations (URL + title) when usedWebSearch is true. */
   citations?: Array<{ url: string; title?: string }>;
-  /** For assistant errors — captures the message so we can render it inline. */
+  /** For assistant errors - captures the message so we can render it inline. */
   errorMessage?: string;
 }
 
 /**
  * Per-move Elle commentary cache. Spec: cache by (FEN + move). We also
  * include provider+model in the key since different models produce
- * meaningfully different commentary — caching across models would be wrong.
+ * meaningfully different commentary - caching across models would be wrong.
  */
 export interface MoveCommentaryRow {
   /** Composite key: `${fen}::${uciMove}::${provider}::${model}`. */
@@ -158,7 +158,7 @@ export interface MoveCommentaryRow {
 /**
  * A cached Lichess Opening Explorer (Masters DB) lookup, keyed by the
  * position-only portion of the FEN. We only store the fields that drive
- * classification + UI (total games + opening name) — the full response
+ * classification + UI (total games + opening name) - the full response
  * lives in the service-worker runtime cache for offline reuse.
  *
  * "Book" classification fires when `totalGames >= 1000`.
@@ -166,7 +166,7 @@ export interface MoveCommentaryRow {
 /**
  * Singleton row holding the user's optional Lichess API token. Stored
  * separately from LLM `apiKeys` because it's a different credential
- * category (not an LLM provider — a Lichess account token used for the
+ * category (not an LLM provider - a Lichess account token used for the
  * Opening Explorer and Study endpoints).
  *
  * Lichess started requiring auth for the Explorer in 2026; this is opt-in
@@ -198,7 +198,7 @@ export interface ExplorerEntryRow {
    * Top popular continuations from this position, each with its own opening
    * tag (if Lichess names it). Lets the UI render "narrows to:" lists so
    * the user can see which lines they're choosing between. Omitted on rows
-   * cached before this field was introduced — UI falls back gracefully.
+   * cached before this field was introduced - UI falls back gracefully.
    */
   topContinuations?: Array<{
     san: string;
@@ -218,12 +218,12 @@ export interface ExplorerEntryRow {
 /**
  * An imported Lichess Study. We keep the raw PGN plus a parsed chapter
  * breakdown so the viewer can render chapters without re-parsing on every
- * mount. Refresh is manual — re-import overwrites the existing row.
+ * mount. Refresh is manual - re-import overwrites the existing row.
  */
 export interface StudyRow {
   /** Lichess study id (8-char slug). Primary key. */
   id: string;
-  /** Study title — falls back to `Study {id}` if Lichess didn't tag one. */
+  /** Study title - falls back to `Study {id}` if Lichess didn't tag one. */
   name: string;
   /** Full multi-game PGN as Lichess returned it. */
   rawPgn: string;
@@ -256,11 +256,11 @@ export interface DrillLineRow {
   chapterTitle: string;
   /** Which side the user practises. App plays the other side from the line. */
   userSide: 'white' | 'black';
-  /** Chapter starting FEN — usually the standard start, but FEN tag respected. */
+  /** Chapter starting FEN - usually the standard start, but FEN tag respected. */
   startingFen: string;
   /** UCI moves of the chapter's main line, in order. */
   uciMoves: string[];
-  /** SAN parallel to uciMoves — used for display + comparison messages. */
+  /** SAN parallel to uciMoves - used for display + comparison messages. */
   sanMoves: string[];
   /** Author comments per ply (parallel to uciMoves.length + 1). */
   comments: (string | undefined)[];
@@ -297,15 +297,15 @@ export interface DrillAttemptRow {
   expectedSan?: string;
   /** Variant the user picked for this attempt. */
   variant: 'board' | 'guess';
-  /** True when chat was used during the attempt — does not count toward stats. */
+  /** True when chat was used during the attempt - does not count toward stats. */
   invalidated: boolean;
-  /** Drill scope this attempt ran under — lets the planner prefer mixed
+  /** Drill scope this attempt ran under - lets the planner prefer mixed
    *  drills as the user improves. Defaults to 'chapter' for legacy rows. */
   mode?: 'chapter' | 'mixed' | 'spot';
 }
 
 /**
- * Saved drill session — a parameter set the user chose in the setup
+ * Saved drill session - a parameter set the user chose in the setup
  * modal that they want to come back to later. Differs from
  * {@link DrillLineRow}: a DrillLineRow is per-chapter, fixed at the
  * chapter's main line. A DrillSessionRow stores any setup-modal
@@ -327,7 +327,7 @@ export interface DrillSessionRow {
   /** 0 = unlimited. */
   length: number;
   chapterIndices: number[];
-  /** Cumulative stats — passes counted on terminal completion. */
+  /** Cumulative stats - passes counted on terminal completion. */
   attempts: number;
   successes: number;
   lastResult?: 'pass' | 'fail';
@@ -342,7 +342,7 @@ export interface DrillSessionRow {
  * (normalised to position-only via {@link normalizeFenForExplorer}) per
  * study. Built once on study import and updated on re-import.
  *
- * Same FEN can appear in multiple chapters and at different plies — every
+ * Same FEN can appear in multiple chapters and at different plies - every
  * occurrence is recorded with its chapter index, the move played from
  * here, and the side-to-move at this FEN. The drill engine filters
  * occurrences by the chosen chapter scope and user side at run time.
@@ -351,7 +351,7 @@ export interface DrillPositionRow {
   /** Composite key: `${studyId}::${fen}`. Primary. */
   id: string;
   studyId: string;
-  /** Normalised FEN (first 4 fields only — no halfmove / fullmove). */
+  /** Normalised FEN (first 4 fields only - no halfmove / fullmove). */
   fen: string;
   occurrences: Array<{
     chapterIndex: number;
@@ -360,7 +360,7 @@ export interface DrillPositionRow {
     san: string;
     /** UCI of the same move. */
     uci: string;
-    /** Side to move at this FEN — `userSide === sideToMove` ⇒ user's turn. */
+    /** Side to move at this FEN - `userSide === sideToMove` ⇒ user's turn. */
     sideToMove: 'w' | 'b';
     /** Position ply in this chapter (0 = chapter start). Used by spot-drill
      *  to play the lead-up moves automatically. */
@@ -369,7 +369,7 @@ export interface DrillPositionRow {
 }
 
 /**
- * The user's current learning goal — Step 9. Free-text only; the parser
+ * The user's current learning goal - Step 9. Free-text only; the parser
  * pulls an optional target date from natural language but nothing else
  * is structured. Editing replaces the row (old is archived for history).
  */
@@ -380,7 +380,7 @@ export interface PlanGoalRow {
   goalText: string;
   /** ms epoch. */
   createdAt: number;
-  /** ISO date (YYYY-MM-DD) for the target — parsed from goalText when
+  /** ISO date (YYYY-MM-DD) for the target - parsed from goalText when
    *  obvious ("3 months" → today + 90d). undefined when no signal. */
   targetDate?: string;
   /** True when the user replaced this goal with a new one. The active
@@ -390,7 +390,7 @@ export interface PlanGoalRow {
 
 /**
  * One checked-off plan item for a specific week. Multiple identical
- * itemIds are NOT recorded — the unique key `[weekStart+itemId]` is the
+ * itemIds are NOT recorded - the unique key `[weekStart+itemId]` is the
  * de-dupe contract. The checklist resets on Monday by virtue of the
  * weekStart partition: a new Monday means a new query key, so the prior
  * week's checks stay in the table (audit history) but stop showing.
@@ -491,7 +491,7 @@ export class KsDatabase extends Dexie {
       guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
       explorerEntries: '&fen, fetchedAt',
     });
-    // v6: optional Lichess API token (separate from LLM keys — different
+    // v6: optional Lichess API token (separate from LLM keys - different
     // credential category, different consumer).
     this.version(6).stores({
       positionEvals: '&fen, completedAt, engine',
@@ -555,7 +555,7 @@ export class KsDatabase extends Dexie {
       drillAttempts: '&id, drillLineId, startedAt, mode',
       drillPositions: '&id, studyId',
     });
-    // v11: Step 9 plan tables — single active goal (older rows archived
+    // v11: Step 9 plan tables - single active goal (older rows archived
     // for history) and per-week checklist completions. Index on
     // [weekStart+itemId] enforces "one row per (week, item)" via the
     // application layer; Dexie's compound index makes the lookup O(log n).
@@ -603,7 +603,7 @@ export class KsDatabase extends Dexie {
 
 let _db: KsDatabase | null = null;
 
-/** Lazy singleton — avoids creating Dexie at import time in test envs. */
+/** Lazy singleton - avoids creating Dexie at import time in test envs. */
 export function db(): KsDatabase {
   if (_db) return _db;
   _db = new KsDatabase();

@@ -1,7 +1,7 @@
 /**
  * App footer. On desktop the content sits in the same `max-w-7xl` container
  * as the rest of the page; version info is left-aligned and the licence /
- * source link sits right. On mobile the two halves stack vertically — the
+ * source link sits right. On mobile the two halves stack vertically - the
  * mid-dots between items get too cramped otherwise.
  */
 export function Footer() {

@@ -22,7 +22,7 @@ interface ChatPanelProps {
  * Mobile sheet height: 50vh by default so the board (the user is trying
  * to discuss) stays visible above the sheet. A "Expand" button in the
  * header bumps the sheet to ~85vh when the user actually wants a full-
- * screen chat. True drag-resize is deferred — toggle covers the common
+ * screen chat. True drag-resize is deferred - toggle covers the common
  * case without the gesture-engine plumbing.
  */
 export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
@@ -44,7 +44,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [chat.messages.length, open]);
 
-  // Esc closes the panel. Skipped when the user is typing in the textarea —
+  // Esc closes the panel. Skipped when the user is typing in the textarea -
   // they might want Esc to clear the field in some browsers, and we don't
   // want to fight that.
   useEffect(() => {
@@ -69,7 +69,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const canSend = online && !!chat.activeProvider && !chat.sending && draft.trim().length > 0;
   const inputDisabledReason =
     !online
-      ? 'Network not available — chat is paused until you reconnect.'
+      ? 'Network not available - chat is paused until you reconnect.'
       : !chat.activeProvider
         ? 'No LLM provider configured. Add a key in Settings → Elle (LLM).'
         : undefined;
@@ -86,7 +86,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
   const heightClass = expanded ? 'h-[85vh]' : 'h-[50vh]';
   const breadcrumb = buildBreadcrumb(screen);
 
-  // Empty-state suggestion chips — context-aware so the user gets actionable
+  // Empty-state suggestion chips - context-aware so the user gets actionable
   // prompts without having to invent one cold. The "Latest chess news" chip
   // is only useful when the provider supports web search; swap it out for a
   // grounded-in-training prompt when search isn't available.
@@ -155,7 +155,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
             ) : (
               <span
                 className="mt-1 inline-flex items-center gap-1 rounded-md bg-best/15 px-1.5 py-0.5 text-[10px] text-best"
-                title={`${providerLabel} supports web search — toggle it per message below.`}
+                title={`${providerLabel} supports web search - toggle it per message below.`}
               >
                 <span aria-hidden>🔍</span>
                 Search available
@@ -166,7 +166,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
             {/* The mobile expand/collapse affordance lives on the drag
                 handle at the top of the sheet (just above this header).
                 A second ▼/▲ button used to live here but rendered with
-                `hidden md:hidden` (i.e. always hidden) — removed rather
+                `hidden md:hidden` (i.e. always hidden) - removed rather
                 than fixed, since the drag handle covers the same job. */}
             <button
               type="button"
@@ -183,7 +183,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
               title="Clear this thread"
               aria-label="Clear this thread"
             >
-              {/* Trash glyph — differentiates from Close so the user can't
+              {/* Trash glyph - differentiates from Close so the user can't
                   mistake destroy for minimise. */}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -257,7 +257,7 @@ export function ChatPanel({ rawPgn, open, onClose }: ChatPanelProps) {
                 title={
                   webSearchOn
                     ? 'Web search enabled for the next message. Click to disable.'
-                    : 'Enable web search for the next message. Off by default — Elle relies on training knowledge unless you turn this on.'
+                    : 'Enable web search for the next message. Off by default - Elle relies on training knowledge unless you turn this on.'
                 }
                 aria-pressed={webSearchOn}
               >
@@ -352,7 +352,7 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
         )}
         {message.citations && message.citations.length > 0 && (() => {
           // Defense in depth: providers already filter at ingest, but old
-          // rows in IndexedDB may pre-date that filter — re-check here so
+          // rows in IndexedDB may pre-date that filter - re-check here so
           // a stored `javascript:`/`data:` URL can never become an href.
           const safe: Array<{ url: string; title?: string }> = [];
           for (const c of message.citations) {
@@ -417,8 +417,8 @@ function EmptyState({
   inputDisabledReason: string | undefined;
 }) {
   const intro = useMemo(() => {
-    if (kind === 'game') return 'Ask Elle about this game — moves, plans, ideas, theory.';
-    if (kind === 'lesson') return 'Ask Elle about the chapter — main ideas, alternatives, "what if?" questions.';
+    if (kind === 'game') return 'Ask Elle about this game - moves, plans, ideas, theory.';
+    if (kind === 'lesson') return 'Ask Elle about the chapter - main ideas, alternatives, "what if?" questions.';
     return 'Ask Elle anything chess-related.';
   }, [kind]);
   return (

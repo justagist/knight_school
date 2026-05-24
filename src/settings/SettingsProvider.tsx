@@ -11,12 +11,12 @@ import {
 /**
  * Board colour scheme.
  *
- * - `auto` (default) — pairs with the app theme. Brown in light mode,
+ * - `auto` (default) - pairs with the app theme. Brown in light mode,
  *   slate in dark mode. Driven by the `--board-light` / `--board-dark`
  *   tokens declared in src/styles/index.css.
- * - `green` — fixed green palette, theme-agnostic.
+ * - `green` - fixed green palette, theme-agnostic.
  *
- * The legacy `brown` value is silently migrated to `auto` on load —
+ * The legacy `brown` value is silently migrated to `auto` on load -
  * `auto` already shows a brown board in light mode, which is what users
  * who picked "brown" historically wanted, and they now also get a
  * sensible slate board in dark mode for free.
@@ -52,7 +52,7 @@ export interface AppSettings {
   /**
    * When true, render a coord label inside every square (chess.com style).
    * When false (default), render only the outside rank/file labels in the
-   * lichess / classic chess UI style — letters under the bottom row, numbers
+   * lichess / classic chess UI style - letters under the bottom row, numbers
    * to the left of the leftmost column.
    */
   coordinatesOnSquares: boolean;
