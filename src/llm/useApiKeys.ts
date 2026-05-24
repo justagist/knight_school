@@ -5,6 +5,7 @@ import {
   getAllApiKeys,
   getLlmGlobal,
   getProviderConfig,
+  isSessionOnlyKey,
   recordKeyTest,
   setActiveKey,
   setActiveProvider,
@@ -12,6 +13,7 @@ import {
   updateApiKey,
   type NewApiKey,
 } from '../db/apiKeys';
+import { subscribeSessionKeys } from './sessionKeyStore';
 import type { ApiKeyRow, LlmProviderId, ProviderConfigRow } from '../db/db';
 import { getProvider, PROVIDERS } from './providers';
 import type { TestResult } from './types';
@@ -35,6 +37,8 @@ export interface UseApiKeysReturn {
   activeKey: (provider: LlmProviderId) => ApiKeyRow | undefined;
   /** Keys saved for a given provider, ordered by createdAt. */
   keysFor: (provider: LlmProviderId) => ApiKeyRow[];
+  /** True if the key is held in memory only (session-only toggle). */
+  isSessionOnly: (id: string) => boolean;
 
   // Mutations — async; they refresh state on completion.
   addKey: (input: NewApiKey) => Promise<void>;
@@ -78,6 +82,12 @@ export function useApiKeys(): UseApiKeysReturn {
 
   useEffect(() => {
     void refresh();
+    // Session-only key mutations don't fire Dexie events, so subscribe
+    // directly to the in-memory store and re-pull merged state.
+    const unsubscribe = subscribeSessionKeys(() => {
+      void refresh();
+    });
+    return unsubscribe;
   }, [refresh]);
 
   const addKey = useCallback(
@@ -174,6 +184,7 @@ export function useApiKeys(): UseApiKeysReturn {
     activeProvider,
     activeKey,
     keysFor,
+    isSessionOnly: isSessionOnlyKey,
     addKey,
     updateKey,
     deleteKey,

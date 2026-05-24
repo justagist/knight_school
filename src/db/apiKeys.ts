@@ -1,11 +1,25 @@
 import { db, type ApiKeyRow, type LlmProviderId, type ProviderConfigRow, type LlmGlobalRow } from './db';
 import { uuid } from '../lib/uuid';
+import {
+  deleteSessionKey,
+  getSessionKey,
+  getSessionProviderConfig,
+  listSessionKeys,
+  listSessionKeysForProvider,
+  putSessionKey,
+  setSessionProviderConfig,
+  updateSessionKey,
+} from '../llm/sessionKeyStore';
 
 export interface NewApiKey {
   provider: LlmProviderId;
   label: string;
   apiKey: string;
   model: string;
+  /** When true, the key is held in memory only and never persisted to
+   *  IndexedDB. Used by the "session only" toggle on the Add Key form
+   *  so a key vanishes when the tab closes. */
+  sessionOnly?: boolean;
 }
 
 /**
@@ -22,6 +36,22 @@ export async function addApiKey(input: NewApiKey): Promise<ApiKeyRow> {
     model: input.model,
     createdAt: Date.now(),
   };
+  if (input.sessionOnly) {
+    // Memory-only: never touches Dexie. Also auto-activate if neither
+    // a persistent nor a session active key already covers this provider.
+    putSessionKey(row);
+    const persistent = await db().providerConfig.get(input.provider);
+    const session = getSessionProviderConfig(input.provider);
+    const hasActive = !!persistent?.activeKeyId || !!session?.activeKeyId;
+    if (!hasActive) {
+      setSessionProviderConfig({
+        provider: input.provider,
+        activeKeyId: row.id,
+        fallbackEnabled: persistent?.fallbackEnabled ?? true,
+      });
+    }
+    return row;
+  }
   await db().transaction('rw', db().apiKeys, db().providerConfig, async () => {
     await db().apiKeys.add(row);
     const cfg = await db().providerConfig.get(input.provider);
@@ -42,6 +72,7 @@ export async function updateApiKey(
   id: string,
   patch: Partial<Pick<ApiKeyRow, 'label' | 'apiKey' | 'model'>>,
 ): Promise<void> {
+  if (updateSessionKey(id, patch)) return;
   await db().apiKeys.update(id, patch);
 }
 
@@ -50,6 +81,7 @@ export async function updateApiKey(
  * (UI surfaces the "no key configured" state — user can pick another).
  */
 export async function deleteApiKey(id: string): Promise<void> {
+  if (deleteSessionKey(id)) return;
   await db().transaction('rw', db().apiKeys, db().providerConfig, async () => {
     const row = await db().apiKeys.get(id);
     if (!row) return;
@@ -68,12 +100,28 @@ export async function setActiveKey(
   provider: LlmProviderId,
   keyId: string | null,
 ): Promise<void> {
+  // If activating a session-only key, keep the activation in the
+  // session store so we don't persist a dangling id to Dexie.
+  if (keyId && getSessionKey(keyId)) {
+    const persistent = await db().providerConfig.get(provider);
+    setSessionProviderConfig({
+      provider,
+      activeKeyId: keyId,
+      fallbackEnabled: persistent?.fallbackEnabled ?? true,
+    });
+    return;
+  }
   const cfg = (await db().providerConfig.get(provider)) ?? {
     provider,
     activeKeyId: null,
     fallbackEnabled: true,
   };
   await db().providerConfig.put({ ...cfg, activeKeyId: keyId });
+  // Switching away from a session-key clears the session activation.
+  const session = getSessionProviderConfig(provider);
+  if (session) {
+    setSessionProviderConfig({ ...session, activeKeyId: null });
+  }
 }
 
 export async function setFallbackEnabled(
@@ -93,17 +141,50 @@ export async function setActiveProvider(provider: LlmProviderId | null): Promise
 }
 
 export async function getAllApiKeys(): Promise<ApiKeyRow[]> {
-  return db().apiKeys.orderBy('createdAt').toArray();
+  const persistent = await db().apiKeys.orderBy('createdAt').toArray();
+  const session = listSessionKeys();
+  // Stable order: by createdAt, session + persistent merged. UI dedupes
+  // on id; session keys are visually flagged via `sessionOnly` lookup.
+  return [...persistent, ...session].sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** True iff the given id refers to a memory-only session key. */
+export function isSessionOnlyKey(id: string): boolean {
+  return getSessionKey(id) !== undefined;
 }
 
 export async function getApiKey(id: string): Promise<ApiKeyRow | undefined> {
+  const session = getSessionKey(id);
+  if (session) return session;
   return db().apiKeys.get(id);
 }
 
 export async function getProviderConfig(
   provider: LlmProviderId,
 ): Promise<ProviderConfigRow | undefined> {
-  return db().providerConfig.get(provider);
+  // Session config overrides persistent when present — supports
+  // "activate this session key" without persisting the id to Dexie.
+  const session = getSessionProviderConfig(provider);
+  const persistent = await db().providerConfig.get(provider);
+  if (session?.activeKeyId) return session;
+  return persistent;
+}
+
+/** All keys (session + persistent) for a single provider. Used by
+ *  callChat to build the fallback chain. */
+export async function getKeysForProvider(
+  provider: LlmProviderId,
+): Promise<ApiKeyRow[]> {
+  const persistent = await db().apiKeys.where('provider').equals(provider).toArray();
+  const session = listSessionKeysForProvider(provider);
+  const seen = new Set<string>();
+  const merged: ApiKeyRow[] = [];
+  for (const k of [...persistent, ...session]) {
+    if (seen.has(k.id)) continue;
+    seen.add(k.id);
+    merged.push(k);
+  }
+  return merged.sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function getLlmGlobal(): Promise<LlmGlobalRow | undefined> {
@@ -120,9 +201,15 @@ export async function recordKeyTest(
   status: 'ok' | 'error',
   message?: string,
 ): Promise<void> {
-  await db().apiKeys.update(id, {
+  const patch = {
     lastTestedAt: Date.now(),
     lastTestStatus: status,
     lastTestMessage: message,
-  });
+  };
+  const session = getSessionKey(id);
+  if (session) {
+    putSessionKey({ ...session, ...patch });
+    return;
+  }
+  await db().apiKeys.update(id, patch);
 }

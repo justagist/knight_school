@@ -1,4 +1,5 @@
-import { db, type ApiKeyRow, type LlmProviderId } from '../db/db';
+import type { ApiKeyRow, LlmProviderId } from '../db/db';
+import { getApiKey, getKeysForProvider, getProviderConfig } from '../db/apiKeys';
 import { getProvider } from './providers';
 import { LLMError, type ChatResult, type ChatTurn } from './types';
 
@@ -46,7 +47,7 @@ export class NoUsableKeyError extends Error {
  */
 export async function callChat(args: CallChatArgs): Promise<CallChatOutcome> {
   const provider = getProvider(args.provider);
-  const cfg = await db().providerConfig.get(args.provider);
+  const cfg = await getProviderConfig(args.provider);
   if (!cfg?.activeKeyId) {
     throw new NoUsableKeyError(
       `No ${provider.displayName} key is active. Add one in Settings → Elle (LLM).`,
@@ -54,7 +55,7 @@ export async function callChat(args: CallChatArgs): Promise<CallChatOutcome> {
   }
   const fallbackEnabled = cfg.fallbackEnabled !== false;
 
-  const activeKey = await db().apiKeys.get(cfg.activeKeyId);
+  const activeKey = await getApiKey(cfg.activeKeyId);
   if (!activeKey) {
     throw new NoUsableKeyError(
       `Active key not found for ${provider.displayName}. Pick another in Settings.`,
@@ -63,12 +64,14 @@ export async function callChat(args: CallChatArgs): Promise<CallChatOutcome> {
 
   // Build the candidate-key list: active first, then any others if fallback
   // is enabled. Deduplicate on id so the active key isn't tried twice.
+  // The facade includes both persistent (IndexedDB) and session-only
+  // (in-memory) keys.
   const candidates: ApiKeyRow[] = [activeKey];
   if (fallbackEnabled) {
-    const others = (
-      await db().apiKeys.where('provider').equals(args.provider).toArray()
-    ).filter((k) => k.id !== activeKey.id);
-    candidates.push(...others.sort((a, b) => a.createdAt - b.createdAt));
+    const others = (await getKeysForProvider(args.provider)).filter(
+      (k) => k.id !== activeKey.id,
+    );
+    candidates.push(...others);
   }
 
   const attempted: CallChatOutcome['attempted'] = [];

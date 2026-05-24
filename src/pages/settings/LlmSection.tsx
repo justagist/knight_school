@@ -34,6 +34,14 @@ export function LlmSection() {
 
   return (
     <>
+      <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+        <span className="font-semibold">Storage note.</span> Saved keys live
+        unencrypted in this browser's IndexedDB. They never leave your device,
+        but anyone with access to this profile can read them via DevTools.
+        Don't paste organisation-level keys here; prefer a personal key or
+        the <span className="font-medium">Session only</span> toggle below
+        (memory-only, gone on tab close) on shared devices.
+      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">
           Provider
@@ -100,6 +108,7 @@ export function LlmSection() {
                 key={row.id}
                 row={row}
                 isActive={providerCfg?.activeKeyId === row.id}
+                sessionOnly={keys.isSessionOnly(row.id)}
                 provider={provider}
                 onMakeActive={() => keys.makeActive(selectedProvider, row.id)}
                 onUpdate={(patch) => keys.updateKey(row.id, patch)}
@@ -112,8 +121,8 @@ export function LlmSection() {
 
         <AddKeyForm
           provider={provider}
-          onAdd={(label, apiKey, model) =>
-            keys.addKey({ provider: selectedProvider, label, apiKey, model })
+          onAdd={(label, apiKey, model, sessionOnly) =>
+            keys.addKey({ provider: selectedProvider, label, apiKey, model, sessionOnly })
           }
         />
 
@@ -155,6 +164,7 @@ export function LlmSection() {
 interface KeyRowProps {
   row: ApiKeyRow;
   isActive: boolean;
+  sessionOnly: boolean;
   provider: ReturnType<typeof getProvider>;
   onMakeActive: () => Promise<void>;
   onUpdate: (patch: Partial<Pick<ApiKeyRow, 'label' | 'apiKey' | 'model'>>) => Promise<void>;
@@ -162,7 +172,7 @@ interface KeyRowProps {
   onTest: () => Promise<TestResult>;
 }
 
-function KeyRow({ row, isActive, provider, onMakeActive, onUpdate, onDelete, onTest }: KeyRowProps) {
+function KeyRow({ row, isActive, sessionOnly, provider, onMakeActive, onUpdate, onDelete, onTest }: KeyRowProps) {
   const [revealed, setRevealed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -202,6 +212,14 @@ function KeyRow({ row, isActive, provider, onMakeActive, onUpdate, onDelete, onT
         {isActive && (
           <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
             Active
+          </span>
+        )}
+        {sessionOnly && (
+          <span
+            className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300"
+            title="In-memory only — discarded when this tab closes"
+          >
+            Session
           </span>
         )}
       </div>
@@ -258,7 +276,7 @@ function KeyRow({ row, isActive, provider, onMakeActive, onUpdate, onDelete, onT
 
 interface AddKeyFormProps {
   provider: ReturnType<typeof getProvider>;
-  onAdd: (label: string, apiKey: string, model: string) => Promise<void>;
+  onAdd: (label: string, apiKey: string, model: string, sessionOnly: boolean) => Promise<void>;
 }
 
 function AddKeyForm({ provider, onAdd }: AddKeyFormProps) {
@@ -267,6 +285,7 @@ function AddKeyForm({ provider, onAdd }: AddKeyFormProps) {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(provider.defaultModel());
   const [submitting, setSubmitting] = useState(false);
+  const [sessionOnly, setSessionOnly] = useState(false);
 
   if (!open) {
     return (
@@ -291,10 +310,11 @@ function AddKeyForm({ provider, onAdd }: AddKeyFormProps) {
         if (!apiKey.trim()) return;
         setSubmitting(true);
         try {
-          await onAdd(label || 'Untitled', apiKey, model);
+          await onAdd(label || 'Untitled', apiKey, model, sessionOnly);
           setOpen(false);
           setLabel('');
           setApiKey('');
+          setSessionOnly(false);
         } finally {
           setSubmitting(false);
         }
@@ -336,6 +356,19 @@ function AddKeyForm({ provider, onAdd }: AddKeyFormProps) {
           ))}
         </select>
       </div>
+      <label className="mt-1 flex items-start gap-2 text-[11px] text-ink-600 dark:text-ink-300">
+        <input
+          type="checkbox"
+          checked={sessionOnly}
+          onChange={(e) => setSessionOnly(e.target.checked)}
+          className="mt-0.5 h-3.5 w-3.5 accent-accent"
+        />
+        <span>
+          <span className="font-medium text-ink-700 dark:text-ink-200">Session only.</span>{' '}
+          Hold this key in memory and discard it when the tab closes. Nothing
+          is written to IndexedDB. Useful on shared devices.
+        </span>
+      </label>
       <div className="flex gap-2 pt-1">
         <button type="submit" className="btn-primary text-xs" disabled={submitting || !apiKey.trim()}>
           {submitting ? 'Saving…' : 'Save key'}
