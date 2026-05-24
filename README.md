@@ -139,14 +139,6 @@ Set a free-text goal — "reach 1500 rapid in 3 months", "stop hanging pieces" �
 
 Incomplete items roll forward into today's column with a `from <Day>` annotation. The original day's slot collapses to a muted `moved to today` placeholder so the same item never shows twice. Weekly reset happens on local Monday midnight; the previous week's checks stay in IndexedDB as audit history. Replacing the goal archives the old one — viewable under **Previous goals** (read-only).
 
-## Deployment
-
-Push to `main` → Cloudflare Pages auto-builds and deploys.
-
-- Build command: `npm run build`
-- Output directory: `dist`
-- Framework preset: none
-
 ## License
 
 MIT — see [LICENSE](./LICENSE).
