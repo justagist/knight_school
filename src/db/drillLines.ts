@@ -85,22 +85,26 @@ export async function deleteDrillLinesForStudy(studyId: string): Promise<void> {
  * never tallied).
  */
 export async function recordDrillAttempt(attempt: DrillAttemptRow): Promise<void> {
-  await db().drillAttempts.put(attempt);
-  // Mixed / spot attempts don't have a drillLineId — they aggregate across
-  // chapters. Their stats land in the attempts table only; per-line stats
-  // stay untouched.
-  if (!attempt.invalidated && attempt.result && attempt.drillLineId) {
-    const line = await db().drillLines.get(attempt.drillLineId);
-    if (line) {
-      await db().drillLines.put({
-        ...line,
-        attempts: line.attempts + 1,
-        successes: line.successes + (attempt.result === 'pass' ? 1 : 0),
-        lastResult: attempt.result,
-        lastDrilledAt: attempt.endedAt ?? Date.now(),
-      });
+  // One Dexie rw tx + atomic `modify()` so two completions in different
+  // tabs can't drop an increment. The previous read-then-put pattern was
+  // an interleaved-write race: both tabs read attempts=5, both wrote 6.
+  await db().transaction('rw', db().drillAttempts, db().drillLines, async () => {
+    await db().drillAttempts.put(attempt);
+    if (!attempt.invalidated && attempt.result && attempt.drillLineId) {
+      const passInc = attempt.result === 'pass' ? 1 : 0;
+      const endedAt = attempt.endedAt ?? Date.now();
+      const finalResult = attempt.result;
+      await db()
+        .drillLines.where('id')
+        .equals(attempt.drillLineId)
+        .modify((line) => {
+          line.attempts = (line.attempts ?? 0) + 1;
+          line.successes = (line.successes ?? 0) + passInc;
+          line.lastResult = finalResult;
+          line.lastDrilledAt = endedAt;
+        });
     }
-  }
+  });
   // Notify regardless (the queue may want to re-render even for invalidated
   // attempts — e.g. drop the "in progress" marker).
   window.dispatchEvent(new Event('ks-drills-changed'));

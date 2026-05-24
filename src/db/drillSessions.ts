@@ -67,14 +67,18 @@ export async function recordSessionAttempt(
   id: string,
   result: 'pass' | 'fail',
 ): Promise<void> {
-  const row = await db().drillSessions.get(id);
-  if (!row) return;
-  await db().drillSessions.put({
-    ...row,
-    attempts: row.attempts + 1,
-    successes: row.successes + (result === 'pass' ? 1 : 0),
-    lastResult: result,
-    lastDrilledAt: Date.now(),
-  });
+  // Atomic modify() so concurrent completions (two tabs, overlapping
+  // sessions) don't lose increments via interleaved read→write.
+  const passInc = result === 'pass' ? 1 : 0;
+  const endedAt = Date.now();
+  await db()
+    .drillSessions.where('id')
+    .equals(id)
+    .modify((row) => {
+      row.attempts = (row.attempts ?? 0) + 1;
+      row.successes = (row.successes ?? 0) + passInc;
+      row.lastResult = result;
+      row.lastDrilledAt = endedAt;
+    });
   window.dispatchEvent(new Event('ks-drills-changed'));
 }
