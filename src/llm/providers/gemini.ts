@@ -8,6 +8,7 @@ import {
   type TestResult,
   type ChatCitation,
 } from '../types';
+import { safeHttpUrl } from '../../lib/safeUrl';
 
 const MODELS: ModelDescriptor[] = [
   {
@@ -187,7 +188,8 @@ export const geminiProvider: LLMProvider = {
     const usedWebSearch = groundingChunks.length > 0 || queries.length > 0;
     const citations: ChatCitation[] = [];
     for (const c of groundingChunks) {
-      if (c.web?.uri) citations.push({ url: c.web.uri, title: c.web.title });
+      const safe = safeHttpUrl(c.web?.uri);
+      if (safe) citations.push({ url: safe, title: c.web?.title });
     }
 
     return { text, usedWebSearch, citations };

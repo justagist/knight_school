@@ -8,6 +8,7 @@ import {
   type TestResult,
   type ChatCitation,
 } from '../types';
+import { safeHttpUrl } from '../../lib/safeUrl';
 
 const MODELS: ModelDescriptor[] = [
   {
@@ -190,7 +191,8 @@ export const anthropicProvider: LLMProvider = {
     for (const b of blocks) {
       if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
         for (const inner of b.content) {
-          if (inner.url) citations.push({ url: inner.url, title: inner.title });
+          const safe = safeHttpUrl(inner.url);
+          if (safe) citations.push({ url: safe, title: inner.title });
         }
       }
     }

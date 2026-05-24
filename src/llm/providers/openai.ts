@@ -8,6 +8,7 @@ import {
   type TestResult,
   type ChatCitation,
 } from '../types';
+import { safeHttpUrl } from '../../lib/safeUrl';
 
 const MODELS: ModelDescriptor[] = [
   {
@@ -183,11 +184,14 @@ export const openaiProvider: LLMProvider = {
             }
             if (Array.isArray(part.annotations)) {
               for (const ann of part.annotations) {
-                if (ann.type === 'url_citation' && ann.url) {
-                  citations.push({ url: ann.url, title: ann.title });
-                  // Citations imply web search was used even when no
-                  // explicit web_search_call item is present.
-                  usedWebSearch = true;
+                if (ann.type === 'url_citation') {
+                  const safe = safeHttpUrl(ann.url);
+                  if (safe) {
+                    citations.push({ url: safe, title: ann.title });
+                    // Citations imply web search was used even when no
+                    // explicit web_search_call item is present.
+                    usedWebSearch = true;
+                  }
                 }
               }
             }

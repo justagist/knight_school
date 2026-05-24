@@ -5,6 +5,7 @@ import { useChat } from './useChat';
 import { useOnline } from '../hooks/useOnline';
 import { getProvider } from '../llm/providers';
 import type { ScreenContext } from '../llm/personaPrompt';
+import { safeHttpUrl } from '../lib/safeUrl';
 
 interface ChatPanelProps {
   rawPgn?: string | null;
@@ -347,22 +348,34 @@ function ChatBubble({ message }: { message: ChatMessageRow }) {
             )}
           </div>
         )}
-        {message.citations && message.citations.length > 0 && (
-          <ul className="mt-1 space-y-0.5 text-[11px]">
-            {message.citations.slice(0, 5).map((c, i) => (
-              <li key={`${c.url}-${i}`} className="truncate">
-                <a
-                  href={c.url}
-                  className="text-secondary hover:underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {c.title || c.url}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+        {message.citations && message.citations.length > 0 && (() => {
+          // Defense in depth: providers already filter at ingest, but old
+          // rows in IndexedDB may pre-date that filter — re-check here so
+          // a stored `javascript:`/`data:` URL can never become an href.
+          const safe: Array<{ url: string; title?: string }> = [];
+          for (const c of message.citations) {
+            const u = safeHttpUrl(c.url);
+            if (u) safe.push({ url: u, title: c.title });
+            if (safe.length === 5) break;
+          }
+          if (safe.length === 0) return null;
+          return (
+            <ul className="mt-1 space-y-0.5 text-[11px]">
+              {safe.map((c, i) => (
+                <li key={`${c.url}-${i}`} className="truncate">
+                  <a
+                    href={c.url}
+                    className="text-secondary hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {c.title || c.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          );
+        })()}
       </div>
     </div>
   );
