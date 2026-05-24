@@ -54,10 +54,7 @@ Five surfaces:
 - **No telemetry, no analytics.** The only network traffic outside
   Stockfish (which is local WASM) is to the Lichess APIs and the
   user's chosen LLM provider.
-- **Node 20+** required for local dev; an `.nvmrc` pins this. The
-  `crypto.randomUUID` fallback in `src/lib/uuid.ts` is a dev-only
-  workaround for LAN HTTP testing and will be removed once the
-  phone-testing cycle is over (memory: `project_remove_uuid_fallback`).
+- **Node 20+** required for local dev; an `.nvmrc` pins this.
 
 ## 3. Architecture
 
@@ -421,9 +418,6 @@ release; SPEC.md is part of it.
 
 ## 11. Open / deferred items
 
-- `crypto.randomUUID` fallback in `src/lib/uuid.ts` is dev-only and
-  removed after the phone-testing cycle. Tracked in
-  `MEMORY/project_remove_uuid_fallback.md`.
 - Spot-drill lead-up walk (replay the previous 2–4 moves before
   asking the user to find the critical move) — TODO breadcrumb in
   `src/drill/useMixedDrill.ts:initialState`.
