@@ -248,12 +248,22 @@ export function useMixedDrill({
     }
     const candidates = [...bucket.values()];
     if (candidates.length === 0) {
-      // No continuation in the pool - jump to a fresh chapter start so the
-      // user keeps drilling toward the target.
+      // No continuation in the pool - jump to a fresh chapter start so
+      // the user keeps drilling toward the target. When the scope only
+      // covers one chapter (or every chapter ends at the same FEN we're
+      // already on), `pickStartingFen` falls back to `starts[0]`, which
+      // equals `state.fen`. setState with the same FEN is a no-op and
+      // the effect never re-fires - the UI strands on "Opponent
+      // thinking…" forever. Complete the drill instead.
       const next = pickStartingFen(startingFens, state.fen);
-      if (next) {
-        const padded = ensureFullFen(next);
-        setState((s) => ({ ...s, fen: padded, awaitingUser: sideToMove(padded) === sideChar(userSide), lastMove: undefined }));
+      const padded = next ? ensureFullFen(next) : undefined;
+      if (padded && padded !== state.fen) {
+        setState((s) => ({
+          ...s,
+          fen: padded,
+          awaitingUser: sideToMove(padded) === sideChar(userSide),
+          lastMove: undefined,
+        }));
       } else {
         setState((s) => ({ ...s, status: 'complete' }));
         persist('pass');
