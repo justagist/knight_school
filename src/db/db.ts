@@ -407,6 +407,28 @@ export interface PlanCheckRow {
 }
 
 /**
+ * Resume marker for a lesson the user opened, navigated into, then left
+ * without finishing. Keyed by (studyId, chapterIndex). Auto-removed when
+ * the user either rewinds back to ply 0 or finishes the chapter (ply ===
+ * totalPlies), so the queue only ever surfaces partial reads.
+ */
+export interface LessonProgressRow {
+  /** Composite key: `${studyId}::${chapterIndex}`. Primary. */
+  id: string;
+  studyId: string;
+  chapterIndex: number;
+  /** Cached for the queue card so it can render without loading the study. */
+  studyName: string;
+  chapterTitle: string;
+  /** Ply the user was looking at when they left. */
+  currentPly: number;
+  /** Total plies in the chapter (so the queue can render "12/45"). */
+  totalPlies: number;
+  /** ms epoch of the most recent ply / chapter touch. Drives sort. */
+  lastViewedAt: number;
+}
+
+/**
  * One PGN the user has opened on the Analyze screen. Keyed by the same
  * PGN hash that ChatThreadRow.contextId + GuessRecordRow.gameKey use,
  * so future cross-table joins (chat thread for this game, accuracy %)
@@ -484,6 +506,7 @@ export class KsDatabase extends Dexie {
   planGoals!: EntityTable<PlanGoalRow, 'id'>;
   planChecks!: EntityTable<PlanCheckRow, 'id'>;
   gameHistory!: EntityTable<GameHistoryRow, 'gameKey'>;
+  lessonProgress!: EntityTable<LessonProgressRow, 'id'>;
 
   constructor() {
     super('knightschool');
@@ -659,6 +682,31 @@ export class KsDatabase extends Dexie {
       planGoals: '&id, createdAt, archived',
       planChecks: '&id, [weekStart+itemId], weekStart, completedAt',
       gameHistory: '&gameKey, lastViewedAt',
+    });
+    // v13: lesson resume markers - tracks the ply the user was last
+    // looking at in each (study, chapter) pair so the Study landing
+    // page can surface a resume queue. Auto-removed when the user
+    // finishes the chapter or rewinds to the start.
+    this.version(13).stores({
+      positionEvals: '&fen, completedAt, engine',
+      apiKeys: '&id, provider, createdAt',
+      providerConfig: '&provider',
+      llmGlobal: '&id',
+      chatThreads: '&id, contextType, contextId, updatedAt',
+      chatMessages: '&id, threadId, createdAt',
+      moveCommentaries: '&key, fen, createdAt',
+      guessRecords: '&id, gameKey, createdAt, [gameKey+ply]',
+      explorerEntries: '&fen, fetchedAt',
+      lichessAuth: '&id',
+      studies: '&id, importedAt, curatedKey',
+      drillLines: '&id, studyId, lastDrilledAt, lastResult, [studyId+chapterIndex+userSide]',
+      drillAttempts: '&id, drillLineId, startedAt, mode',
+      drillPositions: '&id, studyId',
+      drillSessions: '&id, studyId, lastDrilledAt, createdAt',
+      planGoals: '&id, createdAt, archived',
+      planChecks: '&id, [weekStart+itemId], weekStart, completedAt',
+      gameHistory: '&gameKey, lastViewedAt',
+      lessonProgress: '&id, studyId, lastViewedAt',
     });
   }
 }

@@ -12,11 +12,16 @@ import { useChatScreen } from '../chat/ChatContextProvider';
 import { useChatHost } from '../chat/ChatHost';
 import { summarizeEngine } from '../llm/engineSummary';
 import { DrillSetupModal, type DrillSetupResult } from '../drill/DrillSetupModal';
+import { recordLessonProgress } from '../db/lessonProgress';
 
 interface StudyViewerProps {
   study: StudyRow;
   /** Initial chapter index to show. Clamped to chapter count. */
   initialChapter?: number;
+  /** Initial ply to land on inside the initial chapter (used by the
+   *  lesson resume queue's deep-link). Clamped to the chapter's ply
+   *  count; ignored when the chapter doesn't parse. */
+  initialPly?: number;
   /** Notify the page when the chapter changes so it can update the URL. */
   onChapterChange?: (index: number) => void;
   /** "Back to library" button handler. */
@@ -51,6 +56,7 @@ interface StudyViewerProps {
 export function StudyViewer({
   study,
   initialChapter = 0,
+  initialPly = 0,
   onChapterChange,
   onBack,
   onRefreshed,
@@ -61,7 +67,7 @@ export function StudyViewer({
   const chapterCount = study.chapters.length;
   const safeInitial = clampIndex(initialChapter, chapterCount);
   const [chapterIdx, setChapterIdx] = useState(safeInitial);
-  const [ply, setPly] = useState(0);
+  const [ply, setPly] = useState(initialPly);
   const [parseError, setParseError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   /**
@@ -77,11 +83,14 @@ export function StudyViewer({
   const chatScreen = useChatScreen();
   const chatHost = useChatHost();
 
-  // Reset to chapter 0 / ply 0 when the study itself changes.
+  // Reset to the requested chapter + ply when the study itself changes
+  // (or when the resume queue navigates to a specific ply). Reading
+  // initialPly here makes the resume-queue deep-link land on the saved
+  // position instead of ply 0.
   useEffect(() => {
     setChapterIdx(clampIndex(initialChapter, study.chapters.length));
-    setPly(0);
-  }, [study.id, study.chapters.length, initialChapter]);
+    setPly(initialPly);
+  }, [study.id, study.chapters.length, initialChapter, initialPly]);
 
   const chapter = study.chapters[chapterIdx];
 
@@ -205,6 +214,23 @@ export function StudyViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Persist a resume marker every time the user nudges the ply or
+  // switches chapter. The writer self-prunes at ply 0 (fresh) and at
+  // the chapter end (completed), so the queue only ever surfaces
+  // partial reads. Failure (Dexie open error / quota) is silent -
+  // the feature never blocks the lesson view.
+  useEffect(() => {
+    if (!chapter || !parsed) return;
+    void recordLessonProgress({
+      studyId: study.id,
+      chapterIndex: chapterIdx,
+      studyName: study.name,
+      chapterTitle: chapter.title,
+      currentPly: ply,
+      totalPlies: parsed.moves.length,
+    }).catch(() => {});
+  }, [study.id, study.name, chapterIdx, chapter, parsed, ply]);
+
   return (
     <div className="flex flex-col gap-3">
       {/* Header row */}
@@ -253,29 +279,42 @@ export function StudyViewer({
 
       {/* Chapter dropdown - Prev/Next chapter buttons live next to the
         move-nav buttons in the sidebar so the user's hand doesn't have to
-        travel up to the header for them. */}
-      {chapterCount > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="chapter-pick" className="text-xs text-ink-500 dark:text-ink-400">
-            Chapter
-          </label>
-          <select
-            id="chapter-pick"
-            value={chapterIdx}
-            onChange={(e) => changeChapter(Number(e.target.value))}
-            className="input text-sm"
+        travel up to the header for them. The Export PGN button sits on
+        the same row so chapter-scoped controls cluster together. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {chapterCount > 1 && (
+          <>
+            <label htmlFor="chapter-pick" className="text-xs text-ink-500 dark:text-ink-400">
+              Chapter
+            </label>
+            <select
+              id="chapter-pick"
+              value={chapterIdx}
+              onChange={(e) => changeChapter(Number(e.target.value))}
+              className="input text-sm"
+            >
+              {study.chapters.map((c, i) => (
+                <option key={i} value={i}>
+                  {i + 1}. {c.title}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-ink-500 dark:text-ink-400">
+              {chapterIdx + 1} / {chapterCount}
+            </span>
+          </>
+        )}
+        {chapter && (
+          <button
+            type="button"
+            onClick={() => exportChapterPgn(study.name, chapter.title, chapter.pgn)}
+            className="btn-ghost ml-auto text-xs"
+            title="Download this chapter's PGN"
           >
-            {study.chapters.map((c, i) => (
-              <option key={i} value={i}>
-                {i + 1}. {c.title}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-ink-500 dark:text-ink-400">
-            {chapterIdx + 1} / {chapterCount}
-          </span>
-        </div>
-      )}
+            Export PGN
+          </button>
+        )}
+      </div>
 
       {parseError && (
         <div className="card border-red-300 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:text-red-300">
@@ -284,38 +323,27 @@ export function StudyViewer({
       )}
 
       {/*
-        Mobile order: comment → board → move buttons → chapter buttons → move list.
-        Putting the buttons near the bottom of the viewport keeps them in
-        easy thumb reach while the board stays visible above. Move list
-        drops to the bottom - users tap it less often than the prev/next
-        buttons during a lesson.
+        Mobile order (sidebar stacks under board column):
+          board → nav buttons → chapter buttons → comment → move list → drill.
+        Putting comment between the buttons and the move list keeps it
+        BELOW the board so per-ply text-length changes never push the
+        board up or down. Earlier layout put the comment above the
+        board which caused exactly that jitter on phones.
 
-        Desktop order: board column on the left (no comment - comment moves
-        to the sidebar BELOW the buttons so the board's vertical position
-        doesn't shift when the comment text grows/shrinks per ply). Right
-        sidebar order: move list → move buttons → chapter buttons → comment
-        → hint.
+        Desktop order (explicit `lg:order-*` on each sidebar child):
+          board column · sidebar: move list → buttons → chapter → comment.
       */}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,_1fr)_320px]">
         <div className="mx-auto flex w-full max-w-[min(80vh,_640px)] flex-col gap-2">
-          {parsed && (
-            <LessonComment
-              text={parsed.comments[ply]}
-              // Above the board on mobile (top of column) and hidden on
-              // desktop - the desktop copy lives in the sidebar so per-
-              // ply text-length changes don't push the board up and down.
-              className="order-first lg:hidden"
-            />
-          )}
-          {/* Mobile drill trigger - sits right after the comment so the
-              "what to do next" CTA lands with the lesson context. Opens
-              the setup modal with chapter-scope defaults. Desktop copy
-              lives in the sidebar after its own comment block. */}
+          {/* Mobile drill trigger - sits above the board so the
+              "what to do next" CTA lands at the top of the column.
+              Opens the setup modal with chapter-scope defaults.
+              Desktop copy lives in the sidebar after its own comment. */}
           {onStartDrill && parsed && parsed.moves.length > 0 && (
             <button
               type="button"
               onClick={() => setDrillSetup('chapter')}
-              className="btn-secondary order-1 text-xs lg:hidden"
+              className="btn-secondary text-xs lg:hidden"
               title="Quiz yourself on this chapter - app plays the opponent, you play your side."
             >
               ▶ Drill this chapter
@@ -409,18 +437,20 @@ export function StudyViewer({
                   </button>
                 </div>
               )}
+              {/* Comment slot - mobile shows it BETWEEN the chapter
+                  nav and the move list (below the board) so per-ply
+                  text-length changes never move the board. Desktop
+                  flexes it under the move list + buttons via order-4. */}
+              <LessonComment
+                text={parsed.comments[ply]}
+                className="lg:order-4"
+              />
               {/* Move list - drops to the bottom on mobile so the buttons
                   above it stay within thumb reach. Desktop puts it back at
                   the top of the sidebar. */}
               <div className="card p-2 lg:order-1">
                 <MoveList moves={parsed.moves} ply={ply} onSelectPly={setPly} />
               </div>
-              {/* Desktop-only comment slot. Sits below the chapter nav so
-                  changes in author-note length never move the board. */}
-              <LessonComment
-                text={parsed.comments[ply]}
-                className="hidden lg:order-4 lg:block"
-              />
               {/* Desktop drill trigger - directly below the comment so the
                   "next step" CTA pairs with the lesson context. */}
               {onStartDrill && parsed.moves.length > 0 && (
@@ -479,6 +509,27 @@ export function StudyViewer({
       />
     </div>
   );
+}
+
+/**
+ * Trigger a browser download for the current chapter's raw PGN. Filename
+ * uses the study + chapter title, sanitised to filesystem-safe characters.
+ */
+function exportChapterPgn(studyName: string, chapterTitle: string, pgn: string): void {
+  const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${sanitiseFilename(studyName)} - ${sanitiseFilename(chapterTitle)}.pgn`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke after a tick so the click handler can actually use the URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function sanitiseFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'chapter';
 }
 
 function clampIndex(i: number, count: number): number {

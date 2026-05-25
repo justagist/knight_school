@@ -54,6 +54,7 @@ export async function clearAllData(): Promise<void> {
       d.planGoals,
       d.planChecks,
       d.gameHistory,
+      d.lessonProgress,
     ],
     async () => {
       await Promise.all([
@@ -75,6 +76,7 @@ export async function clearAllData(): Promise<void> {
         d.planGoals.clear(),
         d.planChecks.clear(),
         d.gameHistory.clear(),
+        d.lessonProgress.clear(),
       ]);
     },
   );
@@ -84,6 +86,7 @@ export async function clearAllData(): Promise<void> {
   window.dispatchEvent(new Event('ks-drills-changed'));
   window.dispatchEvent(new Event('ks-plan-changed'));
   window.dispatchEvent(new Event('ks-history-changed'));
+  window.dispatchEvent(new Event('ks-lesson-progress-changed'));
 }
 
 /** Format bytes as a short MB / GB string for the storage indicator. */

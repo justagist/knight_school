@@ -4,6 +4,7 @@ import { StudyImporter } from '../lessons/StudyImporter';
 import { StudyCatalog } from '../lessons/StudyCatalog';
 import { StudyLibrary } from '../lessons/StudyLibrary';
 import { StudyViewer } from '../lessons/StudyViewer';
+import { LessonResumeQueue } from '../lessons/LessonResumeQueue';
 import { useStudies } from '../lessons/useStudies';
 import { CURATED_STUDIES, findStudyByKey, studyMatchesQuery } from '../lessons/catalog';
 import { importStudy, isStudyImported } from '../lessons/lichessStudy';
@@ -51,6 +52,10 @@ export function OpeningsPage() {
   const searchParam = params.get('search') ?? '';
   const chapterParam = Number(params.get('chapter') ?? '1');
   const chapterIdx = Number.isFinite(chapterParam) && chapterParam > 0 ? chapterParam - 1 : 0;
+  // Optional `&ply=` deep-link from the lesson resume queue. 0 = chapter
+  // start (same as omitting the param).
+  const plyParam = Number(params.get('ply') ?? '0');
+  const initialPly = Number.isFinite(plyParam) && plyParam > 0 ? plyParam : 0;
 
   // Drill-related state - resolved lazily when the URL has `drill=<id>`.
   const [drillLine, setDrillLine] = useState<DrillLineRow | null>(null);
@@ -163,6 +168,10 @@ export function OpeningsPage() {
       (p) => {
         const next = new URLSearchParams(p);
         next.set('chapter', String(i + 1));
+        // Drop any ply= deep-link once the user navigates away from the
+        // resumed chapter. Stale ply on a fresh chapter would skip the
+        // user past the chapter start.
+        next.delete('ply');
         return next;
       },
       { replace: true },
@@ -308,6 +317,7 @@ export function OpeningsPage() {
       <StudyViewer
         study={selected}
         initialChapter={chapterIdx}
+        initialPly={initialPly}
         onChapterChange={setChapter}
         onBack={backToLibrary}
         onStartDrill={(idx, side) => void startDrill(selected, idx, side)}
@@ -445,6 +455,18 @@ export function OpeningsPage() {
       )}
 
       <StudyImporter onImported={openStudy} />
+
+      <LessonResumeQueue
+        onResume={(studyId, chapterIndex, ply) =>
+          setParams((p) => {
+            const next = new URLSearchParams(p);
+            next.set('study', studyId);
+            next.set('chapter', String(chapterIndex + 1));
+            next.set('ply', String(ply));
+            return next;
+          })
+        }
+      />
 
       {(drillLines.length > 0 || drillSessions.length > 0) && (
         <PracticeQueue

@@ -28,7 +28,7 @@ export async function removeStudyCascade(id: string): Promise<void> {
   const d = db();
   await d.transaction(
     'rw',
-    [d.studies, d.drillLines, d.drillAttempts, d.drillPositions, d.drillSessions],
+    [d.studies, d.drillLines, d.drillAttempts, d.drillPositions, d.drillSessions, d.lessonProgress],
     async () => {
       const lines = await d.drillLines.where('studyId').equals(id).toArray();
       const lineIds = lines.map((l) => l.id);
@@ -38,11 +38,13 @@ export async function removeStudyCascade(id: string): Promise<void> {
       }
       await d.drillPositions.where('studyId').equals(id).delete();
       await d.drillSessions.where('studyId').equals(id).delete();
+      await d.lessonProgress.where('studyId').equals(id).delete();
       await d.studies.delete(id);
     },
   );
   window.dispatchEvent(new Event('ks-studies-changed'));
   window.dispatchEvent(new Event('ks-drills-changed'));
+  window.dispatchEvent(new Event('ks-lesson-progress-changed'));
 }
 
 /** ms epoch helper - surfaces the "x days ago" label without forcing callers to compute. */
