@@ -53,7 +53,16 @@ export function MixedDrillView({
   onDrillSubset,
   onReviewChapter,
 }: MixedDrillViewProps) {
-  const chapterScope = useMemo(() => new Set(chapterIndices), [chapterIndices]);
+  // chapterIndices is a fresh array on every parent render (OpeningsPage
+  // builds it inline from URL params), so memoising on the array reference
+  // recomputed chapterScope every render. That cascaded into useMixedDrill:
+  // the opponent-move effect's 450ms setTimeout was cancelled and
+  // rescheduled on every parent re-render, leaving the UI on
+  // "Opponent thinking…" forever whenever the page re-rendered faster
+  // than the timer's delay. Memoise on a content-derived key instead.
+  const chapterScopeKey = chapterIndices.slice().sort((a, b) => a - b).join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const chapterScope = useMemo(() => new Set(chapterIndices), [chapterScopeKey]);
   const drillCtx = useDrillContext();
   const chatScreen = useChatScreen();
   const drill = useMixedDrill({
