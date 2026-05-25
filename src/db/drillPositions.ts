@@ -119,11 +119,23 @@ function walkTree(node: { children: ChildNode<PgnNodeData>[] }, pos: Position, c
       row = { id, studyId: ctx.studyId, fen: fenBefore, occurrences: [] };
       ctx.sink.set(id, row);
     }
+    // chessops's makeUci emits chess960-style castling (king to rook
+    // square, e.g. "e1h1"). chess.js v1.4 only accepts king-to-
+    // destination form ("e1g1") and THROWS on the 960 form, which
+    // hangs the MixedDrillView opp-effect when the opponent picks
+    // castling. Re-emit standard form here using SAN as the discriminator.
+    let uci = makeUci(move);
+    if (san === 'O-O' || san === 'O-O-O') {
+      const fromFile = uci[0];
+      const fromRank = uci[1];
+      const destFile = san === 'O-O' ? 'g' : 'c';
+      uci = `${fromFile}${fromRank}${destFile}${fromRank}`;
+    }
     row.occurrences.push({
       chapterIndex: ctx.chapterIndex,
       chapterTitle: ctx.chapterTitle,
       san,
-      uci: makeUci(move),
+      uci,
       sideToMove,
       ply: ctx.depth,
     });

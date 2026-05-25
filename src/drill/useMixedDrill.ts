@@ -5,6 +5,7 @@ import type { DrillPositionRow, StudyRow } from '../db/db';
 import { recordDrillAttempt } from '../db/drillLines';
 import { normalizeFenForExplorer } from '../db/explorer';
 import { parsePgn } from '../lib/pgn';
+import { normalizeCastlingUci } from '../lib/moveToUci';
 
 export type MixedDrillMode = 'free' | 'spot';
 export type DrillSide = 'white' | 'black';
@@ -273,13 +274,17 @@ export function useMixedDrill({
     const pick = weightedPick(candidates);
     const t = window.setTimeout(() => {
       const chess = new Chess(state.fen);
-      const m = chess.move({
-        from: pick.uci.slice(0, 2),
-        to: pick.uci.slice(2, 4),
-        promotion: pick.uci.length > 4 ? pick.uci.slice(4, 5) : undefined,
-      });
+      // chess.js v1.4 THROWS on invalid input (it doesn't return null),
+      // so we need try/catch around the call. Pool data indexed before
+      // the castling-UCI fix used chessops's chess960 form ("e8h8" for
+      // black O-O), which chess.js rejects - that stranded the drill
+      // on "Opponent thinking…". Try the literal UCI first; on throw,
+      // retry the normalised castling form for backwards compatibility
+      // with pre-existing rows.
+      const m = tryApplyUci(chess, pick.uci);
       if (!m) {
-        // Bad UCI from the pool - bail out gracefully.
+        // eslint-disable-next-line no-console
+        console.warn(`[drill] opponent UCI '${pick.uci}' could not be applied at FEN '${state.fen}'; completing drill instead of hanging.`);
         setState((s) => ({ ...s, status: 'complete' }));
         persist('pass');
         return;
@@ -374,7 +379,13 @@ export function useMixedDrill({
         return;
       }
       const playedUci = `${move.from}${move.to}${move.promotion ?? ''}`;
-      const matched = expected.find((e) => e.uci.toLowerCase() === playedUci.toLowerCase());
+      // Normalise both sides of the comparison so stale chess960-style
+      // castling UCIs in the pool ("e8h8") still match user input that
+      // chess.js produced in standard form ("e8g8").
+      const playedNorm = normalizeCastlingUci(playedUci).toLowerCase();
+      const matched = expected.find(
+        (e) => normalizeCastlingUci(e.uci).toLowerCase() === playedNorm,
+      );
       if (!matched) {
         setState((s) => recordFailure(s, move!.san, expected, mode, spotPositions));
         if (mode === 'free') persist('fail');
@@ -624,3 +635,34 @@ function ensureFullFen(fen: string): string {
   if (parts.length < 6) parts.push('1');
   return parts.join(' ');
 }
+
+/**
+ * Apply a UCI string to a chess.js instance, with a single retry
+ * against the chess.js-standard castling form on failure. Returns
+ * the resulting Move or null on permanent failure. Mutates `chess`
+ * on success.
+ *
+ * Two retry shapes:
+ *  - chess960-style castling ("e1h1") rewritten as standard
+ *    ("e1g1"). Stale pool rows from before the indexer fix carry
+ *    this form.
+ *  - As-is. New pool rows are already standard.
+ */
+function tryApplyUci(chess: Chess, uci: string): ReturnType<Chess['move']> | null {
+  if (uci.length < 4) return null;
+  const candidates = [uci, normalizeCastlingUci(uci)];
+  for (const candidate of new Set(candidates)) {
+    try {
+      const m = chess.move({
+        from: candidate.slice(0, 2),
+        to: candidate.slice(2, 4),
+        promotion: candidate.length > 4 ? candidate.slice(4, 5) : undefined,
+      });
+      if (m) return m;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
