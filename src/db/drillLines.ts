@@ -140,7 +140,12 @@ export async function listDrillAttempts(
  * alone isn't enough.
  */
 export function sideToMoveAtPly(line: DrillLineRow, ply: number): 'w' | 'b' {
-  return replayThroughPly(line, ply).turn();
+  const chess = new Chess(line.startingFen);
+  for (let i = 0; i < ply && i < line.uciMoves.length; i++) {
+    const u = line.uciMoves[i];
+    chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.length > 4 ? u.slice(4, 5) : undefined });
+  }
+  return chess.turn();
 }
 
 export function isUserTurn(line: DrillLineRow, ply: number): boolean {
@@ -150,44 +155,10 @@ export function isUserTurn(line: DrillLineRow, ply: number): boolean {
 
 /** FEN at a given ply (replays from start). Useful for board display + engine eval. */
 export function fenAtPly(line: DrillLineRow, ply: number): string {
-  return replayThroughPly(line, ply).fen();
-}
-
-/**
- * Replay `line.uciMoves[0..ply)` against a fresh chess.js instance and
- * return it. Wraps each move in try/catch + logs on failure so a bad
- * UCI in the indexed line surfaces in the console instead of silently
- * drifting the side-to-move (which made the drill effect schedule
- * opponent moves on a wrong-turn position, stranding the UI on
- * "Opponent thinking…").
- */
-function replayThroughPly(line: DrillLineRow, ply: number): Chess {
   const chess = new Chess(line.startingFen);
   for (let i = 0; i < ply && i < line.uciMoves.length; i++) {
     const u = line.uciMoves[i];
-    try {
-      const m = chess.move({
-        from: u.slice(0, 2),
-        to: u.slice(2, 4),
-        promotion: u.length > 4 ? u.slice(4, 5) : undefined,
-      });
-      if (!m) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[drill] replay refused UCI '${u}' at ply ${i} of line ${line.id}; ` +
-            'drill state may drift. Chapter PGN likely contains a move the ' +
-            'indexer mis-translated.',
-        );
-        break;
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[drill] replay threw on UCI '${u}' at ply ${i} of line ${line.id}:`,
-        err,
-      );
-      break;
-    }
+    chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.length > 4 ? u.slice(4, 5) : undefined });
   }
-  return chess;
+  return chess.fen();
 }

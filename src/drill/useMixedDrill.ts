@@ -283,8 +283,6 @@ export function useMixedDrill({
       // with pre-existing rows.
       const m = tryApplyUci(chess, pick.uci);
       if (!m) {
-        // eslint-disable-next-line no-console
-        console.warn(`[drill] opponent UCI '${pick.uci}' could not be applied at FEN '${state.fen}'; completing drill instead of hanging.`);
         setState((s) => ({ ...s, status: 'complete' }));
         persist('pass');
         return;
