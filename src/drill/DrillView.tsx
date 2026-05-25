@@ -4,6 +4,8 @@ import { useDrill, type DrillVariant } from './useDrill';
 import { useDrillContext } from './DrillContext';
 import { useChatScreen } from '../chat/ChatContextProvider';
 import type { DrillLineRow } from '../db/db';
+import { db } from '../db/db';
+import { summarizeEngineFromRow } from '../llm/engineSummary';
 
 interface DrillViewProps {
   line: DrillLineRow;
@@ -50,6 +52,7 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
   // system prompt. Refreshes every time the ply or invalidated flag
   // changes.
   useEffect(() => {
+    let cancelled = false;
     const ply = drill.state.ply;
     const expectedSan = line.sanMoves[ply];
     const expectedMoves =
@@ -57,21 +60,34 @@ export function DrillView({ line, onExit, onFinished, initialVariant = 'board' }
         ? [{ san: expectedSan, chapterTitle: line.chapterTitle }]
         : [];
     const lastMoveSan = ply > 0 ? line.sanMoves[ply - 1] : undefined;
-    chatScreen.setScreen({
-      kind: 'drill',
-      drill: {
-        studyName: line.studyName,
-        kindLabel: `Chapter drill · ${line.chapterTitle}`,
-        userSide: line.userSide,
-        currentFen: drill.state.fen,
-        lastMoveSan,
-        expectedMoves,
-        leadupSan: line.sanMoves.slice(0, ply),
-        progressLabel: `${ply}/${line.uciMoves.length}`,
-        invalidated: drill.state.invalidated,
-      },
-    });
+    const baseDrill = {
+      studyName: line.studyName,
+      kindLabel: `Chapter drill · ${line.chapterTitle}`,
+      userSide: line.userSide,
+      currentFen: drill.state.fen,
+      lastMoveSan,
+      expectedMoves,
+      leadupSan: line.sanMoves.slice(0, ply),
+      progressLabel: `${ply}/${line.uciMoves.length}`,
+      invalidated: drill.state.invalidated,
+    };
+    // Publish synchronously without an eval - the chat panel still
+    // works even when no cached row exists. Then look up the cache
+    // and re-publish if a hit lands; mismatch (FEN moved on) drops
+    // the stale write via the cancelled flag.
+    chatScreen.setScreen({ kind: 'drill', drill: baseDrill });
+    void (async () => {
+      const row = await db().positionEvals.get(drill.state.fen);
+      if (cancelled) return;
+      const engineSummary = summarizeEngineFromRow(row);
+      if (!engineSummary) return;
+      chatScreen.setScreen({
+        kind: 'drill',
+        drill: { ...baseDrill, engineSummary },
+      });
+    })();
     return () => {
+      cancelled = true;
       chatScreen.setScreen({ kind: 'idle' });
     };
     // chatScreen.setScreen identity is stable.

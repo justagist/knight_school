@@ -166,6 +166,14 @@ export interface DrillContext {
    * without nudging the user to abandon the drill.
    */
   invalidated: boolean;
+  /**
+   * Engine eval summary for the current drill FEN, if a cached row exists.
+   * Drill mode intentionally runs the engine OFF (recall, not eval-
+   * assisted guessing), so this is populated from the `positionEvals`
+   * Dexie cache rather than a live snapshot. Missing more often than not -
+   * the prompt renderer skips the block when empty.
+   */
+  engineSummary?: string;
 }
 
 export interface ScreenContext {
@@ -226,6 +234,19 @@ export interface ScreenContext {
  * the user is currently looking at. The context block is optional - the
  * general/idle chat passes ScreenContext{kind:'idle'}, which yields the
  * persona alone.
+ *
+ * TODO(elle-candidate-probe): when the user's question mentions a specific
+ * candidate move ("would Nf3 work?", "why not nf3", "what if I move the
+ * knight to f3?"), pre-probe Stockfish on the resulting position-after-
+ * move and bake the eval into a `Candidate <SAN>: <eval> <PV>` block. The
+ * extraction step needs to handle (a) chess-case-normalised SAN
+ * (`nf3` -> `Nf3`), (b) natural-language move descriptions ("knight to
+ * f3", "bishop takes e5", "castle short"), (c) validation against the
+ * current FEN's legal moves to disambiguate. Plug-in point: a
+ * `preprocessUserMessage(ctx, message)` helper that returns
+ * `{ candidates, probedSummary }`, called from `useChat.send` before
+ * `buildSystemPrompt`. Pre-flight probe uses `settings.analysisDepth`
+ * and writes results to `positionEvals` so repeat asks are instant.
  */
 export function buildSystemPrompt(ctx: ScreenContext): string {
   if (ctx.kind === 'idle') return ELLE_BASE_PROMPT;
@@ -384,6 +405,9 @@ function buildDrillPrompt(ctx: ScreenContext): string {
   }
   if (d.leadupSan && d.leadupSan.length > 0) {
     lines.push(`Lead-up moves from the chapter start: ${d.leadupSan.join(' ')}.`);
+  }
+  if (d.engineSummary) {
+    lines.push(`Engine analysis (current position):\n${d.engineSummary}`);
   }
   lines.push(
     'Guidance: answer the user\'s question about this exact position. If they ask "what move should I play here", surface the expected move(s) above and explain WHY they\'re the chapter\'s choice. If they ask about an alternative, evaluate it on its merits.',

@@ -5,6 +5,8 @@ import { useDrillContext } from './DrillContext';
 import { useChatScreen } from '../chat/ChatContextProvider';
 import { normalizeFenForExplorer } from '../db/explorer';
 import type { StudyRow, DrillPositionRow } from '../db/db';
+import { db } from '../db/db';
+import { summarizeEngineFromRow } from '../llm/engineSummary';
 
 interface MixedDrillViewProps {
   study: StudyRow;
@@ -100,26 +102,41 @@ export function MixedDrillView({
       }
     }
     const kindLabel = mode === 'spot' ? 'Spot drill' : 'Mixed drill';
-    chatScreen.setScreen({
-      kind: 'drill',
-      drill: {
-        studyName: study.name,
-        kindLabel,
-        userSide,
-        currentFen: drill.state.fen,
-        lastMoveSan: drill.state.feedback?.playedSan,
-        expectedMoves: [...expectedDedup.values()],
-        // Mixed sessions teleport across chapters - no single chapter
-        // lead-up to surface.
-        leadupSan: undefined,
-        progressLabel:
-          length > 0
-            ? `${drill.state.userMovesMade}/${length}`
-            : `${drill.state.userMovesMade} so far`,
-        invalidated: drill.state.invalidated,
-      },
-    });
+    const baseDrill = {
+      studyName: study.name,
+      kindLabel,
+      userSide,
+      currentFen: drill.state.fen,
+      lastMoveSan: drill.state.feedback?.playedSan,
+      expectedMoves: [...expectedDedup.values()],
+      // Mixed sessions teleport across chapters - no single chapter
+      // lead-up to surface.
+      leadupSan: undefined,
+      progressLabel:
+        length > 0
+          ? `${drill.state.userMovesMade}/${length}`
+          : `${drill.state.userMovesMade} so far`,
+      invalidated: drill.state.invalidated,
+    };
+    let cancelled = false;
+    chatScreen.setScreen({ kind: 'drill', drill: baseDrill });
+    // Drill mode runs the engine OFF (recall, not eval-assisted
+    // guessing). When a cached eval for this FEN happens to exist
+    // (e.g. user analysed the same position in Analyze earlier),
+    // upgrade the prompt with the top PVs so a mid-drill chat is
+    // grounded.
+    void (async () => {
+      const row = await db().positionEvals.get(drill.state.fen);
+      if (cancelled) return;
+      const engineSummary = summarizeEngineFromRow(row);
+      if (!engineSummary) return;
+      chatScreen.setScreen({
+        kind: 'drill',
+        drill: { ...baseDrill, engineSummary },
+      });
+    })();
     return () => {
+      cancelled = true;
       chatScreen.setScreen({ kind: 'idle' });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
