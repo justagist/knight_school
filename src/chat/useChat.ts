@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { callChat, NoUsableKeyError } from '../llm/callChat';
 import { buildSystemPrompt, type ScreenContext } from '../llm/personaPrompt';
+import { preprocessChat } from '../llm/preprocessChat';
 import { LLMError, type ChatTurn } from '../llm/types';
+import { useSettings } from '../settings/SettingsProvider';
 import {
   appendMessage,
   clearThreadMessages,
@@ -43,6 +45,7 @@ interface UseChatArgs {
  * so any subsequent screen changes only affect future messages.
  */
 export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
+  const { settings } = useSettings();
   const [thread, setThread] = useState<ChatThreadRow | null>(null);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [sending, setSending] = useState(false);
@@ -137,9 +140,29 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
             content: m.content,
           }));
 
+        // 3. Pre-flight candidate-move probe: if the user's message
+        //    references specific moves ("would Nf3 work?", "why not
+        //    castle short?"), parse them out + run Stockfish on each
+        //    resulting position so Elle's answer can quote real engine
+        //    numbers instead of guessing. Cache hits return instantly;
+        //    misses block on the engine for a few seconds at the user's
+        //    analysisDepth. Block is appended to the system prompt
+        //    only for this message.
+        let system = buildSystemPrompt(screen);
+        try {
+          const block = await preprocessChat(screen, trimmed, {
+            depth: settings.analysisDepth,
+            engineVariant: settings.engineVariant,
+          });
+          if (block) system = `${system}\n\n${block}`;
+        } catch {
+          // Probe failure is non-fatal - send the unmodified prompt.
+        }
+        if (threadGenRef.current !== gen) return; // user switched threads mid-probe
+
         const result = await callChat({
           provider,
-          system: buildSystemPrompt(screen),
+          system,
           messages: history,
           // Web search is OFF by default; user opts in per-message via the
           // 🔎 toggle in the chat input. Tools that aren't requested are not
@@ -178,7 +201,7 @@ export function useChat({ screen, rawPgn }: UseChatArgs): UseChatReturn {
         setSending(false);
       }
     },
-    [thread, sending, screen],
+    [thread, sending, screen, settings.analysisDepth, settings.engineVariant],
   );
 
   const clear = useCallback(async () => {
