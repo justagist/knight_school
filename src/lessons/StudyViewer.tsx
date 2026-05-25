@@ -473,6 +473,7 @@ export function StudyViewer({
 
       <DrillSetupModal
         study={study}
+        currentChapterIndex={chapterIdx}
         open={drillSetup !== null}
         onClose={() => setDrillSetup(null)}
         initial={{
@@ -490,8 +491,13 @@ export function StudyViewer({
         }}
         onStart={(cfg) => {
           setDrillSetup(null);
-          if (cfg.scope === 'chapter' && onStartDrill && cfg.chapterIndices.length === 1) {
-            onStartDrill(cfg.chapterIndices[0], cfg.side);
+          // Scope=chapter MUST resolve to a single chapter. The modal
+          // narrows on radio click, but the user could have arrived
+          // via a stale state - force the narrowing here so the
+          // routing never falls through to mixed by accident.
+          if (cfg.scope === 'chapter' && onStartDrill) {
+            const idx = cfg.chapterIndices[0] ?? chapterIdx;
+            onStartDrill(idx, cfg.side);
             return;
           }
           if (onStartMixedDrill) {

@@ -25,6 +25,14 @@ interface DrillSetupModalProps {
    *     pre-modal behaviour)
    */
   initial: DrillSetupResult;
+  /**
+   * Chapter the user is currently viewing. Used when the user picks
+   * "This chapter only" - the radio narrows chapterIndices to this one.
+   * Without it, switching from "all chapters" to "this chapter only"
+   * left chapterIndices as the full list and the routing fell through
+   * to mixed mode.
+   */
+  currentChapterIndex: number;
   open: boolean;
   onClose: () => void;
   onStart: (result: DrillSetupResult) => void;
@@ -51,6 +59,7 @@ interface DrillSetupModalProps {
 export function DrillSetupModal({
   study,
   initial,
+  currentChapterIndex,
   open,
   onClose,
   onStart,
@@ -118,13 +127,16 @@ export function DrillSetupModal({
             name="scope"
             value="chapter"
             checked={scope === 'chapter'}
-            onChange={() => setScope('chapter')}
+            onChange={() => {
+              setScope('chapter');
+              // Narrow to the chapter the user is currently viewing.
+              // Without this, switching from "all chapters" left
+              // chapterIndices as the full list and the routing fell
+              // through to mixed mode despite the radio label.
+              setChapterIndices([currentChapterIndex]);
+            }}
             label="This chapter only"
-            hint={
-              chapterIndices.length === 1
-                ? `${study.chapters[chapterIndices[0]]?.title ?? `Chapter ${chapterIndices[0] + 1}`}`
-                : 'Original per-chapter drill.'
-            }
+            hint={study.chapters[currentChapterIndex]?.title ?? `Chapter ${currentChapterIndex + 1}`}
           />
           <Radio
             name="scope"
